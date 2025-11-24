@@ -726,8 +726,8 @@ If evidence is weak, say so clearly."""
 **Architecture**:
 ```
 ┌─────────────────────────────────────────────────┐
-│  DeepCritical Agent                              │
-│  (uses tools directly OR via MCP)                │
+│  DeepCritical Agent                             │
+│  (uses tools directly OR via MCP)               │
 └─────────────────────────────────────────────────┘
                       │
          ┌────────────┼────────────┐
