@@ -13,12 +13,13 @@ AI-powered deep research system for accelerating drug repurposing discovery.
 - **[Design Patterns](architecture/design-patterns.md)** - 13 technical patterns, judge prompts, data models
 
 ### Guides
-- Setup Guide (coming soon)
-- User Guide (coming soon)
+- [Setup Guide](guides/setup.md) (coming soon)
+- **[Deployment Guide](guides/deployment.md)** - Gradio, MCP, and Modal launch steps
 
 ### Development
-- Contributing (coming soon)
-- API Reference (coming soon)
+- **[Testing Strategy](development/testing.md)** - Unit, Integration, and E2E testing patterns
+- [Contributing](development/contributing.md) (coming soon)
+
 
 ---
 
