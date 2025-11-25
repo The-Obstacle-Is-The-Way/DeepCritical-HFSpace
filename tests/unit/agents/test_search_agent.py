@@ -7,10 +7,10 @@ import pytest
 # Skip all tests if agent_framework not installed (optional dep)
 pytest.importorskip("agent_framework")
 
-from agent_framework import ChatMessage, Role  # noqa: E402
+from agent_framework import ChatMessage, Role
 
-from src.agents.search_agent import SearchAgent  # noqa: E402
-from src.utils.models import Citation, Evidence, SearchResult  # noqa: E402
+from src.agents.search_agent import SearchAgent
+from src.utils.models import Citation, Evidence, SearchResult
 
 
 @pytest.fixture

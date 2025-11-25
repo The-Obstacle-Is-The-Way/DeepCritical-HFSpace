@@ -78,6 +78,8 @@ ignore = [
     "PLR0913",  # Too many arguments (agents need many params)
     "PLR0912",  # Too many branches (complex orchestrator logic)
     "PLC0415",  # Lazy imports for optional dependencies
+    "E402",     # Module level import not at top (needed for pytest.importorskip)
+    "RUF100",   # Unused noqa (version differences between local/CI)
 ]
 
 [tool.ruff.lint.isort]
