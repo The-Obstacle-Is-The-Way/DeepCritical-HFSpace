@@ -150,36 +150,34 @@ exclude_lines = [
 
 ---
 
-## 4. Directory Structure (Create All)
+## 4. Directory Structure (Using Maintainer's Template)
+
+The maintainer already created empty scaffolding. We just need to add `__init__.py` files and tests.
 
 ```bash
-# Execute these commands
-mkdir -p src/shared
-mkdir -p src/features/search
-mkdir -p src/features/judge
-mkdir -p src/features/orchestrator
-mkdir -p src/features/report
-mkdir -p tests/unit/shared
-mkdir -p tests/unit/features/search
-mkdir -p tests/unit/features/judge
-mkdir -p tests/unit/features/orchestrator
-mkdir -p tests/integration
+# The following folders already exist (from maintainer):
+# src/agent_factory/, src/tools/, src/utils/, src/prompts/,
+# src/middleware/, src/database_services/, src/retrieval_factory/
 
 # Create __init__.py files (required for imports)
 touch src/__init__.py
-touch src/shared/__init__.py
-touch src/features/__init__.py
-touch src/features/search/__init__.py
-touch src/features/judge/__init__.py
-touch src/features/orchestrator/__init__.py
-touch src/features/report/__init__.py
+touch src/agent_factory/__init__.py
+touch src/tools/__init__.py
+touch src/utils/__init__.py
+touch src/prompts/__init__.py
+
+# Create test directories
+mkdir -p tests/unit/utils
+mkdir -p tests/unit/tools
+mkdir -p tests/unit/agent_factory
+mkdir -p tests/integration
+
+# Create test __init__.py files
 touch tests/__init__.py
 touch tests/unit/__init__.py
-touch tests/unit/shared/__init__.py
-touch tests/unit/features/__init__.py
-touch tests/unit/features/search/__init__.py
-touch tests/unit/features/judge/__init__.py
-touch tests/unit/features/orchestrator/__init__.py
+touch tests/unit/utils/__init__.py
+touch tests/unit/tools/__init__.py
+touch tests/unit/agent_factory/__init__.py
 touch tests/integration/__init__.py
 ```
 
@@ -267,7 +265,7 @@ def sample_evidence():
 
 ## 6. Shared Kernel Implementation
 
-### `src/shared/config.py`
+### `src/utils/config.py`
 
 ```python
 """Application configuration using Pydantic Settings."""

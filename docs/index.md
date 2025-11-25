@@ -12,6 +12,13 @@ AI-powered deep research system for accelerating drug repurposing discovery.
 - **[Overview](architecture/overview.md)** - Project overview, use case, architecture, timeline
 - **[Design Patterns](architecture/design-patterns.md)** - 17 technical patterns, reference repos, judge prompts, data models
 
+### Implementation (Start Here!)
+- **[Roadmap](implementation/roadmap.md)** - Phased execution plan with TDD
+- **[Phase 1: Foundation](implementation/01_phase_foundation.md)** - Tooling, config, first tests
+- **[Phase 2: Search](implementation/02_phase_search.md)** - PubMed + DuckDuckGo
+- **[Phase 3: Judge](implementation/03_phase_judge.md)** - LLM evidence assessment
+- **[Phase 4: UI](implementation/04_phase_ui.md)** - Orchestrator + Gradio + Deploy
+
 ### Guides
 - [Setup Guide](guides/setup.md) (coming soon)
 - **[Deployment Guide](guides/deployment.md)** - Gradio, MCP, and Modal launch steps
