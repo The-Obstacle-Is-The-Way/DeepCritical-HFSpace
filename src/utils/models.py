@@ -107,6 +107,7 @@ class AgentEvent(BaseModel):
         "complete",
         "error",
         "streaming",
+        "hypothesizing",  # NEW for Phase 7
     ]
     message: str
     data: Any = None
@@ -126,9 +127,49 @@ class AgentEvent(BaseModel):
             "complete": "🎉",
             "error": "❌",
             "streaming": "📡",
+            "hypothesizing": "🔬",  # NEW
         }
         icon = icons.get(self.type, "•")
         return f"{icon} **{self.type.upper()}**: {self.message}"
+
+
+class MechanismHypothesis(BaseModel):
+    """A scientific hypothesis about drug mechanism."""
+
+    drug: str = Field(description="The drug being studied")
+    target: str = Field(description="Molecular target (e.g., AMPK, mTOR)")
+    pathway: str = Field(description="Biological pathway affected")
+    effect: str = Field(description="Downstream effect on disease")
+    confidence: float = Field(ge=0, le=1, description="Confidence in hypothesis")
+    supporting_evidence: list[str] = Field(
+        default_factory=list, description="PMIDs or URLs supporting this hypothesis"
+    )
+    contradicting_evidence: list[str] = Field(
+        default_factory=list, description="PMIDs or URLs contradicting this hypothesis"
+    )
+    search_suggestions: list[str] = Field(
+        default_factory=list, description="Suggested searches to test this hypothesis"
+    )
+
+    def to_search_queries(self) -> list[str]:
+        """Generate search queries to test this hypothesis."""
+        return [
+            f"{self.drug} {self.target}",
+            f"{self.target} {self.pathway}",
+            f"{self.pathway} {self.effect}",
+            *self.search_suggestions,
+        ]
+
+
+class HypothesisAssessment(BaseModel):
+    """Assessment of evidence against hypotheses."""
+
+    hypotheses: list[MechanismHypothesis]
+    primary_hypothesis: MechanismHypothesis | None = Field(
+        description="Most promising hypothesis based on current evidence"
+    )
+    knowledge_gaps: list[str] = Field(description="What we don't know yet")
+    recommended_searches: list[str] = Field(description="Searches to fill knowledge gaps")
 
 
 class OrchestratorConfig(BaseModel):

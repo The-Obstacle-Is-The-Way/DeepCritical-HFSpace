@@ -6,8 +6,13 @@ the agent_framework provides an AnthropicChatClient.
 """
 
 from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING, Any
 
 import structlog
+
+if TYPE_CHECKING:
+    from src.services.embeddings import EmbeddingService
+
 from agent_framework import (
     MagenticAgentDeltaEvent,
     MagenticAgentMessageEvent,
@@ -18,6 +23,7 @@ from agent_framework import (
 )
 from agent_framework.openai import OpenAIChatClient
 
+from src.agents.hypothesis_agent import HypothesisAgent
 from src.agents.judge_agent import JudgeAgent
 from src.agents.search_agent import SearchAgent
 from src.orchestrator import JudgeHandlerProtocol, SearchHandlerProtocol
@@ -51,6 +57,76 @@ class MagenticOrchestrator:
         self._max_rounds = max_rounds
         self._evidence_store: dict[str, list[Evidence]] = {"current": []}
 
+    def _init_embedding_service(self) -> "EmbeddingService | None":
+        """Initialize embedding service if available."""
+        try:
+            from src.services.embeddings import get_embedding_service
+
+            service = get_embedding_service()
+            logger.info("Embedding service enabled")
+            return service
+        except ImportError:
+            logger.info("Embedding service not available (dependencies missing)")
+        except Exception as e:
+            logger.warning("Failed to initialize embedding service", error=str(e))
+        return None
+
+    def _build_workflow(
+        self,
+        search_agent: SearchAgent,
+        hypothesis_agent: HypothesisAgent,
+        judge_agent: JudgeAgent,
+    ) -> Any:
+        """Build the Magentic workflow with participants."""
+        if not settings.openai_api_key:
+            raise ConfigurationError(
+                "Magentic mode requires OPENAI_API_KEY. "
+                "Set the key or use mode='simple' with Anthropic."
+            )
+
+        return (
+            MagenticBuilder()
+            .participants(
+                searcher=search_agent,
+                hypothesizer=hypothesis_agent,
+                judge=judge_agent,
+            )
+            .with_standard_manager(
+                chat_client=OpenAIChatClient(
+                    model_id=settings.openai_model, api_key=settings.openai_api_key
+                ),
+                max_round_count=self._max_rounds,
+                max_stall_count=3,
+                max_reset_count=2,
+            )
+            .build()
+        )
+
+    def _format_task(self, query: str, has_embeddings: bool) -> str:
+        """Format the task instruction for the manager."""
+        semantic_note = ""
+        if has_embeddings:
+            semantic_note = """
+The system has semantic search enabled. When evidence is found:
+1. Related concepts will be automatically surfaced
+2. Duplicates are removed by meaning, not just URL
+3. Use the surfaced related concepts to refine searches
+"""
+        return f"""Research drug repurposing opportunities for: {query}
+{semantic_note}
+Workflow:
+1. SearcherAgent: Find initial evidence from PubMed and web. SEND ONLY A SIMPLE KEYWORD QUERY.
+2. HypothesisAgent: Generate mechanistic hypotheses (Drug -> Target -> Pathway -> Effect).
+3. SearcherAgent: Use hypothesis-suggested queries for targeted search.
+4. JudgeAgent: Evaluate if evidence supports hypotheses.
+5. Repeat until confident or max rounds.
+
+Focus on:
+- Identifying specific molecular targets
+- Understanding mechanism of action
+- Finding supporting/contradicting evidence for hypotheses
+"""
+
     async def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:
         """
         Run the Magentic workflow - same API as simple Orchestrator.
@@ -65,157 +141,28 @@ class MagenticOrchestrator:
             iteration=0,
         )
 
-        # Initialize embedding service (optional)
-        embedding_service = None
-        try:
-            from src.services.embeddings import get_embedding_service
-
-            embedding_service = get_embedding_service()
-            logger.info("Embedding service enabled")
-        except ImportError:
-            logger.info("Embedding service not available (dependencies missing)")
-        except Exception as e:
-            logger.warning("Failed to initialize embedding service", error=str(e))
-
-        # Create agent wrappers
+        # Initialize services and agents
+        embedding_service = self._init_embedding_service()
         search_agent = SearchAgent(
             self._search_handler, self._evidence_store, embedding_service=embedding_service
         )
         judge_agent = JudgeAgent(self._judge_handler, self._evidence_store)
-
-        # Build Magentic workflow
-        # Note: MagenticBuilder requires OpenAI - validate key exists
-        if not settings.openai_api_key:
-            raise ConfigurationError(
-                "Magentic mode requires OPENAI_API_KEY. "
-                "Set the key or use mode='simple' with Anthropic."
-            )
-
-        workflow = (
-            MagenticBuilder()
-            .participants(
-                searcher=search_agent,
-                judge=judge_agent,
-            )
-            .with_standard_manager(
-                chat_client=OpenAIChatClient(
-                    model_id=settings.openai_model, api_key=settings.openai_api_key
-                ),
-                max_round_count=self._max_rounds,
-                max_stall_count=3,
-                max_reset_count=2,
-            )
-            .build()
+        hypothesis_agent = HypothesisAgent(
+            self._evidence_store, embedding_service=embedding_service
         )
 
-        # Task instruction for the manager
-        semantic_note = ""
-        if embedding_service:
-            semantic_note = """
-The system has semantic search enabled. When evidence is found:
-1. Related concepts will be automatically surfaced
-2. Duplicates are removed by meaning, not just URL
-3. Use the surfaced related concepts to refine searches
-"""
-
-        task = f"""Research drug repurposing opportunities for: {query}
-{semantic_note}
-Instructions:
-1. Use SearcherAgent to find evidence. SEND ONLY A SIMPLE KEYWORD QUERY (e.g. "metformin aging")
-   as the instruction. Complex queries fail.
-2. Use JudgeAgent to evaluate if evidence is sufficient.
-3. If JudgeAgent says "continue", search with refined queries.
-4. If JudgeAgent says "synthesize", provide final synthesis
-5. Stop when synthesis is ready or max rounds reached
-
-Focus on finding:
-- Mechanism of action evidence
-- Clinical/preclinical studies
-- Specific drug candidates
-"""
+        # Build workflow and task
+        workflow = self._build_workflow(search_agent, hypothesis_agent, judge_agent)
+        task = self._format_task(query, embedding_service is not None)
 
         iteration = 0
         try:
-            # workflow.run_stream returns an async generator of workflow events
-            # We use 'await' in the for loop for async generator
             async for event in workflow.run_stream(task):
-                if isinstance(event, MagenticOrchestratorMessageEvent):
-                    # Manager events (planning, instruction, ledger)
-                    # The 'message' attribute might be None if it's just a state change,
-                    # check message presence
-                    message_text = (
-                        event.message.text
-                        if event.message and hasattr(event.message, "text")
-                        else ""
-                    )
-                    # kind might be 'plan', 'instruction', etc.
-                    kind = getattr(event, "kind", "manager")
-
-                    if message_text:
-                        yield AgentEvent(
-                            type="judging",
-                            message=f"Manager ({kind}): {message_text[:100]}...",
-                            iteration=iteration,
-                        )
-
-                elif isinstance(event, MagenticAgentMessageEvent):
-                    # Complete agent response
-                    iteration += 1
-                    agent_name = event.agent_id or "unknown"
-                    msg_text = (
-                        event.message.text
-                        if event.message and hasattr(event.message, "text")
-                        else ""
-                    )
-
-                    if "search" in agent_name.lower():
-                        # Check if we found evidence (based on SearchAgent logic)
-                        yield AgentEvent(
-                            type="search_complete",
-                            message=f"Search agent: {msg_text[:100]}...",
-                            iteration=iteration,
-                        )
-                    elif "judge" in agent_name.lower():
-                        yield AgentEvent(
-                            type="judge_complete",
-                            message=f"Judge agent: {msg_text[:100]}...",
-                            iteration=iteration,
-                        )
-
-                elif isinstance(event, MagenticFinalResultEvent):
-                    # Final workflow result
-                    final_text = (
-                        event.message.text
-                        if event.message and hasattr(event.message, "text")
-                        else "No result"
-                    )
-                    yield AgentEvent(
-                        type="complete",
-                        message=final_text,
-                        data={"iterations": iteration},
-                        iteration=iteration,
-                    )
-
-                elif isinstance(event, MagenticAgentDeltaEvent):
-                    # Streaming token chunks from agents (optional "typing" effect)
-                    # Only emit if we have actual text content
-                    if event.text:
-                        yield AgentEvent(
-                            type="streaming",
-                            message=event.text,
-                            data={"agent_id": event.agent_id},
-                            iteration=iteration,
-                        )
-
-                elif isinstance(event, WorkflowOutputEvent):
-                    # Alternative final output event
-                    if event.data:
-                        yield AgentEvent(
-                            type="complete",
-                            message=str(event.data),
-                            iteration=iteration,
-                        )
-
+                agent_event = self._process_event(event, iteration)
+                if agent_event:
+                    if isinstance(event, MagenticAgentMessageEvent):
+                        iteration += 1
+                    yield agent_event
         except Exception as e:
             logger.error("Magentic workflow failed", error=str(e))
             yield AgentEvent(
@@ -223,3 +170,82 @@ Focus on finding:
                 message=f"Workflow error: {e!s}",
                 iteration=iteration,
             )
+
+    def _process_event(self, event: Any, iteration: int) -> AgentEvent | None:
+        """Process a workflow event and return an AgentEvent if applicable."""
+        if isinstance(event, MagenticOrchestratorMessageEvent):
+            message_text = (
+                event.message.text if event.message and hasattr(event.message, "text") else ""
+            )
+            kind = getattr(event, "kind", "manager")
+            if message_text:
+                return AgentEvent(
+                    type="judging",
+                    message=f"Manager ({kind}): {message_text[:100]}...",
+                    iteration=iteration,
+                )
+
+        elif isinstance(event, MagenticAgentMessageEvent):
+            agent_name = event.agent_id or "unknown"
+            msg_text = (
+                event.message.text if event.message and hasattr(event.message, "text") else ""
+            )
+            return self._agent_message_event(agent_name, msg_text, iteration + 1)
+
+        elif isinstance(event, MagenticFinalResultEvent):
+            final_text = (
+                event.message.text
+                if event.message and hasattr(event.message, "text")
+                else "No result"
+            )
+            return AgentEvent(
+                type="complete",
+                message=final_text,
+                data={"iterations": iteration},
+                iteration=iteration,
+            )
+
+        elif isinstance(event, MagenticAgentDeltaEvent):
+            if event.text:
+                return AgentEvent(
+                    type="streaming",
+                    message=event.text,
+                    data={"agent_id": event.agent_id},
+                    iteration=iteration,
+                )
+
+        elif isinstance(event, WorkflowOutputEvent):
+            if event.data:
+                return AgentEvent(
+                    type="complete",
+                    message=str(event.data),
+                    iteration=iteration,
+                )
+
+        return None
+
+    def _agent_message_event(self, agent_name: str, msg_text: str, iteration: int) -> AgentEvent:
+        """Create an AgentEvent for an agent message."""
+        if "search" in agent_name.lower():
+            return AgentEvent(
+                type="search_complete",
+                message=f"Search agent: {msg_text[:100]}...",
+                iteration=iteration,
+            )
+        elif "hypothes" in agent_name.lower():
+            return AgentEvent(
+                type="hypothesizing",
+                message=f"Hypothesis agent: {msg_text[:100]}...",
+                iteration=iteration,
+            )
+        elif "judge" in agent_name.lower():
+            return AgentEvent(
+                type="judge_complete",
+                message=f"Judge agent: {msg_text[:100]}...",
+                iteration=iteration,
+            )
+        return AgentEvent(
+            type="judging",
+            message=f"{agent_name}: {msg_text[:100]}...",
+            iteration=iteration,
+        )
