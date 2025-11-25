@@ -40,7 +40,7 @@ class MagenticOrchestrator:
         self._max_rounds = max_rounds
         self._evidence_store: dict[str, list[Evidence]] = {"current": []}
 
-    async def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:  # noqa: PLR0912
+    async def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:
         """
         Run the Magentic workflow - same API as simple Orchestrator.
 

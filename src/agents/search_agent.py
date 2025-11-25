@@ -49,6 +49,8 @@ class SearchAgent(BaseAgent):  # type: ignore[misc]
                     break
         elif isinstance(messages, str):
             query = messages
+        elif isinstance(messages, ChatMessage) and messages.text:
+            query = messages.text
 
         if not query:
             return AgentRunResponse(

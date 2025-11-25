@@ -51,6 +51,8 @@ class JudgeAgent(BaseAgent):  # type: ignore[misc]
                     break
         elif isinstance(messages, str):
             question = messages
+        elif isinstance(messages, ChatMessage) and messages.text:
+            question = messages.text
 
         # Get evidence from shared store
         evidence = self._evidence_store.get("current", [])
