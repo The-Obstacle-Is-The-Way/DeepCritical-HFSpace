@@ -81,5 +81,48 @@ async def test_run_handles_list_input(mock_handler: AsyncMock) -> None:
         ChatMessage(role=Role.USER, text="test query"),
     ]
     await agent.run(messages)
-
     mock_handler.execute.assert_awaited_once_with("test query", max_results_per_tool=10)
+
+
+@pytest.mark.asyncio
+async def test_run_uses_embeddings(mock_handler: AsyncMock) -> None:
+    """Test that run uses embedding service if provided."""
+    store: dict = {"current": []}
+
+    # Mock embedding service
+    mock_embeddings = AsyncMock()
+    # Mock deduplicate to return the evidence as is (or filtered)
+    mock_embeddings.deduplicate.return_value = [
+        Evidence(
+            content="unique content",
+            citation=Citation(source="pubmed", url="u1", title="t1", date="2024"),
+        )
+    ]
+    # Mock search_similar to return related items
+    mock_embeddings.search_similar.return_value = [
+        {
+            "id": "u2",
+            "content": "related content",
+            "metadata": {"source": "web", "title": "related", "date": "2024"},
+            "distance": 0.1,
+        }
+    ]
+
+    agent = SearchAgent(mock_handler, store, embedding_service=mock_embeddings)
+
+    await agent.run("test query")
+
+    # Verify deduplicate called
+    mock_embeddings.deduplicate.assert_awaited_once()
+
+    # Verify semantic search called
+    mock_embeddings.search_similar.assert_awaited_once_with("test query", n_results=5)
+
+    # Verify store contains related evidence (if logic implemented to add it)
+    # Note: logic for adding related evidence needs to be implemented in SearchAgent
+    # The spec says: "Merge related evidence not already in results"
+
+    # Check if u1 (deduplicated result) is in store
+    assert any(e.citation.url == "u1" for e in store["current"])
+    # Check if u2 (related result) is in store
+    assert any(e.citation.url == "u2" for e in store["current"])

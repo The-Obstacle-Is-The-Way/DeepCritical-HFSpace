@@ -54,8 +54,22 @@ class MagenticOrchestrator:
             iteration=0,
         )
 
+        # Initialize embedding service (optional)
+        embedding_service = None
+        try:
+            from src.services.embeddings import get_embedding_service
+
+            embedding_service = get_embedding_service()
+            logger.info("Embedding service enabled")
+        except ImportError:
+            logger.info("Embedding service not available (dependencies missing)")
+        except Exception as e:
+            logger.warning("Failed to initialize embedding service", error=str(e))
+
         # Create agent wrappers
-        search_agent = SearchAgent(self._search_handler, self._evidence_store)
+        search_agent = SearchAgent(
+            self._search_handler, self._evidence_store, embedding_service=embedding_service
+        )
         judge_agent = JudgeAgent(self._judge_handler, self._evidence_store)
 
         # Build Magentic workflow
@@ -78,8 +92,17 @@ class MagenticOrchestrator:
         )
 
         # Task instruction for the manager
-        task = f"""Research drug repurposing opportunities for: {query}
+        semantic_note = ""
+        if embedding_service:
+            semantic_note = """
+The system has semantic search enabled. When evidence is found:
+1. Related concepts will be automatically surfaced
+2. Duplicates are removed by meaning, not just URL
+3. Use the surfaced related concepts to refine searches
+"""
 
+        task = f"""Research drug repurposing opportunities for: {query}
+{semantic_note}
 Instructions:
 1. Use SearcherAgent to find evidence. SEND ONLY A SIMPLE KEYWORD QUERY (e.g. "metformin aging")
    as the instruction. Complex queries fail.

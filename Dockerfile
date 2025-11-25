@@ -19,7 +19,14 @@ COPY src/ src/
 COPY README.md .
 
 # Install dependencies
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --all-extras
+
+# Set cache directory for HuggingFace models
+ENV HF_HOME=/app/.cache
+ENV TRANSFORMERS_CACHE=/app/.cache
+
+# Pre-download the embedding model during build to speed up cold starts
+RUN uv run python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash appuser
