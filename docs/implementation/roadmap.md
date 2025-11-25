@@ -115,26 +115,96 @@ tests/
 
 ---
 
-### **Phase 5: Magentic Integration (OPTIONAL - Post-MVP)**
+### **Phase 5: Magentic Integration** ✅ COMPLETE
 
 *Goal: Upgrade orchestrator to use Microsoft Agent Framework patterns.*
 
-- [ ] Wrap SearchHandler as `AgentProtocol` (SearchAgent) with strict protocol compliance.
-- [ ] Wrap JudgeHandler as `AgentProtocol` (JudgeAgent) with strict protocol compliance.
-- [ ] Implement `MagenticOrchestrator` using `MagenticBuilder`.
-- [ ] Create factory pattern for switching implementations.
+- [x] Wrap SearchHandler as `AgentProtocol` (SearchAgent) with strict protocol compliance.
+- [x] Wrap JudgeHandler as `AgentProtocol` (JudgeAgent) with strict protocol compliance.
+- [x] Implement `MagenticOrchestrator` using `MagenticBuilder`.
+- [x] Create factory pattern for switching implementations.
 - **Deliverable**: Same API, better multi-agent orchestration engine.
 
-**NOTE**: Only implement Phase 5 if time permits after MVP is shipped.
+---
+
+### **Phase 6: Embeddings & Semantic Search**
+
+*Goal: Add vector search for semantic evidence retrieval.*
+
+- [ ] Implement `EmbeddingService` with ChromaDB.
+- [ ] Add semantic deduplication to SearchAgent.
+- [ ] Enable semantic search for related evidence.
+- [ ] Store embeddings in shared context.
+- **Deliverable**: Find semantically related papers, not just keyword matches.
+
+---
+
+### **Phase 7: Hypothesis Agent**
+
+*Goal: Generate scientific hypotheses to guide targeted searches.*
+
+- [ ] Implement `MechanismHypothesis` and `HypothesisAssessment` models.
+- [ ] Implement `HypothesisAgent` for mechanistic reasoning.
+- [ ] Add hypothesis-driven search queries.
+- [ ] Integrate into Magentic workflow.
+- **Deliverable**: Drug → Target → Pathway → Effect hypotheses that guide research.
+
+---
+
+### **Phase 8: Report Agent**
+
+*Goal: Generate structured scientific reports with proper citations.*
+
+- [ ] Implement `ResearchReport` model with all sections.
+- [ ] Implement `ReportAgent` for synthesis.
+- [ ] Include methodology, limitations, formatted references.
+- [ ] Integrate as final synthesis step in Magentic workflow.
+- **Deliverable**: Publication-quality research reports.
+
+---
+
+## Complete Architecture (Phases 1-8)
+
+```
+User Query
+    ↓
+Gradio UI (Phase 4)
+    ↓
+Magentic Manager (Phase 5)
+    ├── SearchAgent (Phase 2+5) ←→ PubMed + Web + VectorDB (Phase 6)
+    ├── HypothesisAgent (Phase 7) ←→ Mechanistic Reasoning
+    ├── JudgeAgent (Phase 3+5) ←→ Evidence Assessment
+    └── ReportAgent (Phase 8) ←→ Final Synthesis
+    ↓
+Structured Research Report
+```
 
 ---
 
 ## Spec Documents
 
-1. **[Phase 1 Spec: Foundation](01_phase_foundation.md)**
-2. **[Phase 2 Spec: Search Slice](02_phase_search.md)**
-3. **[Phase 3 Spec: Judge Slice](03_phase_judge.md)**
-4. **[Phase 4 Spec: UI & Loop](04_phase_ui.md)**
-5. **[Phase 5 Spec: Magentic Integration](05_phase_magentic.md)** *(Optional)*
+1. **[Phase 1 Spec: Foundation](01_phase_foundation.md)** ✅
+2. **[Phase 2 Spec: Search Slice](02_phase_search.md)** ✅
+3. **[Phase 3 Spec: Judge Slice](03_phase_judge.md)** ✅
+4. **[Phase 4 Spec: UI & Loop](04_phase_ui.md)** ✅
+5. **[Phase 5 Spec: Magentic Integration](05_phase_magentic.md)** ✅
+6. **[Phase 6 Spec: Embeddings & Semantic Search](06_phase_embeddings.md)**
+7. **[Phase 7 Spec: Hypothesis Agent](07_phase_hypothesis.md)**
+8. **[Phase 8 Spec: Report Agent](08_phase_report.md)**
 
-*Start by reading Phase 1 Spec to initialize the repo.*
+---
+
+## Progress Summary
+
+| Phase | Status | Deliverable |
+|-------|--------|-------------|
+| Phase 1: Foundation | ✅ COMPLETE | CI-ready repo with uv/pytest |
+| Phase 2: Search | ✅ COMPLETE | PubMed + Web search |
+| Phase 3: Judge | ✅ COMPLETE | LLM evidence assessment |
+| Phase 4: UI & Loop | ✅ COMPLETE | Working Gradio app |
+| Phase 5: Magentic | ✅ COMPLETE | Multi-agent orchestration |
+| Phase 6: Embeddings | 📝 SPEC READY | Semantic search |
+| Phase 7: Hypothesis | 📝 SPEC READY | Mechanistic reasoning |
+| Phase 8: Report | 📝 SPEC READY | Structured reports |
+
+*Phases 1-5 completed in ONE DAY. Phases 6-8 specs ready for implementation.*
