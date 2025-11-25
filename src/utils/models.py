@@ -172,6 +172,105 @@ class HypothesisAssessment(BaseModel):
     recommended_searches: list[str] = Field(description="Searches to fill knowledge gaps")
 
 
+class ReportSection(BaseModel):
+    """A section of the research report."""
+
+    title: str
+    content: str
+    citations: list[str] = Field(default_factory=list)
+
+
+class ResearchReport(BaseModel):
+    """Structured scientific report."""
+
+    title: str = Field(description="Report title")
+    executive_summary: str = Field(
+        description="One-paragraph summary for quick reading", min_length=100, max_length=1000
+    )
+    research_question: str = Field(description="Clear statement of what was investigated")
+
+    methodology: ReportSection = Field(description="How the research was conducted")
+    hypotheses_tested: list[dict[str, Any]] = Field(
+        description="Hypotheses with supporting/contradicting evidence counts"
+    )
+
+    mechanistic_findings: ReportSection = Field(description="Findings about drug mechanisms")
+    clinical_findings: ReportSection = Field(
+        description="Findings from clinical/preclinical studies"
+    )
+
+    drug_candidates: list[str] = Field(description="Identified drug candidates")
+    limitations: list[str] = Field(description="Study limitations")
+    conclusion: str = Field(description="Overall conclusion")
+
+    references: list[dict[str, str]] = Field(
+        description="Formatted references with title, authors, source, URL"
+    )
+
+    # Metadata
+    sources_searched: list[str] = Field(default_factory=list)
+    total_papers_reviewed: int = 0
+    search_iterations: int = 0
+    confidence_score: float = Field(ge=0, le=1)
+
+    def to_markdown(self) -> str:
+        """Render report as markdown."""
+        sections = [
+            f"# {self.title}\n",
+            f"## Executive Summary\n{self.executive_summary}\n",
+            f"## Research Question\n{self.research_question}\n",
+            f"## Methodology\n{self.methodology.content}\n",
+        ]
+
+        # Hypotheses
+        sections.append("## Hypotheses Tested\n")
+        for h in self.hypotheses_tested:
+            supported = h.get("supported", 0)
+            contradicted = h.get("contradicted", 0)
+            status = "✅ Supported" if supported > contradicted else "⚠️ Mixed"
+            sections.append(
+                f"- **{h.get('mechanism', 'Unknown')}** ({status}): "
+                f"{supported} supporting, {contradicted} contradicting\n"
+            )
+
+        # Findings
+        sections.append(f"## Mechanistic Findings\n{self.mechanistic_findings.content}\n")
+        sections.append(f"## Clinical Findings\n{self.clinical_findings.content}\n")
+
+        # Drug candidates
+        sections.append("## Drug Candidates\n")
+        for drug in self.drug_candidates:
+            sections.append(f"- **{drug}**\n")
+
+        # Limitations
+        sections.append("## Limitations\n")
+        for lim in self.limitations:
+            sections.append(f"- {lim}\n")
+
+        # Conclusion
+        sections.append(f"## Conclusion\n{self.conclusion}\n")
+
+        # References
+        sections.append("## References\n")
+        for i, ref in enumerate(self.references, 1):
+            sections.append(
+                f"{i}. {ref.get('authors', 'Unknown')}. "
+                f"*{ref.get('title', 'Untitled')}*. "
+                f"{ref.get('source', '')} ({ref.get('date', '')}). "
+                f"[Link]({ref.get('url', '#')})\n"
+            )
+
+        # Metadata footer
+        sections.append("\n---\n")
+        sections.append(
+            f"*Report generated from {self.total_papers_reviewed} papers "
+            f"across {self.search_iterations} search iterations. "
+            f"Confidence: {self.confidence_score:.0%}*"
+        )
+
+        return "\n".join(sections)
+
+
 class OrchestratorConfig(BaseModel):
     """Configuration for the orchestrator."""
 

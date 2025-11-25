@@ -25,6 +25,7 @@ from agent_framework.openai import OpenAIChatClient
 
 from src.agents.hypothesis_agent import HypothesisAgent
 from src.agents.judge_agent import JudgeAgent
+from src.agents.report_agent import ReportAgent
 from src.agents.search_agent import SearchAgent
 from src.orchestrator import JudgeHandlerProtocol, SearchHandlerProtocol
 from src.utils.config import settings
@@ -81,6 +82,7 @@ class MagenticOrchestrator:
         search_agent: SearchAgent,
         hypothesis_agent: HypothesisAgent,
         judge_agent: JudgeAgent,
+        report_agent: ReportAgent,
     ) -> Any:
         """Build the Magentic workflow with participants."""
         if not settings.openai_api_key:
@@ -95,6 +97,7 @@ class MagenticOrchestrator:
                 searcher=search_agent,
                 hypothesizer=hypothesis_agent,
                 judge=judge_agent,
+                reporter=report_agent,
             )
             .with_standard_manager(
                 chat_client=OpenAIChatClient(
@@ -124,12 +127,22 @@ Workflow:
 2. HypothesisAgent: Generate mechanistic hypotheses (Drug -> Target -> Pathway -> Effect).
 3. SearcherAgent: Use hypothesis-suggested queries for targeted search.
 4. JudgeAgent: Evaluate if evidence supports hypotheses.
-5. Repeat until confident or max rounds.
+5. If sufficient -> ReportAgent: Generate structured research report.
+6. If not sufficient -> Repeat from step 1 with refined queries.
 
 Focus on:
 - Identifying specific molecular targets
 - Understanding mechanism of action
 - Finding supporting/contradicting evidence for hypotheses
+
+The final output should be a complete research report with:
+- Executive summary
+- Methodology
+- Hypotheses tested
+- Mechanistic and clinical findings
+- Drug candidates
+- Limitations
+- Conclusion with references
 """
 
     async def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:
@@ -155,9 +168,10 @@ Focus on:
         hypothesis_agent = HypothesisAgent(
             self._evidence_store, embedding_service=embedding_service
         )
+        report_agent = ReportAgent(self._evidence_store, embedding_service=embedding_service)
 
         # Build workflow and task
-        workflow = self._build_workflow(search_agent, hypothesis_agent, judge_agent)
+        workflow = self._build_workflow(search_agent, hypothesis_agent, judge_agent, report_agent)
         task = self._format_task(query, embedding_service is not None)
 
         iteration = 0
@@ -247,6 +261,12 @@ Focus on:
             return AgentEvent(
                 type="judge_complete",
                 message=f"Judge agent: {_truncate(msg_text)}",
+                iteration=iteration,
+            )
+        elif "report" in agent_name.lower():
+            return AgentEvent(
+                type="synthesizing",
+                message="Report generated successfully.",
                 iteration=iteration,
             )
         return AgentEvent(
