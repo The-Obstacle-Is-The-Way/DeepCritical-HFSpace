@@ -165,7 +165,7 @@ tests/
 
 ## Complete Architecture (Phases 1-8)
 
-```
+```text
 User Query
     ↓
 Gradio UI (Phase 4)

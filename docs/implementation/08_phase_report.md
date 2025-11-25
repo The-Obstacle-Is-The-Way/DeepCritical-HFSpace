@@ -11,7 +11,7 @@
 Current limitation: **Synthesis is basic markdown, not a scientific report.**
 
 Current output:
-```
+```markdown
 ## Drug Repurposing Analysis
 ### Drug Candidates
 - Metformin
@@ -22,7 +22,7 @@ Current output:
 ```
 
 With Report Agent:
-```
+```markdown
 ## Executive Summary
 One-paragraph summary for busy readers...
 
@@ -59,7 +59,7 @@ Properly formatted citations...
 ## 2. Architecture
 
 ### Phase 8 Addition
-```
+```text
 Evidence + Hypotheses + Assessment
             ↓
       Report Agent
@@ -68,7 +68,7 @@ Evidence + Hypotheses + Assessment
 ```
 
 ### Report Generation Flow
-```
+```text
 1. JudgeAgent says "synthesize"
 2. Magentic Manager selects ReportAgent
 3. ReportAgent gathers:

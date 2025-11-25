@@ -22,7 +22,7 @@ class PubMedTool:
     def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key or settings.ncbi_api_key
         # Ignore placeholder values from .env.example
-        if self.api_key and "your-ncbi-key-here" in self.api_key:
+        if self.api_key == "your-ncbi-key-here":
             self.api_key = None
         self._last_request_time = 0.0
 

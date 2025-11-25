@@ -125,6 +125,7 @@ class AgentEvent(BaseModel):
             "synthesizing": "📝",
             "complete": "🎉",
             "error": "❌",
+            "streaming": "📡",
         }
         icon = icons.get(self.type, "•")
         return f"{icon} **{self.type.upper()}**: {self.message}"

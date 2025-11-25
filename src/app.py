@@ -144,7 +144,7 @@ def create_demo() -> Any:
                     choices=["simple", "magentic"],
                     value="simple",
                     label="Orchestrator Mode",
-                    info="Simple: Linear loop | Magentic: Multi-Agent (Requires OpenAI Key)",
+                    info="Simple: Linear (OpenAI/Anthropic) | Magentic: Multi-Agent (OpenAI)",
                 )
             ],
         )

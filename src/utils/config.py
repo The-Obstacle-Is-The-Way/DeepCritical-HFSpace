@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     llm_provider: Literal["openai", "anthropic"] = Field(
         default="openai", description="Which LLM provider to use"
     )
-    openai_model: str = Field(default="gpt-5.1", description="OpenAI model name")
-    anthropic_model: str = Field(default="claude-sonnet-4-5", description="Anthropic model")
+    openai_model: str = Field(default="gpt-4o", description="OpenAI model name")
+    anthropic_model: str = Field(default="claude-sonnet-4-20250514", description="Anthropic model")
 
     # PubMed Configuration
     ncbi_api_key: str | None = Field(

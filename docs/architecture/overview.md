@@ -65,7 +65,7 @@ Using existing approved drugs to treat NEW diseases they weren't originally desi
 
 ### High-Level Design (Phases 1-8)
 
-```
+```text
 User Query
     ↓
 Gradio UI (Phase 4)
