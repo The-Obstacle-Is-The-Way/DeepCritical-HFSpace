@@ -1,10 +1,13 @@
 """Application configuration using Pydantic Settings."""
 
+import logging
 from typing import Literal
 
 import structlog
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from src.utils.exceptions import ConfigurationError
 
 
 class Settings(BaseSettings):
@@ -44,12 +47,15 @@ class Settings(BaseSettings):
         """Get the API key for the configured provider."""
         if self.llm_provider == "openai":
             if not self.openai_api_key:
-                raise ValueError("OPENAI_API_KEY not set")
+                raise ConfigurationError("OPENAI_API_KEY not set")
             return self.openai_api_key
-        else:
+
+        if self.llm_provider == "anthropic":
             if not self.anthropic_api_key:
-                raise ValueError("ANTHROPIC_API_KEY not set")
+                raise ConfigurationError("ANTHROPIC_API_KEY not set")
             return self.anthropic_api_key
+
+        raise ConfigurationError(f"Unknown LLM provider: {self.llm_provider}")
 
 
 def get_settings() -> Settings:
@@ -58,7 +64,13 @@ def get_settings() -> Settings:
 
 
 def configure_logging(settings: Settings) -> None:
-    """Configure structured logging."""
+    """Configure structured logging with the configured log level."""
+    # Set stdlib logging level from settings
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level),
+        format="%(message)s",
+    )
+
     structlog.configure(
         processors=[
             structlog.stdlib.filter_by_level,

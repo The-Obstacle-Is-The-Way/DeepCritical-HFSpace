@@ -7,6 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.utils.config import Settings
+from src.utils.exceptions import ConfigurationError
 
 
 class TestSettings:
@@ -14,7 +15,6 @@ class TestSettings:
 
     def test_default_max_iterations(self):
         """Settings should have default max_iterations of 10."""
-        # Clear any env vars
         with patch.dict(os.environ, {}, clear=True):
             settings = Settings()
             assert settings.max_iterations == 10  # noqa: PLR2004
@@ -37,9 +37,24 @@ class TestSettings:
             settings = Settings()
             assert settings.get_api_key() == "sk-test-key"
 
-    def test_get_api_key_missing_raises(self):
-        """get_api_key should raise when key is not set."""
+    def test_get_api_key_openai_missing_raises(self):
+        """get_api_key should raise ConfigurationError when OpenAI key is not set."""
         with patch.dict(os.environ, {"LLM_PROVIDER": "openai"}, clear=True):
             settings = Settings()
-            with pytest.raises(ValueError, match="OPENAI_API_KEY not set"):
+            with pytest.raises(ConfigurationError, match="OPENAI_API_KEY not set"):
+                settings.get_api_key()
+
+    def test_get_api_key_anthropic(self):
+        """get_api_key should return Anthropic key when provider is anthropic."""
+        with patch.dict(
+            os.environ, {"LLM_PROVIDER": "anthropic", "ANTHROPIC_API_KEY": "sk-ant-test-key"}
+        ):
+            settings = Settings()
+            assert settings.get_api_key() == "sk-ant-test-key"
+
+    def test_get_api_key_anthropic_missing_raises(self):
+        """get_api_key should raise ConfigurationError when Anthropic key is not set."""
+        with patch.dict(os.environ, {"LLM_PROVIDER": "anthropic"}, clear=True):
+            settings = Settings()
+            with pytest.raises(ConfigurationError, match="ANTHROPIC_API_KEY not set"):
                 settings.get_api_key()
