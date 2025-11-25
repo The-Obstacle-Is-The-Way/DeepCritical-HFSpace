@@ -17,7 +17,7 @@ This slice covers:
    - Normalize results into `Evidence` models.
 3. **Output**: A list of `Evidence` objects.
 
-**Directory**: `src/features/search/`
+**Files**: `src/tools/pubmed.py`, `src/tools/websearch.py`, `src/tools/search_handler.py`, `src/utils/models.py`
 
 ---
 
@@ -55,7 +55,9 @@ NCBI_API_KEY=your-key-here  # Optional but recommended
 
 ---
 
-## 3. Models (`src/features/search/models.py`)
+## 3. Models (`src/utils/models.py`)
+
+> **Note**: All models go in one file (`src/utils/models.py`) for simplicity.
 
 ```python
 """Data models for the Search feature."""
@@ -105,14 +107,16 @@ class SearchResult(BaseModel):
 
 ---
 
-## 4. Tool Protocol (`src/features/search/tools.py`)
+## 4. Tool Protocol (`src/tools/__init__.py`)
+
+Define the protocol in the tools package init.
 
 ### The Interface (Protocol)
 
 ```python
 """Search tools for retrieving evidence from various sources."""
 from typing import Protocol, List
-from .models import Evidence
+from src.utils.models import Evidence
 
 
 class SearchTool(Protocol):
@@ -141,7 +145,7 @@ class SearchTool(Protocol):
         ...
 ```
 
-### PubMed Tool Implementation
+### PubMed Tool Implementation (`src/tools/pubmed.py`)
 
 ```python
 """PubMed search tool using NCBI E-utilities."""
@@ -151,9 +155,9 @@ import xmltodict
 from typing import List
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from src.shared.config import settings
-from src.shared.exceptions import SearchError, RateLimitError
-from .models import Evidence, Citation
+from src.utils.config import settings
+from src.utils.exceptions import SearchError, RateLimitError
+from src.utils.models import Evidence, Citation
 
 
 class PubMedTool:
@@ -329,15 +333,15 @@ class PubMedTool:
         )
 ```
 
-### DuckDuckGo Tool Implementation
+### DuckDuckGo Tool Implementation (`src/tools/websearch.py`)
 
 ```python
 """Web search tool using DuckDuckGo."""
 from typing import List
 from duckduckgo_search import DDGS
 
-from src.shared.exceptions import SearchError
-from .models import Evidence, Citation
+from src.utils.exceptions import SearchError
+from src.utils.models import Evidence, Citation
 
 
 class WebTool:
@@ -394,7 +398,7 @@ class WebTool:
 
 ---
 
-## 5. Search Handler (`src/features/search/handlers.py`)
+## 5. Search Handler (`src/tools/search_handler.py`)
 
 The handler orchestrates multiple tools using the **Scatter-Gather** pattern.
 
@@ -404,9 +408,9 @@ import asyncio
 from typing import List
 import structlog
 
-from src.shared.exceptions import SearchError
-from .models import Evidence, SearchResult
-from .tools import SearchTool
+from src.utils.exceptions import SearchError
+from src.utils.models import Evidence, SearchResult
+from src.tools import SearchTool
 
 logger = structlog.get_logger()
 
@@ -494,7 +498,7 @@ class SearchHandler:
 
 ## 6. TDD Workflow
 
-### Test File: `tests/unit/features/search/test_tools.py`
+### Test File: `tests/unit/tools/test_search.py`
 
 ```python
 """Unit tests for search tools."""
@@ -540,7 +544,7 @@ class TestPubMedTool:
     @pytest.mark.asyncio
     async def test_search_returns_evidence(self, mocker):
         """PubMedTool should return Evidence objects from search."""
-        from src.features.search.tools import PubMedTool
+        from src.tools.pubmed import PubMedTool
 
         # Mock the HTTP responses
         mock_search_response = MagicMock()
@@ -573,7 +577,7 @@ class TestPubMedTool:
     @pytest.mark.asyncio
     async def test_search_empty_results(self, mocker):
         """PubMedTool should return empty list when no results."""
-        from src.features.search.tools import PubMedTool
+        from src.tools.pubmed import PubMedTool
 
         mock_response = MagicMock()
         mock_response.json.return_value = {"esearchresult": {"idlist": []}}
@@ -593,7 +597,7 @@ class TestPubMedTool:
 
     def test_parse_pubmed_xml(self):
         """PubMedTool should correctly parse XML."""
-        from src.features.search.tools import PubMedTool
+        from src.tools.pubmed import PubMedTool
 
         tool = PubMedTool()
         results = tool._parse_pubmed_xml(SAMPLE_PUBMED_XML)
@@ -609,7 +613,7 @@ class TestWebTool:
     @pytest.mark.asyncio
     async def test_search_returns_evidence(self, mocker):
         """WebTool should return Evidence objects from search."""
-        from src.features.search.tools import WebTool
+        from src.tools.websearch import WebTool
 
         mock_results = [
             {
@@ -640,8 +644,8 @@ class TestSearchHandler:
     @pytest.mark.asyncio
     async def test_execute_aggregates_results(self, mocker):
         """SearchHandler should aggregate results from all tools."""
-        from src.features.search.handlers import SearchHandler
-        from src.features.search.models import Evidence, Citation
+        from src.tools.search_handler import SearchHandler
+        from src.utils.models import Evidence, Citation
 
         # Create mock tools
         mock_tool_1 = AsyncMock()
@@ -673,8 +677,8 @@ class TestSearchHandler:
     @pytest.mark.asyncio
     async def test_execute_handles_tool_failure(self, mocker):
         """SearchHandler should continue if one tool fails."""
-        from src.features.search.handlers import SearchHandler
-        from src.features.search.models import Evidence, Citation
+        from src.tools.search_handler import SearchHandler
+        from src.utils.models import Evidence, Citation
         from src.shared.exceptions import SearchError
 
         mock_tool_ok = AsyncMock()
@@ -714,7 +718,7 @@ import pytest
 @pytest.mark.asyncio
 async def test_pubmed_live_search():
     """Test real PubMed search (requires network)."""
-    from src.features.search.tools import PubMedTool
+    from src.tools.pubmed import PubMedTool
 
     tool = PubMedTool()
     results = await tool.search("metformin diabetes", max_results=3)
@@ -756,8 +760,8 @@ Phase 2 is **COMPLETE** when:
 
 ```python
 import asyncio
-from src.features.search.tools import PubMedTool, WebTool
-from src.features.search.handlers import SearchHandler
+from src.tools.pubmed import PubMedTool, WebTool
+from src.tools.search_handler import SearchHandler
 
 async def test():
     handler = SearchHandler([PubMedTool(), WebTool()])

@@ -246,7 +246,7 @@ def mock_llm_response():
 @pytest.fixture
 def sample_evidence():
     """Sample Evidence objects for testing."""
-    from src.features.search.models import Evidence, Citation
+    from src.utils.models import Evidence, Citation
     return [
         Evidence(
             content="Metformin shows promise in Alzheimer's...",
@@ -340,7 +340,7 @@ def configure_logging(settings: Settings) -> None:
 settings = get_settings()
 ```
 
-### `src/shared/exceptions.py`
+### `src/utils/exceptions.py`
 
 ```python
 """Custom exceptions for DeepCritical."""
@@ -374,7 +374,7 @@ class RateLimitError(SearchError):
 
 ## 7. TDD Workflow: First Test
 
-### `tests/unit/shared/test_config.py`
+### `tests/unit/utils/test_config.py`
 
 ```python
 """Unit tests for configuration loading."""
@@ -388,7 +388,7 @@ class TestSettings:
 
     def test_default_max_iterations(self):
         """Settings should have default max_iterations of 10."""
-        from src.shared.config import Settings
+        from src.utils.config import Settings
 
         # Clear any env vars
         with patch.dict(os.environ, {}, clear=True):
@@ -397,7 +397,7 @@ class TestSettings:
 
     def test_max_iterations_from_env(self):
         """Settings should read MAX_ITERATIONS from env."""
-        from src.shared.config import Settings
+        from src.utils.config import Settings
 
         with patch.dict(os.environ, {"MAX_ITERATIONS": "25"}):
             settings = Settings()
@@ -405,7 +405,7 @@ class TestSettings:
 
     def test_invalid_max_iterations_raises(self):
         """Settings should reject invalid max_iterations."""
-        from src.shared.config import Settings
+        from src.utils.config import Settings
         from pydantic import ValidationError
 
         with patch.dict(os.environ, {"MAX_ITERATIONS": "100"}):
@@ -414,7 +414,7 @@ class TestSettings:
 
     def test_get_api_key_openai(self):
         """get_api_key should return OpenAI key when provider is openai."""
-        from src.shared.config import Settings
+        from src.utils.config import Settings
 
         with patch.dict(os.environ, {
             "LLM_PROVIDER": "openai",
@@ -425,7 +425,7 @@ class TestSettings:
 
     def test_get_api_key_missing_raises(self):
         """get_api_key should raise when key is not set."""
-        from src.shared.config import Settings
+        from src.utils.config import Settings
 
         with patch.dict(os.environ, {"LLM_PROVIDER": "openai"}, clear=True):
             settings = Settings()
@@ -442,7 +442,7 @@ class TestSettings:
 uv sync --all-extras
 
 # Run tests (should pass after implementing config.py)
-uv run pytest tests/unit/shared/test_config.py -v
+uv run pytest tests/unit/utils/test_config.py -v
 
 # Run full test suite with coverage
 uv run pytest --cov=src --cov-report=term-missing
@@ -465,13 +465,13 @@ uv run pre-commit install
 - [ ] Install `uv` and verify version
 - [ ] Run `uv init --name deepcritical`
 - [ ] Create `pyproject.toml` (copy from above)
-- [ ] Create directory structure (run mkdir commands)
+- [ ] Create `__init__.py` files and test directories (run touch/mkdir commands)
 - [ ] Create `.env.example` and `.env`
 - [ ] Create `.pre-commit-config.yaml`
 - [ ] Create `tests/conftest.py`
-- [ ] Implement `src/shared/config.py`
-- [ ] Implement `src/shared/exceptions.py`
-- [ ] Write tests in `tests/unit/shared/test_config.py`
+- [ ] Implement `src/utils/config.py`
+- [ ] Implement `src/utils/exceptions.py`
+- [ ] Write tests in `tests/unit/utils/test_config.py`
 - [ ] Run `uv sync --all-extras`
 - [ ] Run `uv run pytest` — **ALL TESTS MUST PASS**
 - [ ] Run `uv run ruff check` — **NO ERRORS**
@@ -489,6 +489,6 @@ Phase 1 is **COMPLETE** when:
 2. ✅ `uv run ruff check src tests` has 0 errors
 3. ✅ `uv run mypy src` has 0 errors
 4. ✅ Pre-commit hooks are installed and working
-5. ✅ `from src.shared.config import settings` works in Python REPL
+5. ✅ `from src.utils.config import settings` works in Python REPL
 
 **Proceed to Phase 2 ONLY after all checkboxes are complete.**
