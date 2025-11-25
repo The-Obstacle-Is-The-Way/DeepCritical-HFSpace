@@ -2,8 +2,7 @@
 
 **Goal**: Implement the "Eyes and Ears" of the agent — retrieving real biomedical data.
 **Philosophy**: "Real data, mocked connections."
-**Estimated Effort**: 3-4 hours
-**Prerequisite**: Phase 1 complete
+**Prerequisite**: Phase 1 complete (all tests passing)
 
 ---
 
@@ -17,23 +16,55 @@ This slice covers:
    - Normalize results into `Evidence` models.
 3. **Output**: A list of `Evidence` objects.
 
-**Files**:
-- `src/utils/models.py`: Data models
-- `src/tools/pubmed.py`: PubMed implementation
-- `src/tools/websearch.py`: DuckDuckGo implementation
-- `src/tools/search_handler.py`: Orchestration
+**Files to Create**:
+- `src/utils/models.py` - Pydantic models (Evidence, Citation, SearchResult)
+- `src/tools/pubmed.py` - PubMed E-utilities tool
+- `src/tools/websearch.py` - DuckDuckGo search tool
+- `src/tools/search_handler.py` - Orchestrates multiple tools
+- `src/tools/__init__.py` - Exports
 
 ---
 
-## 2. Models (`src/utils/models.py`)
+## 2. PubMed E-utilities API Reference
 
-> **Note**: All models go in `src/utils/models.py` to avoid circular imports.
+**Base URL**: `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/`
+
+### Key Endpoints
+
+| Endpoint | Purpose | Example |
+|----------|---------|---------|
+| `esearch.fcgi` | Search for article IDs | `?db=pubmed&term=metformin+alzheimer&retmax=10` |
+| `efetch.fcgi` | Fetch article details | `?db=pubmed&id=12345,67890&rettype=abstract&retmode=xml` |
+
+### Rate Limiting (CRITICAL!)
+
+NCBI **requires** rate limiting:
+- **Without API key**: 3 requests/second
+- **With API key**: 10 requests/second
+
+Get a free API key: https://www.ncbi.nlm.nih.gov/account/settings/
 
 ```python
-"""Data models for DeepCritical."""
-from pydantic import BaseModel, Field, HttpUrl
-from typing import Literal, List, Any
-from datetime import date
+# Add to .env
+NCBI_API_KEY=your-key-here  # Optional but recommended
+```
+
+### Example Search Flow
+
+```
+1. esearch: "metformin alzheimer" → [PMID: 12345, 67890, ...]
+2. efetch: PMIDs → Full abstracts/metadata
+3. Parse XML → Evidence objects
+```
+
+---
+
+## 3. Models (`src/utils/models.py`)
+
+```python
+"""Data models for the Search feature."""
+from pydantic import BaseModel, Field
+from typing import Literal
 
 
 class Citation(BaseModel):
@@ -77,12 +108,21 @@ class SearchResult(BaseModel):
 
 ---
 
-## 3. Tool Protocol (`src/tools/__init__.py`)
+## 4. Tool Protocol (`src/tools/pubmed.py` and `src/tools/websearch.py`)
+
+### The Interface (Protocol) - Add to `src/tools/__init__.py`
 
 ```python
 """Search tools package."""
 from typing import Protocol, List
-from src.utils.models import Evidence
+
+# Import implementations
+from src.tools.pubmed import PubMedTool
+from src.tools.websearch import WebTool
+from src.tools.search_handler import SearchHandler
+
+# Re-export
+__all__ = ["SearchTool", "PubMedTool", "WebTool", "SearchHandler"]
 
 
 class SearchTool(Protocol):
@@ -93,16 +133,25 @@ class SearchTool(Protocol):
         """Human-readable name of this tool."""
         ...
 
-    async def search(self, query: str, max_results: int = 10) -> List[Evidence]:
-        """Execute a search and return evidence."""
+    async def search(self, query: str, max_results: int = 10) -> List["Evidence"]:
+        """
+        Execute a search and return evidence.
+
+        Args:
+            query: The search query string
+            max_results: Maximum number of results to return
+
+        Returns:
+            List of Evidence objects
+
+        Raises:
+            SearchError: If the search fails
+            RateLimitError: If we hit rate limits
+        """
         ...
 ```
 
----
-
-## 4. Implementations
-
-### PubMed Tool (`src/tools/pubmed.py`)
+### PubMed Tool Implementation (`src/tools/pubmed.py`)
 
 ```python
 """PubMed search tool using NCBI E-utilities."""
@@ -112,6 +161,7 @@ import xmltodict
 from typing import List
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from src.utils.config import settings
 from src.utils.exceptions import SearchError, RateLimitError
 from src.utils.models import Evidence, Citation
 
@@ -123,7 +173,7 @@ class PubMedTool:
     RATE_LIMIT_DELAY = 0.34  # ~3 requests/sec without API key
 
     def __init__(self, api_key: str | None = None):
-        self.api_key = api_key
+        self.api_key = api_key or getattr(settings, "ncbi_api_key", None)
         self._last_request_time = 0.0
 
     @property
@@ -289,13 +339,12 @@ class PubMedTool:
         )
 ```
 
-### DuckDuckGo Tool (`src/tools/websearch.py`)
+### DuckDuckGo Tool Implementation (`src/tools/websearch.py`)
 
 ```python
 """Web search tool using DuckDuckGo."""
 from typing import List
 from duckduckgo_search import DDGS
-import asyncio
 
 from src.utils.exceptions import SearchError
 from src.utils.models import Evidence, Citation
@@ -317,6 +366,8 @@ class WebTool:
 
         Note: duckduckgo-search is synchronous, so we run it in executor.
         """
+        import asyncio
+
         loop = asyncio.get_event_loop()
         try:
             results = await loop.run_in_executor(
@@ -351,19 +402,33 @@ class WebTool:
         return evidence_list
 ```
 
-### Search Handler (`src/tools/search_handler.py`)
+---
+
+## 5. Search Handler (`src/tools/search_handler.py`)
+
+The handler orchestrates multiple tools using the **Scatter-Gather** pattern.
 
 ```python
 """Search handler - orchestrates multiple search tools."""
 import asyncio
-from typing import List
+from typing import List, Protocol
 import structlog
 
 from src.utils.exceptions import SearchError
 from src.utils.models import Evidence, SearchResult
-from src.tools import SearchTool
 
 logger = structlog.get_logger()
+
+
+class SearchTool(Protocol):
+    """Protocol defining the interface for all search tools."""
+
+    @property
+    def name(self) -> str:
+        ...
+
+    async def search(self, query: str, max_results: int = 10) -> List[Evidence]:
+        ...
 
 
 def flatten(nested: List[List[Evidence]]) -> List[Evidence]:
@@ -447,14 +512,15 @@ class SearchHandler:
 
 ---
 
-## 5. TDD Workflow
+## 6. TDD Workflow
 
-### Test File: `tests/unit/tools/test_search.py`
+### Test File: `tests/unit/tools/test_pubmed.py`
 
 ```python
-"""Unit tests for search tools."""
+"""Unit tests for PubMed tool."""
 import pytest
 from unittest.mock import AsyncMock, MagicMock
+
 
 # Sample PubMed XML response for mocking
 SAMPLE_PUBMED_XML = """<?xml version="1.0" ?>
@@ -486,6 +552,7 @@ SAMPLE_PUBMED_XML = """<?xml version="1.0" ?>
     </PubmedArticle>
 </PubmedArticleSet>
 """
+
 
 class TestPubMedTool:
     """Tests for PubMedTool."""
@@ -544,15 +611,42 @@ class TestPubMedTool:
 
         assert results == []
 
+    def test_parse_pubmed_xml(self):
+        """PubMedTool should correctly parse XML."""
+        from src.tools.pubmed import PubMedTool
+
+        tool = PubMedTool()
+        results = tool._parse_pubmed_xml(SAMPLE_PUBMED_XML)
+
+        assert len(results) == 1
+        assert results[0].citation.source == "pubmed"
+        assert "Smith John" in results[0].citation.authors
+```
+
+### Test File: `tests/unit/tools/test_websearch.py`
+
+```python
+"""Unit tests for WebTool."""
+import pytest
+from unittest.mock import MagicMock
+
+
 class TestWebTool:
     """Tests for WebTool."""
 
     @pytest.mark.asyncio
     async def test_search_returns_evidence(self, mocker):
+        """WebTool should return Evidence objects from search."""
         from src.tools.websearch import WebTool
 
-        mock_results = [{"title": "Test", "href": "url", "body": "content"}]
-        
+        mock_results = [
+            {
+                "title": "Drug Repurposing Article",
+                "href": "https://example.com/article",
+                "body": "Some content about drug repurposing...",
+            }
+        ]
+
         mock_ddgs = MagicMock()
         mock_ddgs.__enter__ = MagicMock(return_value=mock_ddgs)
         mock_ddgs.__exit__ = MagicMock(return_value=None)
@@ -561,18 +655,31 @@ class TestWebTool:
         mocker.patch("src.tools.websearch.DDGS", return_value=mock_ddgs)
 
         tool = WebTool()
-        results = await tool.search("query")
+        results = await tool.search("drug repurposing")
+
         assert len(results) == 1
         assert results[0].citation.source == "web"
+        assert "Drug Repurposing" in results[0].citation.title
+```
+
+### Test File: `tests/unit/tools/test_search_handler.py`
+
+```python
+"""Unit tests for SearchHandler."""
+import pytest
+from unittest.mock import AsyncMock
+
+from src.utils.models import Evidence, Citation
+from src.utils.exceptions import SearchError
+
 
 class TestSearchHandler:
     """Tests for SearchHandler."""
 
     @pytest.mark.asyncio
-    async def test_execute_aggregates_results(self, mocker):
+    async def test_execute_aggregates_results(self):
         """SearchHandler should aggregate results from all tools."""
         from src.tools.search_handler import SearchHandler
-        from src.utils.models import Evidence, Citation
 
         # Create mock tools
         mock_tool_1 = AsyncMock()
@@ -600,16 +707,104 @@ class TestSearchHandler:
         assert "mock1" in result.sources_searched
         assert "mock2" in result.sources_searched
         assert len(result.errors) == 0
+
+    @pytest.mark.asyncio
+    async def test_execute_handles_tool_failure(self):
+        """SearchHandler should continue if one tool fails."""
+        from src.tools.search_handler import SearchHandler
+
+        mock_tool_ok = AsyncMock()
+        mock_tool_ok.name = "ok_tool"
+        mock_tool_ok.search = AsyncMock(return_value=[
+            Evidence(
+                content="Good result",
+                citation=Citation(source="pubmed", title="T", url="u", date="2024"),
+            )
+        ])
+
+        mock_tool_fail = AsyncMock()
+        mock_tool_fail.name = "fail_tool"
+        mock_tool_fail.search = AsyncMock(side_effect=SearchError("API down"))
+
+        handler = SearchHandler(tools=[mock_tool_ok, mock_tool_fail])
+        result = await handler.execute("test")
+
+        assert result.total_found == 1
+        assert "ok_tool" in result.sources_searched
+        assert len(result.errors) == 1
+        assert "fail_tool" in result.errors[0]
 ```
 
 ---
 
-## 6. Implementation Checklist
+## 7. Integration Test (Optional, Real API)
 
-- [ ] Add models to `src/utils/models.py`
-- [ ] Create `src/tools/__init__.py` (Protocol)
-- [ ] Implement `src/tools/pubmed.py`
-- [ ] Implement `src/tools/websearch.py`
-- [ ] Implement `src/tools/search_handler.py`
-- [ ] Write tests in `tests/unit/tools/test_search.py`
-- [ ] Run `uv run pytest tests/unit/tools/`
+```python
+# tests/integration/test_pubmed_live.py
+"""Integration tests that hit real APIs (run manually)."""
+import pytest
+
+
+@pytest.mark.integration
+@pytest.mark.slow
+@pytest.mark.asyncio
+async def test_pubmed_live_search():
+    """Test real PubMed search (requires network)."""
+    from src.tools.pubmed import PubMedTool
+
+    tool = PubMedTool()
+    results = await tool.search("metformin diabetes", max_results=3)
+
+    assert len(results) > 0
+    assert results[0].citation.source == "pubmed"
+    assert "pubmed.ncbi.nlm.nih.gov" in results[0].citation.url
+
+
+# Run with: uv run pytest tests/integration -m integration
+```
+
+---
+
+## 8. Implementation Checklist
+
+- [ ] Create `src/utils/models.py` with all Pydantic models (Evidence, Citation, SearchResult)
+- [ ] Create `src/tools/__init__.py` with SearchTool Protocol and exports
+- [ ] Implement `src/tools/pubmed.py` with PubMedTool class
+- [ ] Implement `src/tools/websearch.py` with WebTool class
+- [ ] Create `src/tools/search_handler.py` with SearchHandler class
+- [ ] Write tests in `tests/unit/tools/test_pubmed.py`
+- [ ] Write tests in `tests/unit/tools/test_websearch.py`
+- [ ] Write tests in `tests/unit/tools/test_search_handler.py`
+- [ ] Run `uv run pytest tests/unit/tools/ -v` — **ALL TESTS MUST PASS**
+- [ ] (Optional) Run integration test: `uv run pytest -m integration`
+- [ ] Commit: `git commit -m "feat: phase 2 search slice complete"`
+
+---
+
+## 9. Definition of Done
+
+Phase 2 is **COMPLETE** when:
+
+1. All unit tests pass: `uv run pytest tests/unit/tools/ -v`
+2. `SearchHandler` can execute with both tools
+3. Graceful degradation: if PubMed fails, WebTool results still return
+4. Rate limiting is enforced (verify no 429 errors)
+5. Can run this in Python REPL:
+
+```python
+import asyncio
+from src.tools.pubmed import PubMedTool
+from src.tools.websearch import WebTool
+from src.tools.search_handler import SearchHandler
+
+async def test():
+    handler = SearchHandler([PubMedTool(), WebTool()])
+    result = await handler.execute("metformin alzheimer")
+    print(f"Found {result.total_found} results")
+    for e in result.evidence[:3]:
+        print(f"- {e.citation.title}")
+
+asyncio.run(test())
+```
+
+**Proceed to Phase 3 ONLY after all checkboxes are complete.**
