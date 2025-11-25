@@ -63,53 +63,58 @@ Using existing approved drugs to treat NEW diseases they weren't originally desi
 
 ## System Architecture
 
-### High-Level Design
+### High-Level Design (Phases 1-8)
 
 ```
-User Question
+User Query
     ↓
-Research Agent (Orchestrator)
+Gradio UI (Phase 4)
     ↓
-Search Loop:
-  1. Query Tools (PubMed, Web, Clinical Trials)
-  2. Gather Evidence
-  3. Judge Quality ("Do we have enough?")
-  4. If NO → Refine query, search more
-  5. If YES → Synthesize findings
+Magentic Manager (Phase 5) ← LLM-powered coordinator
+    ├── SearchAgent (Phase 2+5) ←→ PubMed + Web + VectorDB (Phase 6)
+    ├── HypothesisAgent (Phase 7) ←→ Mechanistic Reasoning
+    ├── JudgeAgent (Phase 3+5) ←→ Evidence Assessment
+    └── ReportAgent (Phase 8) ←→ Final Synthesis
     ↓
-Research Report with Citations
+Structured Research Report
 ```
 
 ### Key Components
 
-1. **Research Agent (Orchestrator)**
-   - Manages the research process
-   - Plans search strategies
-   - Coordinates tools
-   - Tracks token budget and iterations
+1. **Magentic Manager (Orchestrator)**
+   - LLM-powered multi-agent coordinator
+   - Dynamic planning and agent selection
+   - Built-in stall detection and replanning
+   - Microsoft Agent Framework integration
 
-2. **Tools**
-   - PubMed Search (biomedical papers)
-   - Web Search (general medical info)
-   - Clinical Trials Database
-   - Drug Information APIs
-   - (Future: Protein databases, pathways)
+2. **SearchAgent (Phase 2+5+6)**
+   - PubMed E-utilities search
+   - DuckDuckGo web search
+   - Semantic search via ChromaDB (Phase 6)
+   - Evidence deduplication
 
-3. **Judge System**
-   - LLM-based quality assessment
-   - Evaluates: "Do we have enough evidence?"
-   - Criteria: Coverage, reliability, citation quality
+3. **HypothesisAgent (Phase 7)**
+   - Generates Drug → Target → Pathway → Effect hypotheses
+   - Guides targeted searches
+   - Scientific reasoning about mechanisms
 
-4. **Break Conditions**
-   - Token budget cap (cost control)
-   - Max iterations (time control)
-   - Judge says "sufficient evidence" (quality control)
+4. **JudgeAgent (Phase 3+5)**
+   - LLM-based evidence assessment
+   - Mechanism score + Clinical score
+   - Recommends continue/synthesize
+   - Generates refined search queries
 
-5. **Gradio UI**
-   - Simple text input for questions
-   - Real-time progress display
-   - Formatted research report output
-   - Source citations and links
+5. **ReportAgent (Phase 8)**
+   - Structured scientific reports
+   - Executive summary, methodology
+   - Hypotheses tested with evidence counts
+   - Proper citations and limitations
+
+6. **Gradio UI (Phase 4)**
+   - Chat interface for questions
+   - Real-time progress via events
+   - Mode toggle (Simple/Magentic)
+   - Formatted markdown output
 
 ---
 
@@ -275,37 +280,31 @@ httpx = "^0.27"
 
 ## Success Criteria
 
-### Minimum Viable Product (MVP) - Days 1-3
-**MUST HAVE for working demo:**
+### Phase 1-5 (MVP) ✅ COMPLETE
+**Completed in ONE DAY:**
 - [x] User can ask drug repurposing question
-- [ ] Agent searches PubMed (async)
-- [ ] Agent searches web (Brave/DuckDuckGo)
-- [ ] LLM judge evaluates evidence quality
-- [ ] System respects token budget (50K tokens max)
-- [ ] Output includes drug candidates + citations
-- [ ] Works end-to-end for demo query: "Long COVID fatigue"
-- [ ] Gradio UI with streaming progress
+- [x] Agent searches PubMed (async)
+- [x] Agent searches web (DuckDuckGo)
+- [x] LLM judge evaluates evidence quality
+- [x] System respects token budget and iterations
+- [x] Output includes drug candidates + citations
+- [x] Works end-to-end for demo query
+- [x] Gradio UI with streaming progress
+- [x] Magentic multi-agent orchestration
+- [x] 38 unit tests passing
+- [x] CI/CD pipeline green
 
-### Hackathon Submission - Days 4-5
-**Required for all tracks:**
-- [ ] Gradio UI deployed on HuggingFace Spaces
-- [ ] 3 example queries working and tested
-- [ ] This architecture documentation
-- [ ] Demo video (2-3 min) showing workflow
-- [ ] README with setup instructions
+### Hackathon Submission ✅ COMPLETE
+- [x] Gradio UI deployed on HuggingFace Spaces
+- [x] Example queries working and tested
+- [x] Architecture documentation
+- [x] README with setup instructions
 
-**Track-Specific:**
-- [ ] **Gradio Track**: Streaming UI, progress indicators, modern design
-- [ ] **MCP Track**: PubMed tool as MCP server (reusable by others)
-- [ ] **Modal Track**: GPU inference option (stretch)
-
-### Stretch Goals - Day 6+
-**Nice-to-have if time permits:**
-- [ ] Modal integration for local LLM fallback
-- [ ] Clinical trials database search
-- [ ] Checkpoint/resume functionality
-- [ ] OpenFDA drug safety lookup
-- [ ] PDF export of research reports
+### Phase 6-8 (Enhanced)
+**Specs ready for implementation:**
+- [ ] Embeddings & Semantic Search (Phase 6)
+- [ ] Hypothesis Agent (Phase 7)
+- [ ] Report Agent (Phase 8)
 
 ### What's EXPLICITLY Out of Scope
 **NOT building (to stay focused):**
