@@ -77,6 +77,33 @@ async def _run_search_iteration(
     return all_evidence
 
 
+async def _handle_judge_step(
+    judge_handler: Any, query: str, all_evidence: list[Evidence], evidence_store: dict[str, Any]
+) -> tuple[bool, str]:
+    """Handle the judge assessment step. Returns (should_stop, next_query)."""
+    print("\n[Judge] Assessing evidence quality (REAL LLM)...")
+    assessment = await judge_handler.assess(query, all_evidence)
+    print(f"  Mechanism Score: {assessment.details.mechanism_score}/10")
+    print(f"  Clinical Score:  {assessment.details.clinical_evidence_score}/10")
+    print(f"  Confidence:      {assessment.confidence:.0%}")
+    print(f"  Recommendation:  {assessment.recommendation.upper()}")
+
+    if assessment.recommendation == "synthesize":
+        print("\n[Judge] Evidence sufficient! Proceeding to report generation...")
+        evidence_store["last_assessment"] = assessment.details.model_dump()
+        return True, query
+
+    next_queries = assessment.next_search_queries[:2] if assessment.next_search_queries else []
+    if next_queries:
+        print(f"\n[Judge] Need more evidence. Next queries: {next_queries}")
+        return False, next_queries[0]
+
+    print(
+        "\n[Judge] Need more evidence but no suggested queries. " "Continuing with original query."
+    )
+    return False, query
+
+
 async def run_full_demo(query: str, max_iterations: int) -> None:
     """Run the REAL full stack pipeline."""
     print_header("DeepCritical Full Stack Demo (REAL)")
@@ -124,21 +151,11 @@ async def run_full_demo(query: str, max_iterations: int) -> None:
             _print_truncated(hyp_response.messages[0].text)
 
         # Step 3: REAL Judge
-        print("\n[Judge] Assessing evidence quality (REAL LLM)...")
-        assessment = await judge_handler.assess(query, all_evidence)
-        print(f"  Mechanism Score: {assessment.details.mechanism_score}/10")
-        print(f"  Clinical Score:  {assessment.details.clinical_evidence_score}/10")
-        print(f"  Confidence:      {assessment.confidence:.0%}")
-        print(f"  Recommendation:  {assessment.recommendation.upper()}")
-
-        if assessment.recommendation == "synthesize":
-            print("\n[Judge] Evidence sufficient! Proceeding to report generation...")
-            evidence_store["last_assessment"] = assessment.details.model_dump()
+        should_stop, query = await _handle_judge_step(
+            judge_handler, query, all_evidence, evidence_store
+        )
+        if should_stop:
             break
-
-        next_queries = assessment.next_search_queries[:2]
-        print(f"\n[Judge] Need more evidence. Next queries: {next_queries}")
-        query = assessment.next_search_queries[0] if assessment.next_search_queries else query
 
     # Step 4: REAL Report generation
     print_step(iteration + 1, "REPORT GENERATION (REAL LLM)")
@@ -183,6 +200,10 @@ Examples:
     )
 
     args = parser.parse_args()
+
+    if args.iterations < 1:
+        print("Error: iterations must be at least 1")
+        sys.exit(1)
 
     # Fail fast: require API key
     if not (os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")):

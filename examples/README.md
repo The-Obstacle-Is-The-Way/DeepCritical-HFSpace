@@ -107,7 +107,7 @@ uv run python examples/hypothesis_demo/run_hypothesis.py "sildenafil heart failu
 
 ---
 
-### 6. Full Stack Demo (LLM Required)
+### 6. Full-Stack Demo (LLM Required)
 
 **THE COMPLETE PIPELINE** - All phases working together.
 
@@ -142,7 +142,7 @@ Output: Publication-quality research report with validated citations.
 
 ## Architecture
 
-```
+```text
 User Query
     |
     v
