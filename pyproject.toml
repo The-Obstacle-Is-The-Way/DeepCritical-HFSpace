@@ -46,6 +46,9 @@ dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",
 ]
+magentic = [
+    "agent-framework-core",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -113,3 +116,6 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
 ]
+
+[tool.uv.sources]
+agent-framework-core = { path = "reference_repos/agent-framework/python/packages/core", editable = true }

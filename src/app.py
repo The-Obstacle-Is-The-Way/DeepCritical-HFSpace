@@ -7,19 +7,20 @@ from typing import Any
 import gradio as gr
 
 from src.agent_factory.judges import JudgeHandler, MockJudgeHandler
-from src.orchestrator import Orchestrator
+from src.orchestrator_factory import create_orchestrator
 from src.tools.pubmed import PubMedTool
 from src.tools.search_handler import SearchHandler
 from src.tools.websearch import WebTool
 from src.utils.models import OrchestratorConfig
 
 
-def create_orchestrator(use_mock: bool = False) -> Orchestrator:
+def configure_orchestrator(use_mock: bool = False, mode: str = "simple") -> Any:
     """
     Create an orchestrator instance.
 
     Args:
         use_mock: If True, use MockJudgeHandler (no API key needed)
+        mode: Orchestrator mode ("simple" or "magentic")
 
     Returns:
         Configured Orchestrator instance
@@ -43,16 +44,18 @@ def create_orchestrator(use_mock: bool = False) -> Orchestrator:
     else:
         judge_handler = JudgeHandler()
 
-    return Orchestrator(
+    return create_orchestrator(
         search_handler=search_handler,
         judge_handler=judge_handler,
         config=config,
+        mode=mode,  # type: ignore
     )
 
 
 async def research_agent(
     message: str,
     history: list[dict[str, Any]],
+    mode: str = "simple",
 ) -> AsyncGenerator[str, None]:
     """
     Gradio chat function that runs the research agent.
@@ -60,6 +63,7 @@ async def research_agent(
     Args:
         message: User's research question
         history: Chat history (Gradio format)
+        mode: Orchestrator mode ("simple" or "magentic")
 
     Yields:
         Markdown-formatted responses for streaming
@@ -70,7 +74,16 @@ async def research_agent(
 
     # Create orchestrator (use mock if no API key)
     use_mock = not (os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY"))
-    orchestrator = create_orchestrator(use_mock=use_mock)
+
+    # If magentic mode requested but no keys, fallback/warn
+    if mode == "magentic" and use_mock:
+        yield (
+            "⚠️ **Warning**: Magentic mode requires valid API keys. "
+            "Falling back to Mock Simple mode."
+        )
+        mode = "simple"
+
+    orchestrator = configure_orchestrator(use_mock=use_mock, mode=mode)
 
     # Run the agent and stream events
     response_parts = []
@@ -125,6 +138,14 @@ def create_demo() -> Any:
                 "Is metformin effective for treating cancer?",
                 "What medications show promise for Long COVID treatment?",
                 "Can statins be repurposed for neurological conditions?",
+            ],
+            additional_inputs=[
+                gr.Radio(
+                    choices=["simple", "magentic"],
+                    value="simple",
+                    label="Orchestrator Mode",
+                    info="Simple: Linear loop | Magentic: Multi-Agent (Requires OpenAI Key)",
+                )
             ],
         )
 

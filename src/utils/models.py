@@ -106,6 +106,7 @@ class AgentEvent(BaseModel):
         "synthesizing",
         "complete",
         "error",
+        "streaming",
     ]
     message: str
     data: Any = None
