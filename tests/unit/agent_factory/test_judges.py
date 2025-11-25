@@ -172,6 +172,8 @@ class TestMockJudgeHandler:
         assert handler.last_evidence is not None
         assert len(handler.last_evidence) == expected_evidence_len
         assert result.details.mechanism_score == expected_mech_score
+        assert result.sufficient is False
+        assert result.recommendation == "continue"
 
     @pytest.mark.asyncio
     async def test_mock_handler_custom_response(self):

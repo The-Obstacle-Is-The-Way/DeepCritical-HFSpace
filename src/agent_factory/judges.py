@@ -24,6 +24,10 @@ def get_model() -> Any:
 
     if provider == "anthropic":
         return AnthropicModel(settings.anthropic_model)
+
+    if provider != "openai":
+        logger.warning("Unknown LLM provider, defaulting to OpenAI", provider=provider)
+
     return OpenAIModel(settings.openai_model)
 
 
@@ -42,9 +46,9 @@ class JudgeHandler:
             model: Optional PydanticAI model. If None, uses config default.
         """
         self.model = model or get_model()
-        self.agent = Agent(  # type: ignore[call-overload]
+        self.agent = Agent(
             model=self.model,
-            result_type=JudgeAssessment,
+            output_type=JudgeAssessment,
             system_prompt=SYSTEM_PROMPT,
             retries=3,
         )
@@ -82,7 +86,7 @@ class JudgeHandler:
         try:
             # Run the agent with structured output
             result = await self.agent.run(user_prompt)
-            assessment = cast(JudgeAssessment, result.data)
+            assessment = cast(JudgeAssessment, result.data)  # type: ignore[attr-defined]
 
             logger.info(
                 "Assessment complete",

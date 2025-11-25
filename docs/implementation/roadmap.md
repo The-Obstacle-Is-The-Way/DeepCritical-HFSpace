@@ -119,10 +119,10 @@ tests/
 
 *Goal: Upgrade orchestrator to use Microsoft Agent Framework patterns.*
 
-- [ ] Wrap SearchHandler as `AgentProtocol` (SearchAgent)
-- [ ] Wrap JudgeHandler as `AgentProtocol` (JudgeAgent)
-- [ ] Implement `MagenticOrchestrator` using `MagenticBuilder`
-- [ ] Create factory pattern for switching implementations
+- [ ] Wrap SearchHandler as `AgentProtocol` (SearchAgent) with strict protocol compliance.
+- [ ] Wrap JudgeHandler as `AgentProtocol` (JudgeAgent) with strict protocol compliance.
+- [ ] Implement `MagenticOrchestrator` using `MagenticBuilder`.
+- [ ] Create factory pattern for switching implementations.
 - **Deliverable**: Same API, better multi-agent orchestration engine.
 
 **NOTE**: Only implement Phase 5 if time permits after MVP is shipped.

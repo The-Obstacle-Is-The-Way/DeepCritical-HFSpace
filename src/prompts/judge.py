@@ -45,22 +45,21 @@ def format_user_prompt(question: str, evidence: list[Evidence]) -> str:
         Formatted prompt string
     """
     max_content_len = 1500
-    evidence_text = "\n\n".join(
-        [
+
+    def format_single_evidence(i: int, e: Evidence) -> str:
+        content = e.content
+        if len(content) > max_content_len:
+            content = content[:max_content_len] + "..."
+
+        return (
             f"### Evidence {i + 1}\n"
             f"**Source**: {e.citation.source.upper()} - {e.citation.title}\n"
             f"**URL**: {e.citation.url}\n"
             f"**Date**: {e.citation.date}\n"
-            f"**Content**:\n{e.content[:max_content_len]}..."
-            if len(e.content) > max_content_len
-            else f"### Evidence {i + 1}\n"
-            f"**Source**: {e.citation.source.upper()} - {e.citation.title}\n"
-            f"**URL**: {e.citation.url}\n"
-            f"**Date**: {e.citation.date}\n"
-            f"**Content**:\n{e.content}"
-            for i, e in enumerate(evidence)
-        ]
-    )
+            f"**Content**:\n{content}"
+        )
+
+    evidence_text = "\n\n".join([format_single_evidence(i, e) for i, e in enumerate(evidence)])
 
     return f"""## Research Question
 {question}
