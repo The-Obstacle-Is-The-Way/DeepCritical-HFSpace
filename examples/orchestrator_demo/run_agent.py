@@ -29,6 +29,8 @@ from src.tools.search_handler import SearchHandler
 from src.tools.websearch import WebTool
 from src.utils.models import OrchestratorConfig
 
+MAX_ITERATIONS = 10
+
 
 async def main() -> None:
     """Run the REAL agent demo."""
@@ -50,6 +52,10 @@ Examples:
     parser.add_argument("query", help="Research query (e.g., 'metformin cancer')")
     parser.add_argument("--iterations", type=int, default=3, help="Max iterations (default: 3)")
     args = parser.parse_args()
+
+    if not 1 <= args.iterations <= MAX_ITERATIONS:
+        print(f"Error: iterations must be between 1 and {MAX_ITERATIONS}")
+        sys.exit(1)
 
     # Fail fast: require API key
     if not (os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")):
