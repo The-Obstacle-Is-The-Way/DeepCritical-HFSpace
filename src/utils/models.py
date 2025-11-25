@@ -1,6 +1,7 @@
 """Data models for the Search feature."""
 
-from typing import ClassVar, Literal
+from datetime import UTC, datetime
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
@@ -90,3 +91,47 @@ class JudgeAssessment(BaseModel):
     reasoning: str = Field(
         ..., min_length=20, description="Overall reasoning for the recommendation"
     )
+
+
+class AgentEvent(BaseModel):
+    """Event emitted by the orchestrator for UI streaming."""
+
+    type: Literal[
+        "started",
+        "searching",
+        "search_complete",
+        "judging",
+        "judge_complete",
+        "looping",
+        "synthesizing",
+        "complete",
+        "error",
+    ]
+    message: str
+    data: Any = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    iteration: int = 0
+
+    def to_markdown(self) -> str:
+        """Format event as markdown for chat display."""
+        icons = {
+            "started": "🚀",
+            "searching": "🔍",
+            "search_complete": "📚",
+            "judging": "🧠",
+            "judge_complete": "✅",
+            "looping": "🔄",
+            "synthesizing": "📝",
+            "complete": "🎉",
+            "error": "❌",
+        }
+        icon = icons.get(self.type, "•")
+        return f"{icon} **{self.type.upper()}**: {self.message}"
+
+
+class OrchestratorConfig(BaseModel):
+    """Configuration for the orchestrator."""
+
+    max_iterations: int = Field(default=5, ge=1, le=10)
+    max_results_per_tool: int = Field(default=10, ge=1, le=50)
+    search_timeout: float = Field(default=30.0, ge=5.0, le=120.0)
