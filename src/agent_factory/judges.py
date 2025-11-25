@@ -6,6 +6,8 @@ import structlog
 from pydantic_ai import Agent
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.providers.openai import OpenAIProvider
 
 from src.prompts.judge import (
     SYSTEM_PROMPT,
@@ -19,16 +21,22 @@ logger = structlog.get_logger()
 
 
 def get_model() -> Any:
-    """Get the LLM model based on configuration."""
-    provider = settings.llm_provider
+    """Get the LLM model based on configuration.
 
-    if provider == "anthropic":
-        return AnthropicModel(settings.anthropic_model)
+    Explicitly passes API keys from settings to avoid requiring
+    users to export environment variables manually.
+    """
+    llm_provider = settings.llm_provider
 
-    if provider != "openai":
-        logger.warning("Unknown LLM provider, defaulting to OpenAI", provider=provider)
+    if llm_provider == "anthropic":
+        provider = AnthropicProvider(api_key=settings.anthropic_api_key)
+        return AnthropicModel(settings.anthropic_model, provider=provider)
 
-    return OpenAIModel(settings.openai_model)
+    if llm_provider != "openai":
+        logger.warning("Unknown LLM provider, defaulting to OpenAI", provider=llm_provider)
+
+    openai_provider = OpenAIProvider(api_key=settings.openai_api_key)
+    return OpenAIModel(settings.openai_model, provider=openai_provider)
 
 
 class JudgeHandler:
