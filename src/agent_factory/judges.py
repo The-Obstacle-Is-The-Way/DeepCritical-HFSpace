@@ -1,6 +1,6 @@
 """Judge handler for evidence assessment using PydanticAI."""
 
-from typing import Any, cast
+from typing import Any
 
 import structlog
 from pydantic_ai import Agent
@@ -86,7 +86,7 @@ class JudgeHandler:
         try:
             # Run the agent with structured output
             result = await self.agent.run(user_prompt)
-            assessment = cast(JudgeAssessment, result.data)  # type: ignore[attr-defined]
+            assessment = result.output
 
             logger.info(
                 "Assessment complete",

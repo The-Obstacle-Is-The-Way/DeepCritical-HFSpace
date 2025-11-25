@@ -34,7 +34,7 @@ class TestJudgeHandler:
 
         # Mock the PydanticAI agent
         mock_result = MagicMock()
-        mock_result.data = mock_assessment
+        mock_result.output = mock_assessment
 
         with (
             patch("src.agent_factory.judges.get_model") as mock_get_model,
@@ -88,7 +88,7 @@ class TestJudgeHandler:
         )
 
         mock_result = MagicMock()
-        mock_result.data = mock_assessment
+        mock_result.output = mock_assessment
 
         with (
             patch("src.agent_factory.judges.get_model") as mock_get_model,

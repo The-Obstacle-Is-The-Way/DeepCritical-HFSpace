@@ -40,7 +40,7 @@ class TestSettings:
     def test_get_api_key_openai_missing_raises(self):
         """get_api_key should raise ConfigurationError when OpenAI key is not set."""
         with patch.dict(os.environ, {"LLM_PROVIDER": "openai"}, clear=True):
-            settings = Settings()
+            settings = Settings(_env_file=None)
             with pytest.raises(ConfigurationError, match="OPENAI_API_KEY not set"):
                 settings.get_api_key()
 
@@ -55,6 +55,6 @@ class TestSettings:
     def test_get_api_key_anthropic_missing_raises(self):
         """get_api_key should raise ConfigurationError when Anthropic key is not set."""
         with patch.dict(os.environ, {"LLM_PROVIDER": "anthropic"}, clear=True):
-            settings = Settings()
+            settings = Settings(_env_file=None)
             with pytest.raises(ConfigurationError, match="ANTHROPIC_API_KEY not set"):
                 settings.get_api_key()
