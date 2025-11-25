@@ -188,9 +188,12 @@ Structured Research Report
 3. **[Phase 3 Spec: Judge Slice](03_phase_judge.md)** ✅
 4. **[Phase 4 Spec: UI & Loop](04_phase_ui.md)** ✅
 5. **[Phase 5 Spec: Magentic Integration](05_phase_magentic.md)** ✅
-6. **[Phase 6 Spec: Embeddings & Semantic Search](06_phase_embeddings.md)**
-7. **[Phase 7 Spec: Hypothesis Agent](07_phase_hypothesis.md)**
-8. **[Phase 8 Spec: Report Agent](08_phase_report.md)**
+6. **[Phase 6 Spec: Embeddings & Semantic Search](06_phase_embeddings.md)** ✅
+7. **[Phase 7 Spec: Hypothesis Agent](07_phase_hypothesis.md)** ✅
+8. **[Phase 8 Spec: Report Agent](08_phase_report.md)** ✅
+9. **[Phase 9 Spec: Remove DuckDuckGo](09_phase_source_cleanup.md)** 📝
+10. **[Phase 10 Spec: ClinicalTrials.gov](10_phase_clinicaltrials.md)** 📝
+11. **[Phase 11 Spec: bioRxiv Preprints](11_phase_biorxiv.md)** 📝
 
 ---
 
@@ -203,8 +206,11 @@ Structured Research Report
 | Phase 3: Judge | ✅ COMPLETE | LLM evidence assessment |
 | Phase 4: UI & Loop | ✅ COMPLETE | Working Gradio app |
 | Phase 5: Magentic | ✅ COMPLETE | Multi-agent orchestration |
-| Phase 6: Embeddings | 📝 SPEC READY | Semantic search |
-| Phase 7: Hypothesis | 📝 SPEC READY | Mechanistic reasoning |
-| Phase 8: Report | 📝 SPEC READY | Structured reports |
+| Phase 6: Embeddings | ✅ COMPLETE | Semantic search + ChromaDB |
+| Phase 7: Hypothesis | ✅ COMPLETE | Mechanistic reasoning chains |
+| Phase 8: Report | ✅ COMPLETE | Structured scientific reports |
+| Phase 9: Source Cleanup | 📝 SPEC READY | Remove DuckDuckGo |
+| Phase 10: ClinicalTrials | 📝 SPEC READY | ClinicalTrials.gov API |
+| Phase 11: bioRxiv | 📝 SPEC READY | Preprint search |
 
-*Phases 1-5 completed in ONE DAY. Phases 6-8 specs ready for implementation.*
+*Phases 1-8 COMPLETE. Phases 9-11 will add multi-source credibility.*
