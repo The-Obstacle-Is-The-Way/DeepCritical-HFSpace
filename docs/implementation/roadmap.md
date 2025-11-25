@@ -75,7 +75,9 @@ tests/
 ## Phased Execution Plan
 
 ### **Phase 1: Foundation & Tooling (Day 1)**
+
 *Goal: A rock-solid, CI-ready environment with `uv` and `pytest` configured.*
+
 - [ ] Initialize `pyproject.toml` with `uv`.
 - [ ] Configure `ruff` (strict) and `mypy` (strict).
 - [ ] Set up `pytest` with sugar and coverage.
@@ -84,7 +86,9 @@ tests/
 - **Deliverable**: A repo that passes CI with `uv run pytest`.
 
 ### **Phase 2: The "Search" Vertical Slice (Day 2)**
+
 *Goal: Agent can receive a query and get raw results from PubMed/Web.*
+
 - [ ] **TDD**: Write test for `SearchHandler`.
 - [ ] Implement `src/tools/pubmed.py` (PubMed E-utilities).
 - [ ] Implement `src/tools/websearch.py` (DuckDuckGo).
@@ -93,14 +97,18 @@ tests/
 - **Deliverable**: Function that takes "long covid" -> returns `List[Evidence]`.
 
 ### **Phase 3: The "Judge" Vertical Slice (Day 3)**
+
 *Goal: Agent can decide if evidence is sufficient.*
+
 - [ ] **TDD**: Write test for `JudgeHandler` (Mocked LLM).
 - [ ] Implement `src/prompts/judge.py` (Structured outputs).
 - [ ] Implement `src/agent_factory/judges.py` (LLM interaction).
 - **Deliverable**: Function that takes `List[Evidence]` -> returns `JudgeAssessment`.
 
 ### **Phase 4: The "Loop" & UI Slice (Day 4)**
+
 *Goal: End-to-End User Value.*
+
 - [ ] Implement `src/orchestrator.py` (Connects Search + Judge loops).
 - [ ] Build `src/app.py` (Gradio with Streaming).
 - **Deliverable**: Working DeepCritical Agent on HuggingFace.
