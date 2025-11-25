@@ -8,6 +8,7 @@ import asyncio
 from typing import Any
 
 import chromadb
+import structlog
 from sentence_transformers import SentenceTransformer
 
 from src.utils.models import Evidence
@@ -143,8 +144,6 @@ class EmbeddingService:
                     )
             except Exception as e:
                 # Log but don't fail entire deduplication for one bad item
-                import structlog
-
                 structlog.get_logger().warning(
                     "Failed to process evidence in deduplicate",
                     url=evidence.citation.url,

@@ -72,23 +72,30 @@ async def research_agent(
         yield "Please enter a research question."
         return
 
-    # Create orchestrator (use mock if no API key)
-    use_mock = not (os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY"))
+    # Decide whether to use real LLMs or mock based on mode and available keys
+    has_openai = bool(os.getenv("OPENAI_API_KEY"))
+    has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
 
-    # If magentic mode requested but no keys, fallback/warn
+    if mode == "magentic":
+        # Magentic currently supports OpenAI only
+        use_mock = not has_openai
+    else:
+        # Simple mode can work with either provider
+        use_mock = not (has_openai or has_anthropic)
+
+    # If magentic mode requested but no OpenAI key, fallback/warn
     if mode == "magentic" and use_mock:
         yield (
-            "⚠️ **Warning**: Magentic mode requires valid API keys. "
+            "⚠️ **Warning**: Magentic mode requires OpenAI API key. "
             "Falling back to Mock Simple mode."
         )
         mode = "simple"
 
-    orchestrator = configure_orchestrator(use_mock=use_mock, mode=mode)
-
     # Run the agent and stream events
-    response_parts = []
+    response_parts: list[str] = []
 
     try:
+        orchestrator = configure_orchestrator(use_mock=use_mock, mode=mode)
         async for event in orchestrator.run(message):
             # Format event as markdown
             event_md = event.to_markdown()

@@ -4,9 +4,10 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (curl needed for HEALTHCHECK)
 RUN apt-get update && apt-get install -y \
     git \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv
@@ -18,8 +19,8 @@ COPY uv.lock .
 COPY src/ src/
 COPY README.md .
 
-# Install dependencies
-RUN uv sync --frozen --no-dev --all-extras
+# Install runtime dependencies only (no dev/test tools)
+RUN uv sync --frozen --no-dev --extra embeddings --extra magentic
 
 # Create non-root user BEFORE downloading models
 RUN useradd --create-home --shell /bin/bash appuser
