@@ -35,11 +35,17 @@ class HypothesisAgent(BaseAgent):  # type: ignore[misc]
         )
         self._evidence_store = evidence_store
         self._embeddings = embedding_service  # Used for MMR evidence selection
-        self._agent = Agent(
-            model=get_model(),  # Uses configured LLM (OpenAI/Anthropic)
-            output_type=HypothesisAssessment,
-            system_prompt=SYSTEM_PROMPT,
-        )
+        self._agent: Agent[None, HypothesisAssessment] | None = None  # Lazy init
+
+    def _get_agent(self) -> Agent[None, HypothesisAssessment]:
+        """Lazy initialization of LLM agent to avoid requiring API keys at import."""
+        if self._agent is None:
+            self._agent = Agent(
+                model=get_model(),  # Uses configured LLM (OpenAI/Anthropic)
+                output_type=HypothesisAssessment,
+                system_prompt=SYSTEM_PROMPT,
+            )
+        return self._agent
 
     async def run(
         self,
@@ -68,7 +74,7 @@ class HypothesisAgent(BaseAgent):  # type: ignore[misc]
 
         # Generate hypotheses with diverse evidence selection
         prompt = await format_hypothesis_prompt(query, evidence, embeddings=self._embeddings)
-        result = await self._agent.run(prompt)
+        result = await self._get_agent().run(prompt)
         assessment = result.output  # pydantic-ai returns .output for structured output
 
         # Store hypotheses in shared context

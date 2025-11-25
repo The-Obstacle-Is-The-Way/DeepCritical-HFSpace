@@ -166,7 +166,7 @@ class HypothesisAssessment(BaseModel):
 
     hypotheses: list[MechanismHypothesis]
     primary_hypothesis: MechanismHypothesis | None = Field(
-        description="Most promising hypothesis based on current evidence"
+        default=None, description="Most promising hypothesis based on current evidence"
     )
     knowledge_gaps: list[str] = Field(description="What we don't know yet")
     recommended_searches: list[str] = Field(description="Searches to fill knowledge gaps")
