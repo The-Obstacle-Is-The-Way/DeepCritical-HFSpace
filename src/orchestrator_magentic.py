@@ -34,6 +34,11 @@ from src.utils.models import AgentEvent, Evidence
 logger = structlog.get_logger()
 
 
+def _truncate(text: str, max_len: int = 100) -> str:
+    """Truncate text with ellipsis only if needed."""
+    return f"{text[:max_len]}..." if len(text) > max_len else text
+
+
 class MagenticOrchestrator:
     """
     Magentic-based orchestrator - same API as Orchestrator.
@@ -181,7 +186,7 @@ Focus on:
             if message_text:
                 return AgentEvent(
                     type="judging",
-                    message=f"Manager ({kind}): {message_text[:100]}...",
+                    message=f"Manager ({kind}): {_truncate(message_text)}",
                     iteration=iteration,
                 )
 
@@ -229,23 +234,23 @@ Focus on:
         if "search" in agent_name.lower():
             return AgentEvent(
                 type="search_complete",
-                message=f"Search agent: {msg_text[:100]}...",
+                message=f"Search agent: {_truncate(msg_text)}",
                 iteration=iteration,
             )
         elif "hypothes" in agent_name.lower():
             return AgentEvent(
                 type="hypothesizing",
-                message=f"Hypothesis agent: {msg_text[:100]}...",
+                message=f"Hypothesis agent: {_truncate(msg_text)}",
                 iteration=iteration,
             )
         elif "judge" in agent_name.lower():
             return AgentEvent(
                 type="judge_complete",
-                message=f"Judge agent: {msg_text[:100]}...",
+                message=f"Judge agent: {_truncate(msg_text)}",
                 iteration=iteration,
             )
         return AgentEvent(
             type="judging",
-            message=f"{agent_name}: {msg_text[:100]}...",
+            message=f"{agent_name}: {_truncate(msg_text)}",
             iteration=iteration,
         )

@@ -97,3 +97,5 @@ async def test_hypothesis_agent_uses_embeddings(sample_evidence, mock_assessment
             mock_format.assert_called_once()
             _args, kwargs = mock_format.call_args
             assert kwargs["embeddings"] == mock_embeddings
+            assert _args[0] == "query"  # First positional arg is query
+            assert _args[1] == sample_evidence  # Second positional arg is evidence
