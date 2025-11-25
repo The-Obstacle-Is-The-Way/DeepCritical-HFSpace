@@ -51,8 +51,6 @@ class TestEmbeddingService:
     async def test_batch_embed_efficient(self, mock_sentence_transformer, mock_chroma_client):
         """Batch embedding should call encode with list."""
         # Setup mock for batch return (list of arrays)
-        import numpy as np
-
         mock_sentence_transformer.encode.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
 
         service = EmbeddingService()
