@@ -190,10 +190,100 @@ class ResearchReport(BaseModel):
 
 ## 4. Implementation
 
+### 4.0 Citation Validation (`src/utils/citation_validator.py`)
+
+> **🚨 CRITICAL: Why Citation Validation?**
+>
+> LLMs frequently **hallucinate** citations - inventing paper titles, authors, and URLs
+> that don't exist. For a medical research tool, fake citations are **dangerous**.
+>
+> This validation layer ensures every reference in the report actually exists
+> in the collected evidence.
+
+```python
+"""Citation validation to prevent LLM hallucination.
+
+CRITICAL: Medical research requires accurate citations.
+This module validates that all references exist in collected evidence.
+"""
+import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.utils.models import Evidence, ResearchReport
+
+logger = logging.getLogger(__name__)
+
+
+def validate_references(
+    report: "ResearchReport",
+    evidence: list["Evidence"]
+) -> "ResearchReport":
+    """Ensure all references actually exist in collected evidence.
+
+    CRITICAL: Prevents LLM hallucination of citations.
+
+    Args:
+        report: The generated research report
+        evidence: All evidence collected during research
+
+    Returns:
+        Report with only valid references (hallucinated ones removed)
+    """
+    # Build set of valid URLs from evidence
+    valid_urls = {e.citation.url for e in evidence}
+    valid_titles = {e.citation.title.lower() for e in evidence}
+
+    validated_refs = []
+    removed_count = 0
+
+    for ref in report.references:
+        ref_url = ref.get("url", "")
+        ref_title = ref.get("title", "").lower()
+
+        # Check if URL matches collected evidence
+        if ref_url in valid_urls:
+            validated_refs.append(ref)
+        # Fallback: check title match (URLs might differ slightly)
+        elif ref_title and any(ref_title in t or t in ref_title for t in valid_titles):
+            validated_refs.append(ref)
+        else:
+            removed_count += 1
+            logger.warning(
+                f"Removed hallucinated reference: '{ref.get('title', 'Unknown')}' "
+                f"(URL: {ref_url[:50]}...)"
+            )
+
+    if removed_count > 0:
+        logger.info(
+            f"Citation validation removed {removed_count} hallucinated references. "
+            f"{len(validated_refs)} valid references remain."
+        )
+
+    # Update report with validated references
+    report.references = validated_refs
+    return report
+
+
+def build_reference_from_evidence(evidence: "Evidence") -> dict:
+    """Build a properly formatted reference from evidence.
+
+    Use this to ensure references match the original evidence exactly.
+    """
+    return {
+        "title": evidence.citation.title,
+        "authors": evidence.citation.authors or ["Unknown"],
+        "source": evidence.citation.source,
+        "date": evidence.citation.date or "n.d.",
+        "url": evidence.citation.url,
+    }
+```
+
 ### 4.1 Report Prompts (`src/prompts/report.py`)
 
 ```python
 """Prompts for Report Agent."""
+from src.utils.text_utils import truncate_at_sentence, select_diverse_evidence
 
 SYSTEM_PROMPT = """You are a scientific writer specializing in drug repurposing research reports.
 
@@ -210,34 +300,66 @@ A good report:
 8. Provides a balanced CONCLUSION
 9. Includes properly formatted REFERENCES
 
-Write in scientific but accessible language. Be specific about evidence strength."""
+Write in scientific but accessible language. Be specific about evidence strength.
+
+─────────────────────────────────────────────────────────────────────────────
+🚨 CRITICAL CITATION REQUIREMENTS 🚨
+─────────────────────────────────────────────────────────────────────────────
+
+You MUST follow these rules for the References section:
+
+1. You may ONLY cite papers that appear in the Evidence section above
+2. Every reference URL must EXACTLY match a provided evidence URL
+3. Do NOT invent, fabricate, or hallucinate any references
+4. Do NOT modify paper titles, authors, dates, or URLs
+5. If unsure about a citation, OMIT it rather than guess
+6. Copy URLs exactly as provided - do not create similar-looking URLs
+
+VIOLATION OF THESE RULES PRODUCES DANGEROUS MISINFORMATION.
+─────────────────────────────────────────────────────────────────────────────"""
 
 
-def format_report_prompt(
+async def format_report_prompt(
     query: str,
     evidence: list,
     hypotheses: list,
     assessment: dict,
-    metadata: dict
+    metadata: dict,
+    embeddings=None
 ) -> str:
-    """Format prompt for report generation."""
+    """Format prompt for report generation.
 
+    Includes full evidence details for accurate citation.
+    """
+    # Select diverse evidence (not arbitrary truncation)
+    selected = await select_diverse_evidence(
+        evidence, n=20, query=query, embeddings=embeddings
+    )
+
+    # Include FULL citation details for each evidence item
+    # This helps the LLM create accurate references
     evidence_summary = "\n".join([
-        f"- [{e.citation.title}]({e.citation.url}): {e.content[:200]}..."
-        for e in evidence[:15]
+        f"- **Title**: {e.citation.title}\n"
+        f"  **URL**: {e.citation.url}\n"
+        f"  **Authors**: {', '.join(e.citation.authors or ['Unknown'])}\n"
+        f"  **Date**: {e.citation.date or 'n.d.'}\n"
+        f"  **Source**: {e.citation.source}\n"
+        f"  **Content**: {truncate_at_sentence(e.content, 200)}\n"
+        for e in selected
     ])
 
     hypotheses_summary = "\n".join([
         f"- {h.drug} → {h.target} → {h.pathway} → {h.effect} (Confidence: {h.confidence:.0%})"
         for h in hypotheses
-    ])
+    ]) if hypotheses else "No hypotheses generated yet."
 
     return f"""Generate a structured research report for the following query.
 
 ## Original Query
 {query}
 
-## Evidence Collected ({len(evidence)} papers)
+## Evidence Collected ({len(selected)} papers, selected for diversity)
+
 {evidence_summary}
 
 ## Hypotheses Generated
@@ -252,7 +374,9 @@ def format_report_prompt(
 - Sources Searched: {', '.join(metadata.get('sources', []))}
 - Search Iterations: {metadata.get('iterations', 0)}
 
-Generate a complete ResearchReport with all sections filled in."""
+Generate a complete ResearchReport with all sections filled in.
+
+REMINDER: Only cite papers from the Evidence section above. Copy URLs exactly."""
 ```
 
 ### 4.2 Report Agent (`src/agents/report_agent.py`)
@@ -260,7 +384,7 @@ Generate a complete ResearchReport with all sections filled in."""
 ```python
 """Report agent for generating structured research reports."""
 from collections.abc import AsyncIterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from agent_framework import (
     AgentRunResponse,
@@ -273,8 +397,12 @@ from agent_framework import (
 from pydantic_ai import Agent
 
 from src.prompts.report import SYSTEM_PROMPT, format_report_prompt
+from src.utils.citation_validator import validate_references  # CRITICAL
 from src.utils.config import settings
 from src.utils.models import Evidence, MechanismHypothesis, ResearchReport
+
+if TYPE_CHECKING:
+    from src.services.embeddings import EmbeddingService
 
 
 class ReportAgent(BaseAgent):
@@ -283,12 +411,14 @@ class ReportAgent(BaseAgent):
     def __init__(
         self,
         evidence_store: dict[str, list[Evidence]],
+        embedding_service: "EmbeddingService | None" = None,  # For diverse selection
     ) -> None:
         super().__init__(
             name="ReportAgent",
             description="Generates structured scientific research reports with citations",
         )
         self._evidence_store = evidence_store
+        self._embeddings = embedding_service
         self._agent = Agent(
             model=settings.llm_provider,
             output_type=ResearchReport,
@@ -325,19 +455,25 @@ class ReportAgent(BaseAgent):
             "iterations": self._evidence_store.get("iteration_count", 0),
         }
 
-        # Generate report
-        prompt = format_report_prompt(
+        # Generate report (format_report_prompt is now async)
+        prompt = await format_report_prompt(
             query=query,
             evidence=evidence,
             hypotheses=hypotheses,
             assessment=assessment,
-            metadata=metadata
+            metadata=metadata,
+            embeddings=self._embeddings,
         )
 
         result = await self._agent.run(prompt)
         report = result.output
 
-        # Store report
+        # ═══════════════════════════════════════════════════════════════════
+        # 🚨 CRITICAL: Validate citations to prevent hallucination
+        # ═══════════════════════════════════════════════════════════════════
+        report = validate_references(report, evidence)
+
+        # Store validated report
         self._evidence_store["final_report"] = report
 
         # Return markdown version
@@ -553,6 +689,94 @@ async def test_report_agent_no_evidence():
     response = await agent.run("test query")
 
     assert "Cannot generate report" in response.messages[0].text
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 🚨 CRITICAL: Citation Validation Tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_report_agent_removes_hallucinated_citations(sample_evidence):
+    """ReportAgent should remove citations not in evidence."""
+    from src.utils.citation_validator import validate_references
+
+    # Create report with mix of valid and hallucinated references
+    report_with_hallucinations = ResearchReport(
+        title="Test Report",
+        executive_summary="This is a test report for citation validation...",
+        research_question="Testing citation validation",
+        methodology=ReportSection(title="Methodology", content="Test"),
+        hypotheses_tested=[],
+        mechanistic_findings=ReportSection(title="Mechanistic", content="Test"),
+        clinical_findings=ReportSection(title="Clinical", content="Test"),
+        drug_candidates=["TestDrug"],
+        limitations=["Test limitation"],
+        conclusion="Test conclusion",
+        references=[
+            # Valid reference (matches sample_evidence)
+            {
+                "title": "Metformin mechanisms",
+                "url": "https://pubmed.ncbi.nlm.nih.gov/12345/",
+                "authors": ["Smith J", "Jones A"],
+                "date": "2023",
+                "source": "pubmed"
+            },
+            # HALLUCINATED reference (URL doesn't exist in evidence)
+            {
+                "title": "Fake Paper That Doesn't Exist",
+                "url": "https://fake-journal.com/made-up-paper",
+                "authors": ["Hallucinated A"],
+                "date": "2024",
+                "source": "fake"
+            },
+            # Another HALLUCINATED reference
+            {
+                "title": "Invented Research",
+                "url": "https://pubmed.ncbi.nlm.nih.gov/99999999/",
+                "authors": ["NotReal B"],
+                "date": "2025",
+                "source": "pubmed"
+            }
+        ],
+        sources_searched=["pubmed"],
+        total_papers_reviewed=1,
+        search_iterations=1,
+        confidence_score=0.5
+    )
+
+    # Validate - should remove hallucinated references
+    validated_report = validate_references(report_with_hallucinations, sample_evidence)
+
+    # Only the valid reference should remain
+    assert len(validated_report.references) == 1
+    assert validated_report.references[0]["title"] == "Metformin mechanisms"
+    assert "Fake Paper" not in str(validated_report.references)
+
+
+def test_citation_validator_handles_empty_references():
+    """Citation validator should handle reports with no references."""
+    from src.utils.citation_validator import validate_references
+
+    report = ResearchReport(
+        title="Empty Refs Report",
+        executive_summary="This report has no references...",
+        research_question="Testing empty refs",
+        methodology=ReportSection(title="Methodology", content="Test"),
+        hypotheses_tested=[],
+        mechanistic_findings=ReportSection(title="Mechanistic", content="Test"),
+        clinical_findings=ReportSection(title="Clinical", content="Test"),
+        drug_candidates=[],
+        limitations=[],
+        conclusion="Test",
+        references=[],  # Empty!
+        sources_searched=[],
+        total_papers_reviewed=0,
+        search_iterations=0,
+        confidence_score=0.0
+    )
+
+    validated = validate_references(report, [])
+    assert validated.references == []
 ```
 
 ---

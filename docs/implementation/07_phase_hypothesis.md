@@ -116,10 +116,150 @@ class HypothesisAssessment(BaseModel):
 
 ## 4. Implementation
 
+### 4.0 Text Utilities (`src/utils/text_utils.py`)
+
+> **Why These Utilities?**
+>
+> The original spec used arbitrary truncation (`evidence[:10]` and `content[:300]`).
+> This loses important information randomly. These utilities provide:
+> 1. **Sentence-aware truncation** - cuts at sentence boundaries, not mid-word
+> 2. **Diverse evidence selection** - uses embeddings to select varied evidence (MMR)
+
+```python
+"""Text processing utilities for evidence handling."""
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.services.embeddings import EmbeddingService
+    from src.utils.models import Evidence
+
+
+def truncate_at_sentence(text: str, max_chars: int = 300) -> str:
+    """Truncate text at sentence boundary, preserving meaning.
+
+    Args:
+        text: The text to truncate
+        max_chars: Maximum characters (default 300)
+
+    Returns:
+        Text truncated at last complete sentence within limit
+    """
+    if len(text) <= max_chars:
+        return text
+
+    # Find truncation point
+    truncated = text[:max_chars]
+
+    # Look for sentence endings: . ! ? followed by space or end
+    for sep in ['. ', '! ', '? ', '.\n', '!\n', '?\n']:
+        last_sep = truncated.rfind(sep)
+        if last_sep > max_chars // 2:  # Don't truncate too aggressively
+            return text[:last_sep + 1].strip()
+
+    # Fallback: find last period
+    last_period = truncated.rfind('.')
+    if last_period > max_chars // 2:
+        return text[:last_period + 1].strip()
+
+    # Last resort: truncate at word boundary
+    last_space = truncated.rfind(' ')
+    if last_space > 0:
+        return text[:last_space].strip() + "..."
+
+    return truncated + "..."
+
+
+async def select_diverse_evidence(
+    evidence: list["Evidence"],
+    n: int,
+    query: str,
+    embeddings: "EmbeddingService | None" = None
+) -> list["Evidence"]:
+    """Select n most diverse and relevant evidence items.
+
+    Uses Maximal Marginal Relevance (MMR) when embeddings available,
+    falls back to relevance_score sorting otherwise.
+
+    Args:
+        evidence: All available evidence
+        n: Number of items to select
+        query: Original query for relevance scoring
+        embeddings: Optional EmbeddingService for semantic diversity
+
+    Returns:
+        Selected evidence items, diverse and relevant
+    """
+    if not evidence:
+        return []
+
+    if n >= len(evidence):
+        return evidence
+
+    # Fallback: sort by relevance score if no embeddings
+    if embeddings is None:
+        return sorted(
+            evidence,
+            key=lambda e: e.relevance_score,
+            reverse=True
+        )[:n]
+
+    # MMR: Maximal Marginal Relevance for diverse selection
+    # Score = λ * relevance - (1-λ) * max_similarity_to_selected
+    lambda_param = 0.7  # Balance relevance vs diversity
+
+    # Get query embedding
+    query_emb = await embeddings.embed(query)
+
+    # Get all evidence embeddings
+    evidence_embs = await embeddings.embed_batch([e.content for e in evidence])
+
+    # Compute relevance scores (cosine similarity to query)
+    from numpy import dot
+    from numpy.linalg import norm
+    cosine = lambda a, b: float(dot(a, b) / (norm(a) * norm(b)))
+
+    relevance_scores = [cosine(query_emb, emb) for emb in evidence_embs]
+
+    # Greedy MMR selection
+    selected_indices: list[int] = []
+    remaining = set(range(len(evidence)))
+
+    for _ in range(n):
+        best_score = float('-inf')
+        best_idx = -1
+
+        for idx in remaining:
+            # Relevance component
+            relevance = relevance_scores[idx]
+
+            # Diversity component: max similarity to already selected
+            if selected_indices:
+                max_sim = max(
+                    cosine(evidence_embs[idx], evidence_embs[sel])
+                    for sel in selected_indices
+                )
+            else:
+                max_sim = 0
+
+            # MMR score
+            mmr_score = lambda_param * relevance - (1 - lambda_param) * max_sim
+
+            if mmr_score > best_score:
+                best_score = mmr_score
+                best_idx = idx
+
+        if best_idx >= 0:
+            selected_indices.append(best_idx)
+            remaining.remove(best_idx)
+
+    return [evidence[i] for i in selected_indices]
+```
+
 ### 4.1 Hypothesis Prompts (`src/prompts/hypothesis.py`)
 
 ```python
 """Prompts for Hypothesis Agent."""
+from src.utils.text_utils import truncate_at_sentence, select_diverse_evidence
 
 SYSTEM_PROMPT = """You are a biomedical research scientist specializing in drug repurposing.
 
@@ -141,16 +281,35 @@ Example hypothesis format:
 
 Be specific. Use actual gene/protein names when possible."""
 
-def format_hypothesis_prompt(query: str, evidence: list) -> str:
-    """Format prompt for hypothesis generation."""
+
+async def format_hypothesis_prompt(
+    query: str,
+    evidence: list,
+    embeddings=None
+) -> str:
+    """Format prompt for hypothesis generation.
+
+    Uses smart evidence selection instead of arbitrary truncation.
+
+    Args:
+        query: The research query
+        evidence: All collected evidence
+        embeddings: Optional EmbeddingService for diverse selection
+    """
+    # Select diverse, relevant evidence (not arbitrary first 10)
+    selected = await select_diverse_evidence(
+        evidence, n=10, query=query, embeddings=embeddings
+    )
+
+    # Format with sentence-aware truncation
     evidence_text = "\n".join([
-        f"- {e.citation.title}: {e.content[:300]}..."
-        for e in evidence[:10]
+        f"- **{e.citation.title}** ({e.citation.source}): {truncate_at_sentence(e.content, 300)}"
+        for e in selected
     ])
 
     return f"""Based on the following evidence about "{query}", generate mechanistic hypotheses.
 
-## Evidence
+## Evidence ({len(selected)} papers selected for diversity)
 {evidence_text}
 
 ## Task
@@ -167,7 +326,7 @@ Generate 2-4 hypotheses, prioritized by confidence."""
 ```python
 """Hypothesis agent for mechanistic reasoning."""
 from collections.abc import AsyncIterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from agent_framework import (
     AgentRunResponse,
@@ -183,6 +342,9 @@ from src.prompts.hypothesis import SYSTEM_PROMPT, format_hypothesis_prompt
 from src.utils.config import settings
 from src.utils.models import Evidence, HypothesisAssessment
 
+if TYPE_CHECKING:
+    from src.services.embeddings import EmbeddingService
+
 
 class HypothesisAgent(BaseAgent):
     """Generates mechanistic hypotheses based on evidence."""
@@ -190,12 +352,14 @@ class HypothesisAgent(BaseAgent):
     def __init__(
         self,
         evidence_store: dict[str, list[Evidence]],
+        embedding_service: "EmbeddingService | None" = None,  # NEW: for diverse selection
     ) -> None:
         super().__init__(
             name="HypothesisAgent",
             description="Generates scientific hypotheses about drug mechanisms to guide research",
         )
         self._evidence_store = evidence_store
+        self._embeddings = embedding_service  # Used for MMR evidence selection
         self._agent = Agent(
             model=settings.llm_provider,  # Uses configured LLM
             output_type=HypothesisAssessment,
@@ -225,8 +389,11 @@ class HypothesisAgent(BaseAgent):
                 response_id="hypothesis-no-evidence",
             )
 
-        # Generate hypotheses
-        prompt = format_hypothesis_prompt(query, evidence)
+        # Generate hypotheses with diverse evidence selection
+        # NOTE: format_hypothesis_prompt is now async
+        prompt = await format_hypothesis_prompt(
+            query, evidence, embeddings=self._embeddings
+        )
         result = await self._agent.run(prompt)
         assessment = result.output
 
