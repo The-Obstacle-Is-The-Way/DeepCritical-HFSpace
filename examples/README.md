@@ -1,181 +1,183 @@
 # DeepCritical Examples
 
-Demo scripts demonstrating each phase of the drug repurposing research agent.
+**NO MOCKS. NO FAKE DATA. REAL SCIENCE.**
 
-## Quick Start
+These demos run the REAL drug repurposing research pipeline with actual API calls.
+
+---
+
+## Prerequisites
+
+You MUST have API keys configured:
 
 ```bash
-# Run without API keys (mock modes available)
-uv run python examples/embeddings_demo/run_embeddings.py
-uv run python examples/full_stack_demo/run_full.py --mock
+# Copy the example and add your keys
+cp .env.example .env
 
-# Run with API keys (set OPENAI_API_KEY or ANTHROPIC_API_KEY)
-uv run python examples/full_stack_demo/run_full.py "metformin cancer"
+# Required (pick one):
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Optional (higher PubMed rate limits):
+NCBI_API_KEY=your-key
 ```
 
 ---
 
-## 1. Search Demo (Phase 2)
+## Examples
 
-Demonstrates parallel search across PubMed and Web sources. **No API keys required.**
+### 1. Search Demo (No LLM Required)
+
+Demonstrates REAL parallel search across PubMed and Web.
 
 ```bash
 uv run python examples/search_demo/run_search.py "metformin cancer"
 ```
 
-**What it shows:**
-- PubMed E-utilities search
-- DuckDuckGo web search
-- Scatter-gather orchestration
-- Evidence model with citations
+**What's REAL:**
+- Actual NCBI E-utilities API calls
+- Actual DuckDuckGo web searches
+- Real papers, real URLs, real content
 
 ---
 
-## 2. Agent Demo (Phase 4)
+### 2. Embeddings Demo (No LLM Required)
 
-Demonstrates the search-judge-synthesize loop.
-
-**Mock Mode (No API Keys):**
-```bash
-uv run python examples/orchestrator_demo/run_agent.py "metformin cancer" --mock
-```
-
-**Real Mode (Requires API Keys):**
-```bash
-uv run python examples/orchestrator_demo/run_agent.py "metformin cancer"
-```
-
-**What it shows:**
-- Iterative search refinement
-- LLM-based evidence assessment
-- Synthesis generation
-- Event streaming for UI updates
-
----
-
-## 3. Magentic Demo (Phase 5)
-
-Demonstrates multi-agent coordination using Microsoft Agent Framework.
-
-```bash
-# Requires OPENAI_API_KEY (Magentic uses OpenAI)
-uv run python examples/orchestrator_demo/run_magentic.py "metformin cancer"
-```
-
-**What it shows:**
-- MagenticBuilder workflow
-- SearchAgent, JudgeAgent, HypothesisAgent, ReportAgent coordination
-- Manager-based orchestration
-
----
-
-## 4. Embeddings Demo (Phase 6)
-
-Demonstrates semantic search and deduplication. **No API keys required.**
+Demonstrates REAL semantic search and deduplication.
 
 ```bash
 uv run python examples/embeddings_demo/run_embeddings.py
 ```
 
-**What it shows:**
-- Text embedding with sentence-transformers
-- ChromaDB vector storage
-- Semantic similarity search
-- Duplicate detection by meaning (not just URL)
-- Cosine similarity calculations
+**What's REAL:**
+- Actual sentence-transformers model (all-MiniLM-L6-v2)
+- Actual ChromaDB vector storage
+- Real cosine similarity computations
+- Real semantic deduplication
 
 ---
 
-## 5. Hypothesis Demo (Phase 7)
+### 3. Orchestrator Demo (LLM Required)
 
-Demonstrates mechanistic hypothesis generation.
+Demonstrates the REAL search-judge-synthesize loop.
 
 ```bash
-# Requires OPENAI_API_KEY or ANTHROPIC_API_KEY
+uv run python examples/orchestrator_demo/run_agent.py "metformin cancer"
+uv run python examples/orchestrator_demo/run_agent.py "aspirin alzheimer" --iterations 5
+```
+
+**What's REAL:**
+- Real PubMed + Web searches
+- Real LLM judge evaluating evidence quality
+- Real iterative refinement based on LLM decisions
+- Real research synthesis
+
+---
+
+### 4. Magentic Demo (OpenAI Required)
+
+Demonstrates REAL multi-agent coordination using Microsoft Agent Framework.
+
+```bash
+# Requires OPENAI_API_KEY specifically
+uv run python examples/orchestrator_demo/run_magentic.py "metformin cancer"
+```
+
+**What's REAL:**
+- Real MagenticBuilder orchestration
+- Real SearchAgent, JudgeAgent, HypothesisAgent, ReportAgent
+- Real manager-based coordination
+
+---
+
+### 5. Hypothesis Demo (LLM Required)
+
+Demonstrates REAL mechanistic hypothesis generation.
+
+```bash
 uv run python examples/hypothesis_demo/run_hypothesis.py "metformin Alzheimer's"
 uv run python examples/hypothesis_demo/run_hypothesis.py "sildenafil heart failure"
 ```
 
-**What it shows:**
-- Drug -> Target -> Pathway -> Effect reasoning
-- Knowledge gap identification
-- Search query suggestions for targeted research
-- Confidence scoring
+**What's REAL:**
+- Real PubMed + Web search first
+- Real embedding-based deduplication
+- Real LLM generating Drug -> Target -> Pathway -> Effect chains
+- Real knowledge gap identification
 
 ---
 
-## 6. Full Stack Demo (Phases 1-8)
+### 6. Full Stack Demo (LLM Required)
 
-**The complete pipeline** - demonstrates all phases working together.
+**THE COMPLETE PIPELINE** - All phases working together.
 
-**Mock Mode (No API Keys):**
-```bash
-uv run python examples/full_stack_demo/run_full.py --mock
-```
-
-**Real Mode:**
 ```bash
 uv run python examples/full_stack_demo/run_full.py "metformin Alzheimer's"
 uv run python examples/full_stack_demo/run_full.py "sildenafil heart failure" -i 3
 ```
 
-**What it shows:**
-1. **Search** - PubMed + Web evidence collection
-2. **Embeddings** - Semantic deduplication
-3. **Hypothesis** - Mechanistic reasoning
-4. **Judge** - Evidence quality assessment
-5. **Report** - Structured scientific report generation
+**What's REAL:**
+1. Real PubMed + Web evidence collection
+2. Real embedding-based semantic deduplication
+3. Real LLM mechanistic hypothesis generation
+4. Real LLM evidence quality assessment
+5. Real LLM structured scientific report generation
 
-Output includes a publication-quality research report with:
-- Executive summary
-- Methodology
-- Hypotheses tested (with support/contradict counts)
-- Mechanistic and clinical findings
-- Drug candidates
-- Limitations
-- Formatted references
+Output: Publication-quality research report with validated citations.
 
 ---
 
-## API Keys
+## API Key Requirements
 
-| Example | Required Keys |
-|---------|--------------|
-| search_demo | None (optional NCBI_API_KEY for higher rate limits) |
-| orchestrator_demo --mock | None |
-| orchestrator_demo | OPENAI_API_KEY or ANTHROPIC_API_KEY |
-| run_magentic | OPENAI_API_KEY |
-| embeddings_demo | None |
-| hypothesis_demo | OPENAI_API_KEY or ANTHROPIC_API_KEY |
-| full_stack_demo --mock | None |
-| full_stack_demo | OPENAI_API_KEY or ANTHROPIC_API_KEY |
+| Example | LLM Required | Keys |
+|---------|--------------|------|
+| search_demo | No | Optional: `NCBI_API_KEY` |
+| embeddings_demo | No | None |
+| orchestrator_demo | Yes | `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` |
+| run_magentic | Yes | `OPENAI_API_KEY` (Magentic requires OpenAI) |
+| hypothesis_demo | Yes | `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` |
+| full_stack_demo | Yes | `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` |
 
 ---
 
-## Architecture Overview
+## Architecture
 
 ```
 User Query
     |
     v
-[Phase 2: Search] --> PubMed + Web
+[REAL Search] --> Actual PubMed + Web API calls
     |
     v
-[Phase 6: Embeddings] --> Semantic Deduplication
+[REAL Embeddings] --> Actual sentence-transformers
     |
     v
-[Phase 7: Hypothesis] --> Drug -> Target -> Pathway -> Effect
+[REAL Hypothesis] --> Actual LLM reasoning
     |
     v
-[Phase 3: Judge] --> "Is evidence sufficient?"
+[REAL Judge] --> Actual LLM assessment
     |
-    +---> NO --> Refine queries, loop back to Search
+    +---> Need more? --> Loop back to Search
     |
-    +---> YES --> Continue to Report
-    |
-    v
-[Phase 8: Report] --> Structured Scientific Report
+    +---> Sufficient --> Continue
     |
     v
-Final Output with Citations
+[REAL Report] --> Actual LLM synthesis
+    |
+    v
+Publication-Quality Research Report
 ```
+
+---
+
+## Why No Mocks?
+
+> "Authenticity is the feature."
+
+Mocks belong in `tests/unit/`, not in demos. When you run these examples, you see:
+- Real papers from real databases
+- Real AI reasoning about real evidence
+- Real scientific hypotheses
+- Real research reports
+
+This is what DeepCritical actually does. No fake data. No canned responses.

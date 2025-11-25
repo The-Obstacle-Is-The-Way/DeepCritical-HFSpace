@@ -2,17 +2,15 @@
 """
 Demo: Hypothesis Generation (Phase 7).
 
-This script demonstrates mechanistic hypothesis generation:
-- Drug -> Target -> Pathway -> Effect reasoning
-- Knowledge gap identification
-- Search query suggestions for targeted research
+This script demonstrates the REAL hypothesis generation pipeline:
+1. REAL search: PubMed + Web (actual API calls)
+2. REAL embeddings: Semantic deduplication
+3. REAL LLM: Mechanistic hypothesis generation
 
 Usage:
     # Requires OPENAI_API_KEY or ANTHROPIC_API_KEY
-    uv run python examples/hypothesis_demo/run_hypothesis.py
-
-    # With custom drug query
-    uv run python examples/hypothesis_demo/run_hypothesis.py "aspirin heart disease"
+    uv run python examples/hypothesis_demo/run_hypothesis.py "metformin Alzheimer's"
+    uv run python examples/hypothesis_demo/run_hypothesis.py "sildenafil heart failure"
 """
 
 import argparse
@@ -22,200 +20,110 @@ import sys
 from typing import Any
 
 from src.agents.hypothesis_agent import HypothesisAgent
-from src.utils.models import Citation, Evidence
-
-
-def create_metformin_evidence() -> list[Evidence]:
-    """Create sample evidence about metformin for hypothesis generation."""
-    return [
-        Evidence(
-            content=(
-                "Metformin activates AMP-activated protein kinase (AMPK), a master regulator "
-                "of cellular energy homeostasis. AMPK activation leads to inhibition of mTOR "
-                "signaling, reducing protein synthesis and cell proliferation."
-            ),
-            citation=Citation(
-                source="pubmed",
-                title="Metformin and AMPK: mechanisms of action",
-                url="https://pubmed.ncbi.nlm.nih.gov/12345/",
-                date="2023",
-                authors=["Zhang L", "Wang H"],
-            ),
-        ),
-        Evidence(
-            content=(
-                "In Alzheimer's disease models, AMPK activation by metformin reduced tau "
-                "phosphorylation and amyloid-beta accumulation. These effects correlated "
-                "with improved cognitive function in transgenic mice."
-            ),
-            citation=Citation(
-                source="pubmed",
-                title="Metformin neuroprotective effects in AD models",
-                url="https://pubmed.ncbi.nlm.nih.gov/23456/",
-                date="2024",
-                authors=["Kim J", "Lee S", "Park M"],
-            ),
-        ),
-        Evidence(
-            content=(
-                "Clinical observational studies show diabetic patients on metformin have "
-                "30-40% reduced incidence of Alzheimer's disease compared to those on "
-                "other diabetes medications."
-            ),
-            citation=Citation(
-                source="pubmed",
-                title="Metformin use and dementia risk: population study",
-                url="https://pubmed.ncbi.nlm.nih.gov/34567/",
-                date="2023",
-                authors=["Smith A", "Johnson B"],
-            ),
-        ),
-        Evidence(
-            content=(
-                "mTOR inhibition has emerged as a key therapeutic target in neurodegenerative "
-                "diseases. Rapamycin and metformin both reduce mTOR activity, though through "
-                "different upstream mechanisms."
-            ),
-            citation=Citation(
-                source="pubmed",
-                title="mTOR pathway in neurodegeneration",
-                url="https://pubmed.ncbi.nlm.nih.gov/45678/",
-                date="2022",
-                authors=["Brown C", "Davis D"],
-            ),
-        ),
-        Evidence(
-            content=(
-                "Metformin crosses the blood-brain barrier and accumulates in the hippocampus "
-                "and cortex. Brain concentrations sufficient for AMPK activation are achieved "
-                "at standard diabetic doses."
-            ),
-            citation=Citation(
-                source="pubmed",
-                title="Pharmacokinetics of metformin in brain tissue",
-                url="https://pubmed.ncbi.nlm.nih.gov/56789/",
-                date="2023",
-                authors=["Wilson E"],
-            ),
-        ),
-    ]
-
-
-def create_sildenafil_evidence() -> list[Evidence]:
-    """Create sample evidence about sildenafil (Viagra) for hypothesis generation."""
-    return [
-        Evidence(
-            content=(
-                "Sildenafil inhibits phosphodiesterase type 5 (PDE5), preventing breakdown "
-                "of cGMP. Elevated cGMP causes smooth muscle relaxation and vasodilation "
-                "in pulmonary vasculature."
-            ),
-            citation=Citation(
-                source="pubmed",
-                title="PDE5 inhibition mechanism of sildenafil",
-                url="https://pubmed.ncbi.nlm.nih.gov/67890/",
-                date="2022",
-                authors=["Miller F"],
-            ),
-        ),
-        Evidence(
-            content=(
-                "In pulmonary arterial hypertension (PAH), sildenafil reduces pulmonary "
-                "vascular resistance and improves exercise capacity. FDA approved for PAH "
-                "under brand name Revatio."
-            ),
-            citation=Citation(
-                source="pubmed",
-                title="Sildenafil in pulmonary hypertension treatment",
-                url="https://pubmed.ncbi.nlm.nih.gov/78901/",
-                date="2023",
-                authors=["Garcia R", "Martinez L"],
-            ),
-        ),
-        Evidence(
-            content=(
-                "PDE5 is expressed in cardiac myocytes. Sildenafil has shown cardioprotective "
-                "effects in animal models of heart failure by enhancing nitric oxide-cGMP "
-                "signaling in the myocardium."
-            ),
-            citation=Citation(
-                source="pubmed",
-                title="Cardiac effects of PDE5 inhibition",
-                url="https://pubmed.ncbi.nlm.nih.gov/89012/",
-                date="2024",
-                authors=["Thompson K"],
-            ),
-        ),
-    ]
+from src.services.embeddings import EmbeddingService
+from src.tools.pubmed import PubMedTool
+from src.tools.search_handler import SearchHandler
+from src.tools.websearch import WebTool
 
 
 async def run_hypothesis_demo(query: str) -> None:
-    """Run the hypothesis generation demo."""
+    """Run the REAL hypothesis generation pipeline."""
     print(f"\n{'='*60}")
     print("DeepCritical Hypothesis Agent Demo (Phase 7)")
     print(f"Query: {query}")
+    print("Mode: REAL (Live API calls)")
     print(f"{'='*60}\n")
 
-    # Select appropriate evidence based on query
-    if "sildenafil" in query.lower() or "viagra" in query.lower():
-        evidence = create_sildenafil_evidence()
-        print("Using: Sildenafil evidence set (3 papers)")
-    else:
-        evidence = create_metformin_evidence()
-        print("Using: Metformin evidence set (5 papers)")
+    # Step 1: REAL Search
+    print("[Step 1] Searching PubMed + Web...")
+    search_handler = SearchHandler(tools=[PubMedTool(), WebTool()], timeout=30.0)
+    result = await search_handler.execute(query, max_results_per_tool=5)
 
-    # Create evidence store (shared context between agents)
-    evidence_store: dict[str, Any] = {"current": evidence, "hypotheses": []}
+    print(f"  Found {result.total_found} results from {result.sources_searched}")
+    if result.errors:
+        print(f"  Warnings: {result.errors}")
 
-    # Create hypothesis agent
-    agent = HypothesisAgent(evidence_store)
+    if not result.evidence:
+        print("\nNo evidence found. Try a different query.")
+        return
 
-    print("\nGenerating mechanistic hypotheses...\n")
+    # Step 2: REAL Embeddings - Deduplicate
+    print("\n[Step 2] Semantic deduplication...")
+    embedding_service = EmbeddingService()
+    unique_evidence = await embedding_service.deduplicate(result.evidence, threshold=0.85)
+    print(f"  {len(result.evidence)} -> {len(unique_evidence)} unique papers")
+
+    # Show what we found
+    print("\n[Evidence collected]")
+    max_title_len = 50
+    for i, e in enumerate(unique_evidence[:5], 1):
+        raw_title = e.citation.title
+        title = raw_title[:max_title_len] + "..." if len(raw_title) > max_title_len else raw_title
+        print(f"  {i}. [{e.citation.source.upper()}] {title}")
+
+    # Step 3: REAL LLM - Generate hypotheses
+    print("\n[Step 3] Generating mechanistic hypotheses (LLM)...")
+    evidence_store: dict[str, Any] = {"current": unique_evidence, "hypotheses": []}
+    agent = HypothesisAgent(evidence_store, embedding_service)
+
     print("-" * 60)
-
-    # Run hypothesis generation
     response = await agent.run(query)
-
-    # Print the formatted response
     print(response.messages[0].text)
-
     print("-" * 60)
 
     # Show stored hypotheses
     hypotheses = evidence_store.get("hypotheses", [])
-    print(f"\n{len(hypotheses)} hypotheses stored in evidence_store")
+    print(f"\n{len(hypotheses)} hypotheses stored")
 
     if hypotheses:
-        print("\nHypothesis search queries generated:")
+        print("\nGenerated search queries for further investigation:")
         for h in hypotheses:
             queries = h.to_search_queries()
-            print(f"  - {h.drug} -> {h.target}: {queries[:2]}")
+            print(f"  {h.drug} -> {h.target}:")
+            for q in queries[:3]:
+                print(f"    - {q}")
 
 
 async def main() -> None:
-    """Run the demo."""
-    parser = argparse.ArgumentParser(description="Hypothesis Generation Demo")
+    """Entry point."""
+    parser = argparse.ArgumentParser(
+        description="Hypothesis Generation Demo (REAL - No Mocks)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    uv run python examples/hypothesis_demo/run_hypothesis.py "metformin Alzheimer's"
+    uv run python examples/hypothesis_demo/run_hypothesis.py "sildenafil heart failure"
+    uv run python examples/hypothesis_demo/run_hypothesis.py "aspirin cancer prevention"
+        """,
+    )
     parser.add_argument(
         "query",
         nargs="?",
         default="metformin Alzheimer's disease",
-        help="Research query (default: 'metformin Alzheimer\\'s disease')",
+        help="Research query",
     )
     args = parser.parse_args()
 
-    # Check for API key
+    # Fail fast: require API key
     if not (os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")):
-        print("Error: Hypothesis generation requires an LLM.")
-        print("Set OPENAI_API_KEY or ANTHROPIC_API_KEY in your environment.")
+        print("=" * 60)
+        print("ERROR: This demo requires a real LLM.")
+        print()
+        print("Set one of the following in your .env file:")
+        print("  OPENAI_API_KEY=sk-...")
+        print("  ANTHROPIC_API_KEY=sk-ant-...")
+        print()
+        print("This is a REAL demo, not a mock. No fake data.")
+        print("=" * 60)
         sys.exit(1)
 
     await run_hypothesis_demo(args.query)
 
     print("\n" + "=" * 60)
-    print("Demo complete! The Hypothesis Agent:")
-    print("  - Analyzes evidence to find Drug -> Target -> Pathway -> Effect chains")
-    print("  - Identifies knowledge gaps in current evidence")
-    print("  - Suggests targeted search queries to test hypotheses")
+    print("Demo complete! This was a REAL pipeline:")
+    print("  1. REAL search: Actual PubMed + Web API calls")
+    print("  2. REAL embeddings: Actual sentence-transformers")
+    print("  3. REAL LLM: Actual hypothesis generation")
     print("=" * 60 + "\n")
 
 
