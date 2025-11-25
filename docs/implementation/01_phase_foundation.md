@@ -2,7 +2,6 @@
 
 **Goal**: Establish a "Gucci Banger" development environment using 2025 best practices.
 **Philosophy**: "If the build isn't solid, the agent won't be."
-**Estimated Effort**: 2-3 hours
 
 ---
 
@@ -150,37 +149,86 @@ exclude_lines = [
 
 ---
 
-## 4. Directory Structure (Create All)
+## 4. Directory Structure (Maintainer's Structure)
 
 ```bash
-# Execute these commands
-mkdir -p src/shared
-mkdir -p src/features/search
-mkdir -p src/features/judge
-mkdir -p src/features/orchestrator
-mkdir -p src/features/report
-mkdir -p tests/unit/shared
-mkdir -p tests/unit/features/search
-mkdir -p tests/unit/features/judge
-mkdir -p tests/unit/features/orchestrator
+# Execute these commands to create the directory structure
+mkdir -p src/utils
+mkdir -p src/tools
+mkdir -p src/prompts
+mkdir -p src/agent_factory
+mkdir -p src/middleware
+mkdir -p src/database_services
+mkdir -p src/retrieval_factory
+mkdir -p tests/unit/tools
+mkdir -p tests/unit/agent_factory
+mkdir -p tests/unit/utils
 mkdir -p tests/integration
 
 # Create __init__.py files (required for imports)
 touch src/__init__.py
-touch src/shared/__init__.py
-touch src/features/__init__.py
-touch src/features/search/__init__.py
-touch src/features/judge/__init__.py
-touch src/features/orchestrator/__init__.py
-touch src/features/report/__init__.py
+touch src/utils/__init__.py
+touch src/tools/__init__.py
+touch src/prompts/__init__.py
+touch src/agent_factory/__init__.py
 touch tests/__init__.py
 touch tests/unit/__init__.py
-touch tests/unit/shared/__init__.py
-touch tests/unit/features/__init__.py
-touch tests/unit/features/search/__init__.py
-touch tests/unit/features/judge/__init__.py
-touch tests/unit/features/orchestrator/__init__.py
+touch tests/unit/tools/__init__.py
+touch tests/unit/agent_factory/__init__.py
+touch tests/unit/utils/__init__.py
 touch tests/integration/__init__.py
+```
+
+### Final Structure:
+
+```
+src/
+├── __init__.py
+├── app.py                      # Entry point (Gradio UI)
+├── orchestrator.py             # Agent loop
+├── agent_factory/              # Agent creation and judges
+│   ├── __init__.py
+│   ├── agents.py
+│   └── judges.py
+├── tools/                      # Search tools
+│   ├── __init__.py
+│   ├── pubmed.py
+│   ├── websearch.py
+│   └── search_handler.py
+├── prompts/                    # Prompt templates
+│   ├── __init__.py
+│   └── judge.py
+├── utils/                      # Shared utilities
+│   ├── __init__.py
+│   ├── config.py
+│   ├── exceptions.py
+│   ├── models.py
+│   ├── dataloaders.py
+│   └── parsers.py
+├── middleware/                 # (Future)
+├── database_services/          # (Future)
+└── retrieval_factory/          # (Future)
+
+tests/
+├── __init__.py
+├── conftest.py
+├── unit/
+│   ├── __init__.py
+│   ├── tools/
+│   │   ├── __init__.py
+│   │   ├── test_pubmed.py
+│   │   ├── test_websearch.py
+│   │   └── test_search_handler.py
+│   ├── agent_factory/
+│   │   ├── __init__.py
+│   │   └── test_judges.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   └── test_config.py
+│   └── test_orchestrator.py
+└── integration/
+    ├── __init__.py
+    └── test_pubmed_live.py
 ```
 
 ---
@@ -193,6 +241,9 @@ touch tests/integration/__init__.py
 # LLM Provider (choose one)
 OPENAI_API_KEY=sk-your-key-here
 ANTHROPIC_API_KEY=sk-ant-your-key-here
+
+# Optional: PubMed API key (higher rate limits)
+NCBI_API_KEY=your-ncbi-key-here
 
 # Optional: For HuggingFace deployment
 HF_TOKEN=hf_your-token-here
@@ -230,6 +281,7 @@ repos:
 import pytest
 from unittest.mock import AsyncMock
 
+
 @pytest.fixture
 def mock_httpx_client(mocker):
     """Mock httpx.AsyncClient for API tests."""
@@ -238,6 +290,7 @@ def mock_httpx_client(mocker):
     mock.return_value.__aexit__ = AsyncMock(return_value=None)
     return mock
 
+
 @pytest.fixture
 def mock_llm_response():
     """Factory fixture for mocking LLM responses."""
@@ -245,10 +298,11 @@ def mock_llm_response():
         return AsyncMock(return_value=content)
     return _mock
 
+
 @pytest.fixture
 def sample_evidence():
     """Sample Evidence objects for testing."""
-    from src.features.search.models import Evidence, Citation
+    from src.utils.models import Evidence, Citation
     return [
         Evidence(
             content="Metformin shows promise in Alzheimer's...",
@@ -265,9 +319,9 @@ def sample_evidence():
 
 ---
 
-## 6. Shared Kernel Implementation
+## 6. Core Utilities Implementation
 
-### `src/shared/config.py`
+### `src/utils/config.py`
 
 ```python
 """Application configuration using Pydantic Settings."""
@@ -275,6 +329,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from typing import Literal
 import structlog
+
 
 class Settings(BaseSettings):
     """Strongly-typed application settings."""
@@ -293,10 +348,11 @@ class Settings(BaseSettings):
         default="openai",
         description="Which LLM provider to use"
     )
-    llm_model: str = Field(
-        default="gpt-4o-mini",
-        description="Model name to use"
-    )
+    openai_model: str = Field(default="gpt-4o", description="OpenAI model name")
+    anthropic_model: str = Field(default="claude-3-5-sonnet-20241022", description="Anthropic model")
+
+    # PubMed Configuration
+    ncbi_api_key: str | None = Field(default=None, description="NCBI API key for higher rate limits")
 
     # Agent Configuration
     max_iterations: int = Field(default=10, ge=1, le=50)
@@ -342,10 +398,11 @@ def configure_logging(settings: Settings) -> None:
 settings = get_settings()
 ```
 
-### `src/shared/exceptions.py`
+### `src/utils/exceptions.py`
 
 ```python
 """Custom exceptions for DeepCritical."""
+
 
 class DeepCriticalError(Exception):
     """Base exception for all DeepCritical errors."""
@@ -376,7 +433,7 @@ class RateLimitError(SearchError):
 
 ## 7. TDD Workflow: First Test
 
-### `tests/unit/shared/test_config.py`
+### `tests/unit/utils/test_config.py`
 
 ```python
 """Unit tests for configuration loading."""
@@ -390,7 +447,7 @@ class TestSettings:
 
     def test_default_max_iterations(self):
         """Settings should have default max_iterations of 10."""
-        from src.shared.config import Settings
+        from src.utils.config import Settings
 
         # Clear any env vars
         with patch.dict(os.environ, {}, clear=True):
@@ -399,7 +456,7 @@ class TestSettings:
 
     def test_max_iterations_from_env(self):
         """Settings should read MAX_ITERATIONS from env."""
-        from src.shared.config import Settings
+        from src.utils.config import Settings
 
         with patch.dict(os.environ, {"MAX_ITERATIONS": "25"}):
             settings = Settings()
@@ -407,7 +464,7 @@ class TestSettings:
 
     def test_invalid_max_iterations_raises(self):
         """Settings should reject invalid max_iterations."""
-        from src.shared.config import Settings
+        from src.utils.config import Settings
         from pydantic import ValidationError
 
         with patch.dict(os.environ, {"MAX_ITERATIONS": "100"}):
@@ -416,7 +473,7 @@ class TestSettings:
 
     def test_get_api_key_openai(self):
         """get_api_key should return OpenAI key when provider is openai."""
-        from src.shared.config import Settings
+        from src.utils.config import Settings
 
         with patch.dict(os.environ, {
             "LLM_PROVIDER": "openai",
@@ -427,7 +484,7 @@ class TestSettings:
 
     def test_get_api_key_missing_raises(self):
         """get_api_key should raise when key is not set."""
-        from src.shared.config import Settings
+        from src.utils.config import Settings
 
         with patch.dict(os.environ, {"LLM_PROVIDER": "openai"}, clear=True):
             settings = Settings()
@@ -444,7 +501,7 @@ class TestSettings:
 uv sync --all-extras
 
 # Run tests (should pass after implementing config.py)
-uv run pytest tests/unit/shared/test_config.py -v
+uv run pytest tests/unit/utils/test_config.py -v
 
 # Run full test suite with coverage
 uv run pytest --cov=src --cov-report=term-missing
@@ -471,9 +528,9 @@ uv run pre-commit install
 - [ ] Create `.env.example` and `.env`
 - [ ] Create `.pre-commit-config.yaml`
 - [ ] Create `tests/conftest.py`
-- [ ] Implement `src/shared/config.py`
-- [ ] Implement `src/shared/exceptions.py`
-- [ ] Write tests in `tests/unit/shared/test_config.py`
+- [ ] Implement `src/utils/config.py`
+- [ ] Implement `src/utils/exceptions.py`
+- [ ] Write tests in `tests/unit/utils/test_config.py`
 - [ ] Run `uv sync --all-extras`
 - [ ] Run `uv run pytest` — **ALL TESTS MUST PASS**
 - [ ] Run `uv run ruff check` — **NO ERRORS**
@@ -487,10 +544,10 @@ uv run pre-commit install
 
 Phase 1 is **COMPLETE** when:
 
-1. ✅ `uv run pytest` passes with 100% of tests green
-2. ✅ `uv run ruff check src tests` has 0 errors
-3. ✅ `uv run mypy src` has 0 errors
-4. ✅ Pre-commit hooks are installed and working
-5. ✅ `from src.shared.config import settings` works in Python REPL
+1. `uv run pytest` passes with 100% of tests green
+2. `uv run ruff check src tests` has 0 errors
+3. `uv run mypy src` has 0 errors
+4. Pre-commit hooks are installed and working
+5. `from src.utils.config import settings` works in Python REPL
 
 **Proceed to Phase 2 ONLY after all checkboxes are complete.**
