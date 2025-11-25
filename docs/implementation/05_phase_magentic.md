@@ -112,12 +112,13 @@ magentic = [
 
 ### 4.2 Agent Wrappers (`src/agents/search_agent.py`)
 
-Wrap `SearchHandler` as an `AgentProtocol`:
+Wrap `SearchHandler` as an `AgentProtocol`. 
+**Note**: `AgentProtocol` requires `id`, `name`, `display_name`, `description`, `run`, `run_stream`, and `get_new_thread`.
 
 ```python
 """Search agent wrapper for Magentic integration."""
-from typing import Any
-from agent_framework import AgentProtocol, AgentRunResponse, ChatMessage, Role
+from typing import Any, AsyncIterable
+from agent_framework import AgentProtocol, AgentRunResponse, AgentRunResponseUpdate, ChatMessage, Role, AgentThread
 
 from src.tools.search_handler import SearchHandler
 from src.utils.models import SearchResult
@@ -130,6 +131,7 @@ class SearchAgent:
         self._handler = search_handler
         self._id = "search-agent"
         self._name = "SearchAgent"
+        self._description = "Searches PubMed and web for drug repurposing evidence"
 
     @property
     def id(self) -> str:
@@ -145,24 +147,29 @@ class SearchAgent:
 
     @property
     def description(self) -> str | None:
-        return "Searches PubMed and web for drug repurposing evidence"
+        return self._description
 
     async def run(
         self,
-        messages: list[ChatMessage] | None = None,
+        messages: str | ChatMessage | list[str] | list[ChatMessage] | None = None,
         *,
-        thread: Any = None,
+        thread: AgentThread | None = None,
         **kwargs: Any,
     ) -> AgentRunResponse:
         """Execute search based on the last user message."""
         # Extract query from messages
         query = ""
-        if messages:
+        if isinstance(messages, list):
             for msg in reversed(messages):
-                if msg.role == Role.USER and msg.text:
+                if isinstance(msg, ChatMessage) and msg.role == Role.USER and msg.text:
                     query = msg.text
                     break
-
+                elif isinstance(msg, str):
+                    query = msg
+                    break
+        elif isinstance(messages, str):
+            query = messages
+        
         if not query:
             return AgentRunResponse(
                 messages=[ChatMessage(role=Role.ASSISTANT, text="No query provided")],
@@ -183,24 +190,35 @@ class SearchAgent:
         return AgentRunResponse(
             messages=[ChatMessage(role=Role.ASSISTANT, text=response_text)],
             response_id=f"search-{result.total_found}",
-            metadata={"evidence": [e.model_dump() for e in result.evidence]},
+            additional_properties={"evidence": [e.model_dump() for e in result.evidence]},
         )
 
-    def run_stream(self, messages=None, *, thread=None, **kwargs):
-        """Streaming not implemented for search."""
-        async def _stream():
-            result = await self.run(messages, thread=thread, **kwargs)
-            from agent_framework import AgentRunResponseUpdate
-            yield AgentRunResponseUpdate(messages=result.messages)
-        return _stream()
+    async def run_stream(
+        self,
+        messages: str | ChatMessage | list[str] | list[ChatMessage] | None = None,
+        *,
+        thread: AgentThread | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterable[AgentRunResponseUpdate]:
+        """Streaming wrapper for search (search itself isn't streaming)."""
+        result = await self.run(messages, thread=thread, **kwargs)
+        # Yield single update with full result
+        yield AgentRunResponseUpdate(
+            messages=result.messages,
+            response_id=result.response_id
+        )
+
+    def get_new_thread(self, **kwargs: Any) -> AgentThread:
+        """Create a new thread."""
+        return AgentThread(**kwargs)
 ```
 
 ### 4.3 Judge Agent Wrapper (`src/agents/judge_agent.py`)
 
 ```python
 """Judge agent wrapper for Magentic integration."""
-from typing import Any, List
-from agent_framework import AgentProtocol, AgentRunResponse, ChatMessage, Role
+from typing import Any, List, AsyncIterable
+from agent_framework import AgentProtocol, AgentRunResponse, AgentRunResponseUpdate, ChatMessage, Role, AgentThread
 
 from src.agent_factory.judges import JudgeHandler
 from src.utils.models import Evidence, JudgeAssessment
@@ -214,6 +232,7 @@ class JudgeAgent:
         self._evidence_store = evidence_store  # Shared state for evidence
         self._id = "judge-agent"
         self._name = "JudgeAgent"
+        self._description = "Evaluates evidence quality and determines if sufficient for synthesis"
 
     @property
     def id(self) -> str:
@@ -229,23 +248,28 @@ class JudgeAgent:
 
     @property
     def description(self) -> str | None:
-        return "Evaluates evidence quality and determines if sufficient for synthesis"
+        return self._description
 
     async def run(
         self,
-        messages: list[ChatMessage] | None = None,
+        messages: str | ChatMessage | list[str] | list[ChatMessage] | None = None,
         *,
-        thread: Any = None,
+        thread: AgentThread | None = None,
         **kwargs: Any,
     ) -> AgentRunResponse:
         """Assess evidence quality."""
         # Extract original question from messages
         question = ""
-        if messages:
-            for msg in messages:
-                if msg.role == Role.USER and msg.text:
+        if isinstance(messages, list):
+            for msg in reversed(messages):
+                if isinstance(msg, ChatMessage) and msg.role == Role.USER and msg.text:
                     question = msg.text
                     break
+                elif isinstance(msg, str):
+                    question = msg
+                    break
+        elif isinstance(messages, str):
+            question = messages
 
         # Get evidence from shared store
         evidence = self._evidence_store.get("current", [])
@@ -276,16 +300,26 @@ class JudgeAgent:
         return AgentRunResponse(
             messages=[ChatMessage(role=Role.ASSISTANT, text=response_text)],
             response_id=f"judge-{assessment.recommendation}",
-            metadata={"assessment": assessment.model_dump()},
+            additional_properties={"assessment": assessment.model_dump()},
         )
 
-    def run_stream(self, messages=None, *, thread=None, **kwargs):
-        """Streaming not implemented for judge."""
-        async def _stream():
-            result = await self.run(messages, thread=thread, **kwargs)
-            from agent_framework import AgentRunResponseUpdate
-            yield AgentRunResponseUpdate(messages=result.messages)
-        return _stream()
+    async def run_stream(
+        self,
+        messages: str | ChatMessage | list[str] | list[ChatMessage] | None = None,
+        *,
+        thread: AgentThread | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterable[AgentRunResponseUpdate]:
+        """Streaming wrapper for judge."""
+        result = await self.run(messages, thread=thread, **kwargs)
+        yield AgentRunResponseUpdate(
+            messages=result.messages,
+            response_id=result.response_id
+        )
+        
+    def get_new_thread(self, **kwargs: Any) -> AgentThread:
+        """Create a new thread."""
+        return AgentThread(**kwargs)
 ```
 
 ### 4.4 Magentic Orchestrator (`src/orchestrator_magentic.py`)
@@ -300,6 +334,7 @@ from agent_framework import (
     MagenticFinalResultEvent,
     MagenticAgentMessageEvent,
     MagenticOrchestratorMessageEvent,
+    MagenticAgentDeltaEvent,
     WorkflowOutputEvent,
 )
 from agent_framework.openai import OpenAIChatClient
@@ -350,6 +385,7 @@ class MagenticOrchestrator:
         judge_agent = JudgeAgent(self._judge_handler, self._evidence_store)
 
         # Build Magentic workflow
+        # Note: MagenticBuilder.participants takes named arguments for agent instances
         workflow = (
             MagenticBuilder()
             .participants(
@@ -383,32 +419,40 @@ Focus on finding:
 
         iteration = 0
         try:
+            # workflow.run_stream returns an async generator of workflow events
             async for event in workflow.run_stream(task):
                 if isinstance(event, MagenticOrchestratorMessageEvent):
+                    # Manager events (planning, instruction, ledger)
+                    message_text = event.message.text if event.message else ""
                     yield AgentEvent(
                         type="judging",
-                        message=f"Manager: {event.kind}",
+                        message=f"Manager ({event.kind}): {message_text[:100]}...",
                         iteration=iteration,
                     )
 
                 elif isinstance(event, MagenticAgentMessageEvent):
+                    # Complete agent response
                     iteration += 1
                     agent_name = event.agent_id or "unknown"
+                    msg_text = event.message.text if event.message else ""
 
                     if "search" in agent_name.lower():
+                        # Check if we found evidence (based on SearchAgent logic)
+                        # In a real implementation we might extract metadata
                         yield AgentEvent(
                             type="search_complete",
-                            message=f"Search agent responded",
+                            message=f"Search agent: {msg_text[:100]}...",
                             iteration=iteration,
                         )
                     elif "judge" in agent_name.lower():
                         yield AgentEvent(
                             type="judge_complete",
-                            message=f"Judge agent evaluated evidence",
+                            message=f"Judge agent: {msg_text[:100]}...",
                             iteration=iteration,
                         )
 
                 elif isinstance(event, MagenticFinalResultEvent):
+                    # Final workflow result
                     final_text = event.message.text if event.message else "No result"
                     yield AgentEvent(
                         type="complete",
@@ -417,7 +461,19 @@ Focus on finding:
                         iteration=iteration,
                     )
 
+                elif isinstance(event, MagenticAgentDeltaEvent):
+                    # Streaming token chunks from agents (optional "typing" effect)
+                    # Only emit if we have actual text content
+                    if event.text:
+                        yield AgentEvent(
+                            type="streaming",
+                            message=event.text,
+                            data={"agent_id": event.agent_id},
+                            iteration=iteration,
+                        )
+
                 elif isinstance(event, WorkflowOutputEvent):
+                    # Alternative final output event
                     if event.data:
                         yield AgentEvent(
                             type="complete",
