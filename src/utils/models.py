@@ -177,6 +177,7 @@ class ReportSection(BaseModel):
 
     title: str
     content: str
+    # Reserved for future inline citation tracking within sections
     citations: list[str] = Field(default_factory=list)
 
 
@@ -224,10 +225,17 @@ class ResearchReport(BaseModel):
 
         # Hypotheses
         sections.append("## Hypotheses Tested\n")
+        if not self.hypotheses_tested:
+            sections.append("*No hypotheses tested yet.*\n")
         for h in self.hypotheses_tested:
             supported = h.get("supported", 0)
             contradicted = h.get("contradicted", 0)
-            status = "✅ Supported" if supported > contradicted else "⚠️ Mixed"
+            if supported == 0 and contradicted == 0:
+                status = "❓ Untested"
+            elif supported > contradicted:
+                status = "✅ Supported"
+            else:
+                status = "⚠️ Mixed"
             sections.append(
                 f"- **{h.get('mechanism', 'Unknown')}** ({status}): "
                 f"{supported} supporting, {contradicted} contradicting\n"
@@ -239,26 +247,35 @@ class ResearchReport(BaseModel):
 
         # Drug candidates
         sections.append("## Drug Candidates\n")
-        for drug in self.drug_candidates:
-            sections.append(f"- **{drug}**\n")
+        if self.drug_candidates:
+            for drug in self.drug_candidates:
+                sections.append(f"- **{drug}**\n")
+        else:
+            sections.append("*No drug candidates identified.*\n")
 
         # Limitations
         sections.append("## Limitations\n")
-        for lim in self.limitations:
-            sections.append(f"- {lim}\n")
+        if self.limitations:
+            for lim in self.limitations:
+                sections.append(f"- {lim}\n")
+        else:
+            sections.append("*No limitations documented.*\n")
 
         # Conclusion
         sections.append(f"## Conclusion\n{self.conclusion}\n")
 
         # References
         sections.append("## References\n")
-        for i, ref in enumerate(self.references, 1):
-            sections.append(
-                f"{i}. {ref.get('authors', 'Unknown')}. "
-                f"*{ref.get('title', 'Untitled')}*. "
-                f"{ref.get('source', '')} ({ref.get('date', '')}). "
-                f"[Link]({ref.get('url', '#')})\n"
-            )
+        if self.references:
+            for i, ref in enumerate(self.references, 1):
+                sections.append(
+                    f"{i}. {ref.get('authors', 'Unknown')}. "
+                    f"*{ref.get('title', 'Untitled')}*. "
+                    f"{ref.get('source', '')} ({ref.get('date', '')}). "
+                    f"[Link]({ref.get('url', '#')})\n"
+                )
+        else:
+            sections.append("*No references available.*\n")
 
         # Metadata footer
         sections.append("\n---\n")

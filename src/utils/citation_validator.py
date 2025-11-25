@@ -12,22 +12,29 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Max characters to display for URLs in log messages
+_MAX_URL_DISPLAY_LENGTH = 80
+
 
 def validate_references(report: "ResearchReport", evidence: list["Evidence"]) -> "ResearchReport":
     """Ensure all references actually exist in collected evidence.
 
     CRITICAL: Prevents LLM hallucination of citations.
 
+    Note:
+        This function MUTATES report.references in-place and returns the same
+        report object. This is intentional for efficiency.
+
     Args:
-        report: The generated research report
+        report: The generated research report (will be mutated)
         evidence: All evidence collected during research
 
     Returns:
-        Report with only valid references (hallucinated ones removed)
+        The same report object with references updated in-place
     """
     # Build set of valid URLs from evidence
     valid_urls = {e.citation.url for e in evidence}
-    # Also check titles (case-insensitive) as fallback
+    # Also check titles (case-insensitive, exact match) as fallback
     valid_titles = {e.citation.title.lower() for e in evidence}
 
     validated_refs = []
@@ -40,14 +47,19 @@ def validate_references(report: "ResearchReport", evidence: list["Evidence"]) ->
         # Check if URL matches collected evidence
         if ref_url in valid_urls:
             validated_refs.append(ref)
-        # Fallback: check title match (URLs might differ slightly)
-        elif ref_title and any(ref_title in t or t in ref_title for t in valid_titles):
+        # Fallback: exact title match (case-insensitive)
+        elif ref_title and ref_title in valid_titles:
             validated_refs.append(ref)
         else:
             removed_count += 1
+            # Truncate URL for display
+            if len(ref_url) > _MAX_URL_DISPLAY_LENGTH:
+                url_display = ref_url[:_MAX_URL_DISPLAY_LENGTH] + "..."
+            else:
+                url_display = ref_url
             logger.warning(
                 f"Removed hallucinated reference: '{ref.get('title', 'Unknown')}' "
-                f"(URL: {ref_url[:50]}...)"
+                f"(URL: {url_display})"
             )
 
     if removed_count > 0:

@@ -266,7 +266,7 @@ The final output should be a complete research report with:
         elif "report" in agent_name.lower():
             return AgentEvent(
                 type="synthesizing",
-                message="Report generated successfully.",
+                message=f"Report agent: {_truncate(msg_text)}" if msg_text else "Report generated.",
                 iteration=iteration,
             )
         return AgentEvent(

@@ -133,4 +133,8 @@ class ReportAgent(BaseAgent):  # type: ignore[misc]
     ) -> AsyncIterable[AgentRunResponseUpdate]:
         """Streaming wrapper."""
         result = await self.run(messages, thread=thread, **kwargs)
-        yield AgentRunResponseUpdate(messages=result.messages, response_id=result.response_id)
+        yield AgentRunResponseUpdate(
+            messages=result.messages,
+            response_id=result.response_id,
+            additional_properties=result.additional_properties,
+        )

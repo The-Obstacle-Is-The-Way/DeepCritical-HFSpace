@@ -109,6 +109,8 @@ async def test_report_agent_generates_report(
         assert "Executive Summary" in response.messages[0].text
         assert "Methodology" in response.messages[0].text
         assert "References" in response.messages[0].text
+        # Verify report is stored in evidence store
+        assert "final_report" in store
 
 
 @pytest.mark.asyncio
