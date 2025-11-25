@@ -494,7 +494,43 @@ class TestSettings:
 
 ---
 
-## 8. Execution Commands
+## 8. Makefile (Developer Experience)
+
+Create a `Makefile` for standard devex commands:
+
+```makefile
+.PHONY: install test lint format typecheck check clean
+
+install:
+	uv sync --all-extras
+	uv run pre-commit install
+
+test:
+	uv run pytest tests/unit/ -v
+
+test-cov:
+	uv run pytest --cov=src --cov-report=term-missing
+
+lint:
+	uv run ruff check src tests
+
+format:
+	uv run ruff format src tests
+
+typecheck:
+	uv run mypy src
+
+check: lint typecheck test
+	@echo "All checks passed!"
+
+clean:
+	rm -rf .pytest_cache .mypy_cache .ruff_cache __pycache__ .coverage
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+```
+
+---
+
+## 9. Execution Commands
 
 ```bash
 # Install all dependencies
@@ -519,7 +555,7 @@ uv run pre-commit install
 
 ---
 
-## 9. Implementation Checklist
+## 10. Implementation Checklist
 
 - [ ] Install `uv` and verify version
 - [ ] Run `uv init --name deepcritical`
@@ -527,20 +563,18 @@ uv run pre-commit install
 - [ ] Create directory structure (run mkdir commands)
 - [ ] Create `.env.example` and `.env`
 - [ ] Create `.pre-commit-config.yaml`
+- [ ] Create `Makefile` (copy from above)
 - [ ] Create `tests/conftest.py`
 - [ ] Implement `src/utils/config.py`
 - [ ] Implement `src/utils/exceptions.py`
 - [ ] Write tests in `tests/unit/utils/test_config.py`
-- [ ] Run `uv sync --all-extras`
-- [ ] Run `uv run pytest` — **ALL TESTS MUST PASS**
-- [ ] Run `uv run ruff check` — **NO ERRORS**
-- [ ] Run `uv run mypy src` — **NO ERRORS**
-- [ ] Run `uv run pre-commit install`
+- [ ] Run `make install`
+- [ ] Run `make check` — **ALL CHECKS MUST PASS**
 - [ ] Commit: `git commit -m "feat: phase 1 foundation complete"`
 
 ---
 
-## 10. Definition of Done
+## 11. Definition of Done
 
 Phase 1 is **COMPLETE** when:
 
