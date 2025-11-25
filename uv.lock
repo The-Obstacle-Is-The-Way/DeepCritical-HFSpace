@@ -22,7 +22,7 @@ wheels = [
 [[package]]
 name = "agent-framework-core"
 version = "1.0.0b251120"
-source = { editable = "reference_repos/agent-framework/python/packages/core" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-identity" },
     { name = "mcp", extra = ["ws"] },
@@ -36,36 +36,10 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "typing-extensions" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "agent-framework-a2a", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/a2a" },
-    { name = "agent-framework-ag-ui", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/ag-ui" },
-    { name = "agent-framework-anthropic", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/anthropic" },
-    { name = "agent-framework-azure-ai", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/azure-ai" },
-    { name = "agent-framework-azure-ai-search", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/azure-ai-search" },
-    { name = "agent-framework-azurefunctions", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/azurefunctions" },
-    { name = "agent-framework-chatkit", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/chatkit" },
-    { name = "agent-framework-copilotstudio", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/copilotstudio" },
-    { name = "agent-framework-declarative", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/declarative" },
-    { name = "agent-framework-devui", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/devui" },
-    { name = "agent-framework-lab", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/lab" },
-    { name = "agent-framework-mem0", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/mem0" },
-    { name = "agent-framework-purview", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/purview" },
-    { name = "agent-framework-redis", marker = "extra == 'all'", editable = "reference_repos/agent-framework/python/packages/redis" },
-    { name = "azure-identity", specifier = ">=1,<2" },
-    { name = "mcp", extras = ["ws"], specifier = ">=1.13" },
-    { name = "openai", specifier = ">=1.99.0" },
-    { name = "opentelemetry-api", specifier = ">=1.24" },
-    { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.36.0" },
-    { name = "opentelemetry-sdk", specifier = ">=1.24" },
-    { name = "opentelemetry-semantic-conventions-ai", specifier = ">=0.4.13" },
-    { name = "packaging", specifier = ">=24.1" },
-    { name = "pydantic", specifier = ">=2,<3" },
-    { name = "pydantic-settings", specifier = ">=2,<3" },
-    { name = "typing-extensions" },
+sdist = { url = "https://files.pythonhosted.org/packages/00/78/c53cb3a657ca5e000ce196c6ca776eb5b5cd95cbd8ac691872b8cc4ea23c/agent_framework_core-1.0.0b251120.tar.gz", hash = "sha256:eb327c123ce54ff36ccc828bcc4f5162248f768f2438be0550644f1b3c28927f", size = 281920 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0c/60/7e40edfa60372cf0d56500b19c6bb322ca483fd4e7b558c1bf0ff88d4540/agent_framework_core-1.0.0b251120-py3-none-any.whl", hash = "sha256:65618ad496fa6805992980f2801b8d1a226e8edc59974945bb903df917fda105", size = 326665 },
 ]
-provides-extras = ["all"]
 
 [[package]]
 name = "aiofiles"
@@ -767,7 +741,7 @@ magentic = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agent-framework-core", marker = "extra == 'magentic'", editable = "reference_repos/agent-framework/python/packages/core" },
+    { name = "agent-framework-core", marker = "extra == 'magentic'" },
     { name = "anthropic", specifier = ">=0.18.0" },
     { name = "beautifulsoup4", specifier = ">=4.12" },
     { name = "duckduckgo-search", specifier = ">=6.0" },

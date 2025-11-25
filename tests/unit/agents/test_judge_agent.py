@@ -3,10 +3,14 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from agent_framework import ChatMessage, Role
 
-from src.agents.judge_agent import JudgeAgent
-from src.utils.models import AssessmentDetails, Citation, Evidence, JudgeAssessment
+# Skip all tests if agent_framework not installed (optional dep)
+pytest.importorskip("agent_framework")
+
+from agent_framework import ChatMessage, Role  # noqa: E402
+
+from src.agents.judge_agent import JudgeAgent  # noqa: E402
+from src.utils.models import AssessmentDetails, Citation, Evidence, JudgeAssessment  # noqa: E402
 
 
 @pytest.fixture

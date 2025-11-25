@@ -119,5 +119,5 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 
-[tool.uv.sources]
-agent-framework-core = { path = "reference_repos/agent-framework/python/packages/core", editable = true }
+# Note: agent-framework-core is optional and installed locally for magentic mode
+# CI skips tests that require it via pytest.importorskip
