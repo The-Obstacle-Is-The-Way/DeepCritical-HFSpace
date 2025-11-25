@@ -38,6 +38,10 @@ Each slice implements a feature from **Entry Point (UI/API) → Logic → Data/E
 
 We use the **existing scaffolding** from the maintainer, filling in the empty files.
 
+> **Note**: The maintainer created some placeholder files (`agents.py`, `code_execution.py`,
+> `dataloaders.py`, `parsers.py`) that are currently empty. We leave these for future use
+> and focus on the files needed for the MVP.
+
 ```
 deepcritical/
 ├── pyproject.toml          # All config in one file
@@ -52,14 +56,15 @@ deepcritical/
 │   │
 │   ├── agent_factory/      # Agent definitions
 │   │   ├── __init__.py
-│   │   ├── agents.py       # (Reserved for future agents)
+│   │   ├── agents.py       # (Maintainer placeholder - future use)
 │   │   └── judges.py       # JudgeHandler - LLM evidence assessment
 │   │
 │   ├── tools/              # Search tools
 │   │   ├── __init__.py
 │   │   ├── pubmed.py       # PubMedTool - NCBI E-utilities
-│   │   ├── websearch.py    # WebTool - DuckDuckGo
-│   │   └── search_handler.py # SearchHandler - orchestrates tools
+│   │   ├── websearch.py    # WebTool - DuckDuckGo (replaces maintainer's empty file)
+│   │   ├── search_handler.py # SearchHandler - orchestrates tools
+│   │   └── code_execution.py # (Maintainer placeholder - future use)
 │   │
 │   ├── prompts/            # Prompt templates
 │   │   ├── __init__.py
@@ -69,7 +74,9 @@ deepcritical/
 │   │   ├── __init__.py
 │   │   ├── config.py       # Settings via pydantic-settings
 │   │   ├── exceptions.py   # Custom exceptions
-│   │   └── models.py       # ALL Pydantic models (Evidence, JudgeAssessment, etc.)
+│   │   ├── models.py       # ALL Pydantic models (Evidence, JudgeAssessment, etc.)
+│   │   ├── dataloaders.py  # (Maintainer placeholder - future use)
+│   │   └── parsers.py      # (Maintainer placeholder - future use)
 │   │
 │   ├── middleware/         # (Empty - reserved)
 │   ├── database_services/  # (Empty - reserved)
