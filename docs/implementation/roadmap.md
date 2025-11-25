@@ -30,7 +30,7 @@ Each slice implements a feature from **Entry Point (UI/API) -> Logic -> Data/Ext
 
 ### Directory Structure (Maintainer's Structure)
 
-```
+```bash
 src/
 ├── app.py                      # Entry point (Gradio UI)
 ├── orchestrator.py             # Agent loop (Search -> Judge -> Loop)
