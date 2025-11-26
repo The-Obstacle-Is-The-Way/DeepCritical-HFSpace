@@ -179,7 +179,7 @@ class LlamaIndexRAGService:
             for node in nodes:
                 results.append(
                     {
-                        "text": node.node.text,
+                        "text": node.node.get_content(),
                         "score": node.score,
                         "metadata": node.node.metadata,
                     }
