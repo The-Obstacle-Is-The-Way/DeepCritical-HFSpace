@@ -3,7 +3,7 @@
 Demo: Full Stack DeepCritical Agent (Phases 1-8).
 
 This script demonstrates the COMPLETE REAL drug repurposing research pipeline:
-- Phase 2: REAL Search (PubMed + Web API calls)
+- Phase 2: REAL Search (PubMed only)
 - Phase 6: REAL Embeddings (sentence-transformers + ChromaDB)
 - Phase 7: REAL Hypothesis (LLM mechanistic reasoning)
 - Phase 3: REAL Judge (LLM evidence assessment)
@@ -118,12 +118,11 @@ async def run_full_demo(query: str, max_iterations: int) -> None:
     from src.services.embeddings import EmbeddingService
     from src.tools.pubmed import PubMedTool
     from src.tools.search_handler import SearchHandler
-    from src.tools.websearch import WebTool
 
     # Initialize REAL services
     print("[Init] Loading embedding model...")
     embedding_service = EmbeddingService()
-    search_handler = SearchHandler(tools=[PubMedTool(), WebTool()], timeout=30.0)
+    search_handler = SearchHandler(tools=[PubMedTool()], timeout=30.0)
     judge_handler = JudgeHandler()
 
     # Shared evidence store
@@ -134,7 +133,7 @@ async def run_full_demo(query: str, max_iterations: int) -> None:
         print_step(iteration, f"ITERATION {iteration}/{max_iterations}")
 
         # Step 1: REAL Search
-        print("\n[Search] Querying PubMed and Web (REAL API calls)...")
+        print("\n[Search] Querying PubMed (REAL API calls)...")
         all_evidence = await _run_search_iteration(
             query, iteration, evidence_store, all_evidence, search_handler, embedding_service
         )
@@ -175,7 +174,7 @@ async def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 This demo runs the COMPLETE pipeline with REAL API calls:
-  1. REAL search: Actual PubMed + DuckDuckGo queries
+  1. REAL search: Actual PubMed queries
   2. REAL embeddings: Actual sentence-transformers model
   3. REAL hypothesis: Actual LLM generating mechanistic chains
   4. REAL judge: Actual LLM assessing evidence quality
@@ -224,7 +223,7 @@ Examples:
     print("  DeepCritical Full Stack Demo Complete!")
     print("  ")
     print("  Everything you just saw was REAL:")
-    print("    - Real PubMed/Web searches")
+    print("    - Real PubMed searches")
     print("    - Real embedding computations")
     print("    - Real LLM reasoning")
     print("    - Real scientific report")

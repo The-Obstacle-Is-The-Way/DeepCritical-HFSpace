@@ -28,7 +28,7 @@ class SearchAgent(BaseAgent):  # type: ignore[misc]
     ) -> None:
         super().__init__(
             name="SearchAgent",
-            description="Searches PubMed and web for drug repurposing evidence",
+            description="Searches PubMed for drug repurposing evidence",
         )
         self._handler = search_handler
         self._evidence_store = evidence_store
@@ -95,7 +95,7 @@ class SearchAgent(BaseAgent):  # type: ignore[misc]
                         citation=Citation(
                             title=meta.get("title", "Related Evidence"),
                             url=item["id"],
-                            source=meta.get("source", "vector_db"),
+                            source="pubmed",
                             date=meta.get("date", "n.d."),
                             authors=authors,
                         ),

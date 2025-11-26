@@ -49,7 +49,7 @@ class SearchHandler:
 
         # Process results
         all_evidence: list[Evidence] = []
-        sources_searched: list[Literal["pubmed", "web"]] = []
+        sources_searched: list[Literal["pubmed"]] = []
         errors: list[str] = []
 
         for tool, result in zip(self.tools, results, strict=True):
@@ -62,7 +62,7 @@ class SearchHandler:
                 all_evidence.extend(success_result)
 
                 # Cast tool.name to the expected Literal
-                tool_name = cast(Literal["pubmed", "web"], tool.name)
+                tool_name = cast(Literal["pubmed"], tool.name)
                 sources_searched.append(tool_name)
                 logger.info("Search tool succeeded", tool=tool.name, count=len(success_result))
 

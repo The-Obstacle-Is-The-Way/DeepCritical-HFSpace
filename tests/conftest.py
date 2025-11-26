@@ -44,7 +44,7 @@ def sample_evidence():
         Evidence(
             content="Drug repurposing offers faster path to treatment...",
             citation=Citation(
-                source="web",
+                source="pubmed",
                 title="Drug Repurposing Strategies",
                 url="https://example.com/drug-repurposing",
                 date="Unknown",

@@ -18,7 +18,7 @@ class EmbeddingService:
     """Handles text embedding and vector storage.
 
     All embedding operations run in a thread pool to avoid blocking
-    the async event loop. See src/tools/websearch.py for the pattern.
+    the async event loop.
     """
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):

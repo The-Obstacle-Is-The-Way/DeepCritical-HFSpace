@@ -10,7 +10,6 @@ from src.agent_factory.judges import JudgeHandler, MockJudgeHandler
 from src.orchestrator_factory import create_orchestrator
 from src.tools.pubmed import PubMedTool
 from src.tools.search_handler import SearchHandler
-from src.tools.websearch import WebTool
 from src.utils.models import OrchestratorConfig
 
 
@@ -33,7 +32,7 @@ def configure_orchestrator(use_mock: bool = False, mode: str = "simple") -> Any:
 
     # Create search tools
     search_handler = SearchHandler(
-        tools=[PubMedTool(), WebTool()],
+        tools=[PubMedTool()],
         timeout=config.search_timeout,
     )
 
@@ -128,7 +127,7 @@ def create_demo() -> Any:
         ## AI-Powered Drug Repurposing Research Agent
 
         Ask questions about potential drug repurposing opportunities.
-        The agent will search PubMed and the web, evaluate evidence, and provide recommendations.
+        The agent will search PubMed, evaluate evidence, and provide recommendations.
 
         **Example questions:**
         - "What drugs could be repurposed for Alzheimer's disease?"
@@ -161,7 +160,7 @@ def create_demo() -> Any:
         **Note**: This is a research tool and should not be used for medical decisions.
         Always consult healthcare professionals for medical advice.
 
-        Built with 🤖 PydanticAI + 🔬 PubMed + 🦆 DuckDuckGo
+        Built with 🤖 PydanticAI + 🔬 PubMed
         """)
 
     return demo

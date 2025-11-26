@@ -20,7 +20,6 @@ from src.agent_factory.judges import JudgeHandler
 from src.orchestrator_factory import create_orchestrator
 from src.tools.pubmed import PubMedTool
 from src.tools.search_handler import SearchHandler
-from src.tools.websearch import WebTool
 from src.utils.models import OrchestratorConfig
 
 
@@ -43,7 +42,7 @@ async def main() -> None:
     print(f"{ '='*60}\n")
 
     # 1. Setup Search Tools
-    search_handler = SearchHandler(tools=[PubMedTool(), WebTool()], timeout=30.0)
+    search_handler = SearchHandler(tools=[PubMedTool()], timeout=30.0)
 
     # 2. Setup Judge
     judge_handler = JudgeHandler()

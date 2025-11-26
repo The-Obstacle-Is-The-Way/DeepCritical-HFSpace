@@ -158,7 +158,7 @@ class TestMockJudgeHandler:
             ),
             Evidence(
                 content="Content 2",
-                citation=Citation(source="web", title="T2", url="u2", date="2024"),
+                citation=Citation(source="pubmed", title="T2", url="u2", date="2024"),
             ),
         ]
 
@@ -214,7 +214,7 @@ class TestMockJudgeHandler:
             ),
             Evidence(
                 content="Content 2",
-                citation=Citation(source="web", title="T2", url="u2", date="2024"),
+                citation=Citation(source="pubmed", title="T2", url="u2", date="2024"),
             ),
         ]
 

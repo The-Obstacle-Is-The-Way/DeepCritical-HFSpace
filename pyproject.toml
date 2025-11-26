@@ -19,9 +19,6 @@ dependencies = [
     "beautifulsoup4>=4.12",          # HTML parsing
     "xmltodict>=0.13",               # PubMed XML -> dict
 
-    # Search
-    "duckduckgo-search>=6.0",        # Free web search
-
     # UI
     "gradio>=5.0",                   # Chat interface
 

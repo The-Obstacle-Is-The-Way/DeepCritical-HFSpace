@@ -131,11 +131,11 @@ class TestEmbeddingService:
         evidence = [
             Evidence(
                 content="Duplicate content",
-                citation=Citation(source="web", url="u1", title="t1", date="2024"),
+                citation=Citation(source="pubmed", url="u1", title="t1", date="2024"),
             ),
             Evidence(
                 content="Unique content",
-                citation=Citation(source="web", url="u2", title="t2", date="2024"),
+                citation=Citation(source="pubmed", url="u2", title="t2", date="2024"),
             ),
         ]
 

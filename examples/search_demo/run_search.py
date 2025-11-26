@@ -4,7 +4,6 @@ Demo: Search for drug repurposing evidence.
 
 This script demonstrates Phase 2 functionality:
 - PubMed search (biomedical literature)
-- Web search (DuckDuckGo)
 - SearchHandler (parallel scatter-gather orchestration)
 
 Usage:
@@ -23,7 +22,6 @@ import sys
 
 from src.tools.pubmed import PubMedTool
 from src.tools.search_handler import SearchHandler
-from src.tools.websearch import WebTool
 
 
 async def main(query: str) -> None:
@@ -35,11 +33,10 @@ async def main(query: str) -> None:
 
     # Initialize tools
     pubmed = PubMedTool()
-    web = WebTool()
-    handler = SearchHandler(tools=[pubmed, web], timeout=30.0)
+    handler = SearchHandler(tools=[pubmed], timeout=30.0)
 
     # Execute search
-    print("Searching PubMed and Web in parallel...")
+    print("Searching PubMed in parallel...")
     result = await handler.execute(query, max_results_per_tool=5)
 
     # Display results

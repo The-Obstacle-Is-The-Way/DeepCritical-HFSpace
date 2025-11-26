@@ -46,17 +46,17 @@ class TestTextUtils:
             Evidence(
                 content="A",
                 relevance=0.9,
-                citation=Citation(source="web", title="A", url="a", date="2023"),
+                citation=Citation(source="pubmed", title="A", url="a", date="2023"),
             ),
             Evidence(
                 content="B",
                 relevance=0.1,
-                citation=Citation(source="web", title="B", url="b", date="2023"),
+                citation=Citation(source="pubmed", title="B", url="b", date="2023"),
             ),
             Evidence(
                 content="C",
                 relevance=0.8,
-                citation=Citation(source="web", title="C", url="c", date="2023"),
+                citation=Citation(source="pubmed", title="C", url="c", date="2023"),
             ),
         ]
 
@@ -108,17 +108,17 @@ class TestTextUtils:
             Evidence(
                 content="A",
                 relevance=0.9,
-                citation=Citation(source="web", title="A", url="a", date="2023"),
+                citation=Citation(source="pubmed", title="A", url="a", date="2023"),
             ),
             Evidence(
                 content="B",
                 relevance=0.9,
-                citation=Citation(source="web", title="B", url="b", date="2023"),
+                citation=Citation(source="pubmed", title="B", url="b", date="2023"),
             ),
             Evidence(
                 content="C",
                 relevance=0.9,
-                citation=Citation(source="web", title="C", url="c", date="2023"),
+                citation=Citation(source="pubmed", title="C", url="c", date="2023"),
             ),
         ]
 

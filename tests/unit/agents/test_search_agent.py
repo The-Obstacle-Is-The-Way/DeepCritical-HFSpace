@@ -103,7 +103,7 @@ async def test_run_uses_embeddings(mock_handler: AsyncMock) -> None:
         {
             "id": "u2",
             "content": "related content",
-            "metadata": {"source": "web", "title": "related", "date": "2024"},
+            "metadata": {"source": "pubmed", "title": "related", "date": "2024"},
             "distance": 0.1,
         }
     ]
