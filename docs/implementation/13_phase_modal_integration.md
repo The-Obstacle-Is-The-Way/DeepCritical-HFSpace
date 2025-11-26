@@ -1125,13 +1125,13 @@ Phase 13 is **COMPLETE** when:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│                        MCP Clients                               │
-│              (Claude Desktop, Cursor, etc.)                      │
+│                        MCP Clients                              │
+│              (Claude Desktop, Cursor, etc.)                     │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ MCP Protocol
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Gradio App + MCP Server                      │
+│                     Gradio App + MCP Server                     │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │  MCP Tools: search_pubmed, search_trials, search_biorxiv │   │
 │  │             search_all, analyze_hypothesis               │   │
@@ -1152,7 +1152,7 @@ Phase 13 is **COMPLETE** when:
 └───────────┬───────────┘            └───────────────────────────┘
             │
             ▼
-┌─────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────┐
 │                    StatisticalAnalyzer                           │
 │              (src/services/statistical_analyzer.py)              │
 │                    NO agent_framework dependency                 │
@@ -1160,11 +1160,11 @@ Phase 13 is **COMPLETE** when:
 │  1. Generate code with pydantic-ai                               │
 │  2. Execute in Modal sandbox                                     │
 │  3. Return AnalysisResult                                        │
-└───────────────────────────┬─────────────────────────────────────┘
+└───────────────────────────┬──────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                       Modal Sandbox                              │
+│                       Modal Sandbox                             │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │  - pandas, numpy, scipy, sklearn, statsmodels           │    │
 │  │  - Network: BLOCKED                                     │    │

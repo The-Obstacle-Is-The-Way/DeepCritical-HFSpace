@@ -2,6 +2,9 @@
 
 ## Priority: P0 - REQUIRED FOR TRACK 2
 
+> **✅ STATUS: IMPLEMENTED** - See `src/mcp_tools.py` and `src/app.py`
+> MCP endpoint: `/gradio_api/mcp/`
+
 ---
 
 ## What We Need
@@ -129,17 +132,25 @@ After implementing, users add to `claude_desktop_config.json`:
 
 ## Testing MCP Server
 
-1. Start the MCP server:
+1. Start the MCP server (via Gradio app):
+
 ```bash
-uv run python src/mcp_server.py
+uv run python src/app.py
 ```
 
-2. Test with Claude Desktop or MCP Inspector:
+2. Check MCP schema:
+
 ```bash
-npx @anthropic/mcp-inspector
+curl http://localhost:7860/gradio_api/mcp/schema | jq
 ```
 
-3. Verify tools appear and work
+3. Test with MCP Inspector:
+
+```bash
+npx @anthropic/mcp-inspector http://localhost:7860/gradio_api/mcp/sse
+```
+
+4. Verify tools appear and work
 
 ---
 
@@ -157,8 +168,10 @@ This proves MCP integration works.
 
 ---
 
-## Files to Create
+## Files Created
 
-- [ ] `src/mcp_server.py` - MCP server implementation
-- [ ] `examples/mcp_demo/test_mcp.py` - Test script
-- [ ] Update `README.md` with MCP usage instructions
+- [x] `src/mcp_tools.py` - MCP tool wrapper functions
+- [x] `src/app.py` - Gradio app with `mcp_server=True`
+- [x] `tests/unit/test_mcp_tools.py` - Unit tests
+- [x] `tests/integration/test_mcp_tools_live.py` - Integration tests
+- [x] `README.md` - Updated with MCP usage instructions
