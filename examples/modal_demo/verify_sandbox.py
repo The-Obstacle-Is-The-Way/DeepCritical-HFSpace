@@ -56,10 +56,10 @@ def test_2_file_system_isolation():
     print(f"Local file exists: {local_file}")
     print(f"Can read locally: {local_file.exists()}")
 
-    # Try to access it from sandbox
+    # Try to access it from sandbox (use POSIX path for Windows compatibility)
     code = f"""
 from pathlib import Path
-file_path = Path("{local_file}")
+file_path = Path("{local_file.as_posix()}")
 exists = file_path.exists()
 print(f"File exists in sandbox: {{exists}}")
 if exists:

@@ -235,16 +235,21 @@ Generate executable Python code only (no markdown, no explanations).
         execution_result: dict[str, Any],
     ) -> AnalysisResult:
         """Interpret code execution results using LLM."""
-        # Extract verdict from output
+        import re
+
+        # Extract verdict from output using robust word-boundary matching
         stdout = execution_result["stdout"]
+        stdout_upper = stdout.upper()
         verdict = "INCONCLUSIVE"  # Default
 
-        # Simple heuristic: look for verdict in output
-        if "SUPPORTED" in stdout.upper():
+        # Avoid false positives like "NOT SUPPORTED" or "UNSUPPORTED"
+        if re.search(r"\bSUPPORTED\b", stdout_upper) and not re.search(
+            r"\b(?:NOT|UN)SUPPORTED\b", stdout_upper
+        ):
             verdict = "SUPPORTED"
-        elif "REFUTED" in stdout.upper():
+        elif re.search(r"\bREFUTED\b", stdout_upper):
             verdict = "REFUTED"
-        elif "INCONCLUSIVE" in stdout.upper():
+        elif re.search(r"\bINCONCLUSIVE\b", stdout_upper):
             verdict = "INCONCLUSIVE"
 
         # Parse key findings from output

@@ -5,6 +5,7 @@ It's designed for running LLM-generated statistical analysis code safely.
 """
 
 import os
+from functools import lru_cache
 from typing import Any
 
 import structlog
@@ -120,12 +121,13 @@ class ModalCodeExecutor:
                 app=app,
                 image=scientific_image,
                 timeout=timeout,
-                # Security settings based on Modal docs for untrusted code
+                block_network=not allow_network,  # Wire the network control
             )
 
-            # Execute the code
-            # Wrap code to capture result
-            wrapped_code = f"""
+            try:
+                # Execute the code
+                # Wrap code to capture result
+                wrapped_code = f"""
 import sys
 import io
 from contextlib import redirect_stdout, redirect_stderr
@@ -148,15 +150,15 @@ print(stderr_io.getvalue(), file=sys.stderr)
 print("__STDERR_END__", file=sys.stderr)
 """
 
-            # Run the wrapped code
-            process = sandbox.exec("python", "-c", wrapped_code, timeout=timeout)
+                # Run the wrapped code
+                process = sandbox.exec("python", "-c", wrapped_code, timeout=timeout)
 
-            # Read output
-            stdout_raw = process.stdout.read()
-            stderr_raw = process.stderr.read()
-
-            # Terminate sandbox
-            sandbox.terminate()
+                # Read output
+                stdout_raw = process.stdout.read()
+                stderr_raw = process.stderr.read()
+            finally:
+                # Always clean up sandbox to prevent resource leaks
+                sandbox.terminate()
 
             # Parse output
             success = "__EXECUTION_SUCCESS__" in stdout_raw
@@ -248,13 +250,7 @@ print(json.dumps({{"__RESULT__": result}}))
             return text.strip()
 
 
-# Singleton instance for easy import
-_executor: ModalCodeExecutor | None = None
-
-
+@lru_cache(maxsize=1)
 def get_code_executor() -> ModalCodeExecutor:
-    """Get or create singleton code executor instance."""
-    global _executor
-    if _executor is None:
-        _executor = ModalCodeExecutor()
-    return _executor
+    """Get or create singleton code executor instance (thread-safe via lru_cache)."""
+    return ModalCodeExecutor()

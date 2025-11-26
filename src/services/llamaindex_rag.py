@@ -15,7 +15,13 @@ logger = structlog.get_logger()
 
 
 class LlamaIndexRAGService:
-    """RAG service using LlamaIndex with ChromaDB vector store."""
+    """RAG service using LlamaIndex with ChromaDB vector store.
+
+    Note:
+        This service is currently OpenAI-only. It uses OpenAI embeddings and LLM
+        regardless of the global `settings.llm_provider` configuration.
+        Requires OPENAI_API_KEY to be set.
+    """
 
     def __init__(
         self,
