@@ -28,16 +28,17 @@ NCBI_API_KEY=your-key
 
 ### 1. Search Demo (No LLM Required)
 
-Demonstrates REAL parallel search across PubMed and Web.
+Demonstrates REAL parallel search across PubMed, ClinicalTrials.gov, and bioRxiv/medRxiv.
 
 ```bash
 uv run python examples/search_demo/run_search.py "metformin cancer"
 ```
 
 **What's REAL:**
-- Actual NCBI E-utilities API calls
-- Actual DuckDuckGo web searches
-- Real papers, real URLs, real content
+- Actual NCBI E-utilities API calls (PubMed)
+- Actual ClinicalTrials.gov API calls
+- Actual bioRxiv/medRxiv preprint API calls
+- Real papers, real trials, real preprints
 
 ---
 
@@ -67,7 +68,7 @@ uv run python examples/orchestrator_demo/run_agent.py "aspirin alzheimer" --iter
 ```
 
 **What's REAL:**
-- Real PubMed + Web searches
+- Real PubMed + ClinicalTrials + bioRxiv searches
 - Real LLM judge evaluating evidence quality
 - Real iterative refinement based on LLM decisions
 - Real research synthesis
@@ -117,7 +118,7 @@ uv run python examples/full_stack_demo/run_full.py "sildenafil heart failure" -i
 ```
 
 **What's REAL:**
-1. Real PubMed + Web evidence collection
+1. Real PubMed + ClinicalTrials + bioRxiv evidence collection
 2. Real embedding-based semantic deduplication
 3. Real LLM mechanistic hypothesis generation
 4. Real LLM evidence quality assessment
@@ -146,7 +147,7 @@ Output: Publication-quality research report with validated citations.
 User Query
     |
     v
-[REAL Search] --> Actual PubMed + Web API calls
+[REAL Search] --> PubMed + ClinicalTrials + bioRxiv APIs
     |
     v
 [REAL Embeddings] --> Actual sentence-transformers

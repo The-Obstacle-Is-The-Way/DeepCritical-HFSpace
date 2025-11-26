@@ -3,7 +3,7 @@
 Demo: DeepCritical Agent Loop (Search + Judge + Orchestrator).
 
 This script demonstrates the REAL Phase 4 orchestration:
-- REAL Iterative Search (PubMed only)
+- REAL Iterative Search (PubMed + ClinicalTrials + bioRxiv)
 - REAL Evidence Evaluation (LLM Judge)
 - REAL Orchestration Loop
 - REAL Final Synthesis
@@ -24,6 +24,8 @@ import sys
 
 from src.agent_factory.judges import JudgeHandler
 from src.orchestrator import Orchestrator
+from src.tools.biorxiv import BioRxivTool
+from src.tools.clinicaltrials import ClinicalTrialsTool
 from src.tools.pubmed import PubMedTool
 from src.tools.search_handler import SearchHandler
 from src.utils.models import OrchestratorConfig
@@ -38,7 +40,7 @@ async def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 This demo runs the REAL search-judge-synthesize loop:
-  1. REAL search: Actual PubMed queries
+  1. REAL search: PubMed + ClinicalTrials + bioRxiv queries
   2. REAL judge: Actual LLM assessing evidence quality
   3. REAL loop: Actual iterative refinement based on LLM decisions
   4. REAL synthesis: Actual research summary generation
@@ -77,7 +79,9 @@ Examples:
     print(f"{'='*60}\n")
 
     # Setup REAL components
-    search_handler = SearchHandler(tools=[PubMedTool()], timeout=30.0)
+    search_handler = SearchHandler(
+        tools=[PubMedTool(), ClinicalTrialsTool(), BioRxivTool()], timeout=30.0
+    )
     judge_handler = JudgeHandler()  # REAL LLM judge
 
     config = OrchestratorConfig(max_iterations=args.iterations)
@@ -101,7 +105,7 @@ Examples:
 
     print("\n" + "=" * 60)
     print("Demo complete! Everything was REAL:")
-    print("  - Real PubMed searches")
+    print("  - Real PubMed + ClinicalTrials + bioRxiv searches")
     print("  - Real LLM judge decisions")
     print("  - Real iterative refinement")
     print("=" * 60 + "\n")
