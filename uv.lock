@@ -1112,7 +1112,7 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.12" },
     { name = "chromadb", marker = "extra == 'embeddings'", specifier = ">=0.4.0" },
     { name = "chromadb", marker = "extra == 'modal'", specifier = ">=0.4.0" },
-    { name = "gradio", extras = ["mcp"], specifier = ">=5.32.0" },
+    { name = "gradio", extras = ["mcp"], specifier = ">=6.0.0" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "llama-index", marker = "extra == 'modal'", specifier = ">=0.11.0" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'modal'" },
