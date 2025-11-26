@@ -1,1 +1,33 @@
-deepcritical
+# Core dependencies for HuggingFace Spaces
+pydantic>=2.7
+pydantic-settings>=2.2
+pydantic-ai>=0.0.16
+
+# AI Providers
+openai>=1.0.0
+anthropic>=0.18.0
+
+# HTTP & Parsing
+httpx>=0.27
+beautifulsoup4>=4.12
+xmltodict>=0.13
+
+# UI (Gradio with MCP support)
+gradio[mcp]>=5.0.0
+
+# Utils
+python-dotenv>=1.0
+tenacity>=8.2
+structlog>=24.1
+requests>=2.32.5
+
+# Optional: Modal for code execution
+modal>=0.63.0
+
+# Optional: LlamaIndex RAG
+llama-index>=0.11.0
+llama-index-llms-openai
+llama-index-embeddings-openai
+llama-index-vector-stores-chroma
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
