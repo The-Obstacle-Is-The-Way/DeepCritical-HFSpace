@@ -150,10 +150,10 @@ def create_demo() -> Any:
             type="messages",  # type: ignore
             title="",
             examples=[
-                "What drugs could be repurposed for Alzheimer's disease?",
-                "Is metformin effective for treating cancer?",
-                "What medications show promise for Long COVID treatment?",
-                "Can statins be repurposed for neurological conditions?",
+                ["What drugs could be repurposed for Alzheimer's disease?", "simple"],
+                ["Is metformin effective for treating cancer?", "simple"],
+                ["What medications show promise for Long COVID treatment?", "simple"],
+                ["Can statins be repurposed for neurological conditions?", "simple"],
             ],
             additional_inputs=[
                 gr.Radio(
