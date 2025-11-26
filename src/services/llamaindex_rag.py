@@ -1,14 +1,11 @@
-"""LlamaIndex RAG service for evidence retrieval and indexing."""
+"""LlamaIndex RAG service for evidence retrieval and indexing.
+
+Requires optional dependencies: uv sync --extra modal
+"""
 
 from typing import Any
 
-import chromadb
 import structlog
-from llama_index.core import Document, Settings, StorageContext, VectorStoreIndex
-from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.openai import OpenAI
-from llama_index.vector_stores.chroma import ChromaVectorStore
 
 from src.utils.config import settings
 from src.utils.models import Evidence
@@ -35,22 +32,44 @@ class LlamaIndexRAGService:
             embedding_model: OpenAI embedding model to use
             similarity_top_k: Number of top results to retrieve
         """
+        # Lazy import - only when instantiated
+        try:
+            import chromadb
+            from llama_index.core import Document, Settings, StorageContext, VectorStoreIndex
+            from llama_index.core.retrievers import VectorIndexRetriever
+            from llama_index.embeddings.openai import OpenAIEmbedding
+            from llama_index.llms.openai import OpenAI
+            from llama_index.vector_stores.chroma import ChromaVectorStore
+        except ImportError as e:
+            raise ImportError(
+                "LlamaIndex dependencies not installed. Run: uv sync --extra modal"
+            ) from e
+
+        # Store references for use in other methods
+        self._chromadb = chromadb
+        self._Document = Document
+        self._Settings = Settings
+        self._StorageContext = StorageContext
+        self._VectorStoreIndex = VectorStoreIndex
+        self._VectorIndexRetriever = VectorIndexRetriever
+        self._ChromaVectorStore = ChromaVectorStore
+
         self.collection_name = collection_name
         self.persist_dir = persist_dir or settings.chroma_db_path
         self.similarity_top_k = similarity_top_k
 
-        # Configure LlamaIndex settings
-        Settings.llm = OpenAI(
-            model="gpt-4o-mini",
+        # Configure LlamaIndex settings (use centralized config)
+        self._Settings.llm = OpenAI(
+            model=settings.openai_model,
             api_key=settings.openai_api_key,
         )
-        Settings.embed_model = OpenAIEmbedding(
+        self._Settings.embed_model = OpenAIEmbedding(
             model=embedding_model,
             api_key=settings.openai_api_key,
         )
 
         # Initialize ChromaDB client
-        self.chroma_client = chromadb.PersistentClient(path=self.persist_dir)
+        self.chroma_client = self._chromadb.PersistentClient(path=self.persist_dir)
 
         # Get or create collection
         try:
@@ -61,18 +80,18 @@ class LlamaIndexRAGService:
             logger.info("created_new_collection", name=self.collection_name)
 
         # Initialize vector store and index
-        self.vector_store = ChromaVectorStore(chroma_collection=self.collection)
-        self.storage_context = StorageContext.from_defaults(vector_store=self.vector_store)
+        self.vector_store = self._ChromaVectorStore(chroma_collection=self.collection)
+        self.storage_context = self._StorageContext.from_defaults(vector_store=self.vector_store)
 
         # Try to load existing index, or create empty one
         try:
-            self.index = VectorStoreIndex.from_vector_store(
+            self.index = self._VectorStoreIndex.from_vector_store(
                 vector_store=self.vector_store,
                 storage_context=self.storage_context,
             )
             logger.info("loaded_existing_index")
         except Exception:
-            self.index = VectorStoreIndex([], storage_context=self.storage_context)
+            self.index = self._VectorStoreIndex([], storage_context=self.storage_context)
             logger.info("created_new_index")
 
     def ingest_evidence(self, evidence_list: list[Evidence]) -> None:
@@ -97,7 +116,7 @@ class LlamaIndexRAGService:
                 "authors": ", ".join(evidence.citation.authors),
             }
 
-            doc = Document(
+            doc = self._Document(
                 text=evidence.content,
                 metadata=metadata,
                 doc_id=evidence.citation.url,  # Use URL as unique ID
@@ -113,7 +132,7 @@ class LlamaIndexRAGService:
             logger.error("failed_to_ingest_evidence", error=str(e))
             raise
 
-    def ingest_documents(self, documents: list[Document]) -> None:
+    def ingest_documents(self, documents: list[Any]) -> None:
         """
         Ingest raw LlamaIndex Documents.
 
@@ -146,7 +165,7 @@ class LlamaIndexRAGService:
         k = top_k or self.similarity_top_k
 
         # Create retriever
-        retriever = VectorIndexRetriever(
+        retriever = self._VectorIndexRetriever(
             index=self.index,
             similarity_top_k=k,
         )
@@ -205,9 +224,11 @@ class LlamaIndexRAGService:
         try:
             self.chroma_client.delete_collection(self.collection_name)
             self.collection = self.chroma_client.create_collection(self.collection_name)
-            self.vector_store = ChromaVectorStore(chroma_collection=self.collection)
-            self.storage_context = StorageContext.from_defaults(vector_store=self.vector_store)
-            self.index = VectorStoreIndex([], storage_context=self.storage_context)
+            self.vector_store = self._ChromaVectorStore(chroma_collection=self.collection)
+            self.storage_context = self._StorageContext.from_defaults(
+                vector_store=self.vector_store
+            )
+            self.index = self._VectorStoreIndex([], storage_context=self.storage_context)
             logger.info("cleared_collection", name=self.collection_name)
         except Exception as e:
             logger.error("failed_to_clear_collection", error=str(e))
