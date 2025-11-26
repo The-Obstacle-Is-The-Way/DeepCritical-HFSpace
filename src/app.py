@@ -183,7 +183,7 @@ def create_demo() -> Any:
     """
     with gr.Blocks(
         title="DeepCritical - Drug Repurposing Research Agent",
-        fill_height=True,
+        # fill_height=True removed to prevent header cutoff in HF Spaces
     ) as demo:
         # 1. Title & Description (Top of page)
         gr.Markdown("""
@@ -200,6 +200,8 @@ def create_demo() -> Any:
         """)
 
         # 2. Main chat interface
+        # Note: additional_inputs will render in an accordion below the chat input by default.
+        # This is standard Gradio ChatInterface behavior and ensures a clean layout.
         gr.ChatInterface(
             fn=research_agent,
             examples=[
