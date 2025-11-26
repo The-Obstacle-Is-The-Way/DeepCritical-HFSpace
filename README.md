@@ -8,11 +8,26 @@ sdk_version: 5.0.0
 app_file: src/app.py
 pinned: false
 license: mit
+tags:
+  - mcp-in-action-track-enterprise
+  - mcp-hackathon
+  - drug-repurposing
+  - biomedical-ai
+  - pydantic-ai
+  - llamaindex
+  - modal
 ---
 
 # DeepCritical
 
 AI-Powered Drug Repurposing Research Agent
+
+## Features
+
+- **Multi-Source Search**: PubMed, ClinicalTrials.gov, bioRxiv/medRxiv
+- **MCP Integration**: Use our tools from Claude Desktop or any MCP client
+- **Modal Sandbox**: Secure execution of AI-generated statistical code
+- **LlamaIndex RAG**: Semantic search and evidence synthesis
 
 ## Quick Start
 
@@ -58,6 +73,7 @@ Add this to your `claude_desktop_config.json`:
 - `search_clinical_trials`: Search ClinicalTrials.gov.
 - `search_biorxiv`: Search bioRxiv/medRxiv preprints.
 - `search_all`: Search all sources simultaneously.
+- `analyze_hypothesis`: Secure statistical analysis using Modal sandboxes.
 
 ## Development
 
@@ -86,3 +102,14 @@ Built with:
 - **Gradio**: For the streaming user interface.
 - **PubMed, ClinicalTrials.gov, bioRxiv**: For biomedical data.
 - **MCP**: For universal tool access.
+- **Modal**: For secure code execution.
+
+## Team
+
+- The-Obstacle-Is-The-Way
+- MarioAderman
+- Josephrp
+
+## Links
+
+- [GitHub Repository](https://github.com/The-Obstacle-Is-The-Way/DeepCritical-1)
