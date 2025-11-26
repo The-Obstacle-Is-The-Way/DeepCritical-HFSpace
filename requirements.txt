@@ -12,8 +12,8 @@ httpx>=0.27
 beautifulsoup4>=4.12
 xmltodict>=0.13
 
-# UI (Gradio with MCP support)
-gradio[mcp]>=5.0.0
+# UI (Gradio with MCP server support)
+gradio[mcp]>=5.32.0
 
 # Utils
 python-dotenv>=1.0
