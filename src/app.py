@@ -1,4 +1,4 @@
-"""Gradio UI for DeepCritical agent."""
+"""Gradio UI for DeepCritical agent with MCP server support."""
 
 import os
 from collections.abc import AsyncGenerator
@@ -7,6 +7,12 @@ from typing import Any
 import gradio as gr
 
 from src.agent_factory.judges import JudgeHandler, MockJudgeHandler
+from src.mcp_tools import (
+    search_all_sources,
+    search_biorxiv,
+    search_clinical_trials,
+    search_pubmed,
+)
 from src.orchestrator_factory import create_orchestrator
 from src.tools.biorxiv import BioRxivTool
 from src.tools.clinicaltrials import ClinicalTrialsTool
@@ -115,10 +121,10 @@ async def research_agent(
 
 def create_demo() -> Any:
     """
-    Create the Gradio demo interface.
+    Create the Gradio demo interface with MCP support.
 
     Returns:
-        Configured Gradio Blocks interface
+        Configured Gradio Blocks interface with MCP server enabled
     """
     with gr.Blocks(
         title="DeepCritical - Drug Repurposing Research Agent",
@@ -137,9 +143,10 @@ def create_demo() -> Any:
         - "What existing medications show promise for Long COVID?"
         """)
 
+        # Main chat interface (existing)
         gr.ChatInterface(
             fn=research_agent,
-            type="messages",
+            type="messages",  # type: ignore
             title="",
             examples=[
                 "What drugs could be repurposed for Alzheimer's disease?",
@@ -157,24 +164,74 @@ def create_demo() -> Any:
             ],
         )
 
+        # MCP Tool Interfaces (exposed via MCP protocol)
+        gr.Markdown("---\n## MCP Tools (Also Available via Claude Desktop)")
+
+        with gr.Tab("PubMed Search"):
+            gr.Interface(
+                fn=search_pubmed,
+                inputs=[
+                    gr.Textbox(label="Query", placeholder="metformin alzheimer"),
+                    gr.Slider(1, 50, value=10, step=1, label="Max Results"),
+                ],
+                outputs=gr.Markdown(label="Results"),
+                api_name="search_pubmed",
+            )
+
+        with gr.Tab("Clinical Trials"):
+            gr.Interface(
+                fn=search_clinical_trials,
+                inputs=[
+                    gr.Textbox(label="Query", placeholder="diabetes phase 3"),
+                    gr.Slider(1, 50, value=10, step=1, label="Max Results"),
+                ],
+                outputs=gr.Markdown(label="Results"),
+                api_name="search_clinical_trials",
+            )
+
+        with gr.Tab("Preprints"):
+            gr.Interface(
+                fn=search_biorxiv,
+                inputs=[
+                    gr.Textbox(label="Query", placeholder="long covid treatment"),
+                    gr.Slider(1, 50, value=10, step=1, label="Max Results"),
+                ],
+                outputs=gr.Markdown(label="Results"),
+                api_name="search_biorxiv",
+            )
+
+        with gr.Tab("Search All"):
+            gr.Interface(
+                fn=search_all_sources,
+                inputs=[
+                    gr.Textbox(label="Query", placeholder="metformin cancer"),
+                    gr.Slider(1, 20, value=5, step=1, label="Max Per Source"),
+                ],
+                outputs=gr.Markdown(label="Results"),
+                api_name="search_all",
+            )
+
         gr.Markdown("""
         ---
         **Note**: This is a research tool and should not be used for medical decisions.
         Always consult healthcare professionals for medical advice.
 
-        Built with 🤖 PydanticAI + 🔬 PubMed, ClinicalTrials.gov & bioRxiv
+        Built with PydanticAI + PubMed, ClinicalTrials.gov & bioRxiv
+
+        **MCP Server**: Available at `/gradio_api/mcp/` for Claude Desktop integration
         """)
 
     return demo
 
 
 def main() -> None:
-    """Run the Gradio app."""
+    """Run the Gradio app with MCP server enabled."""
     demo = create_demo()
     demo.launch(
         server_name="0.0.0.0",
         server_port=7860,
         share=False,
+        mcp_server=True,  # Enable MCP server
     )
 
 

@@ -30,10 +30,34 @@ uv sync
 
 ```bash
 # Start the Gradio app
-uv run python -m src.app
+uv run python src/app.py
 ```
 
 Open your browser to `http://localhost:7860`.
+
+### 3. Connect via MCP
+
+This application exposes a Model Context Protocol (MCP) server, allowing you to use its search tools directly from Claude Desktop or other MCP clients.
+
+**MCP Server URL**: `http://localhost:7860/gradio_api/mcp/`
+
+**Claude Desktop Configuration**:
+Add this to your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "deepcritical": {
+      "url": "http://localhost:7860/gradio_api/mcp/"
+    }
+  }
+}
+```
+
+**Available Tools**:
+- `search_pubmed`: Search peer-reviewed biomedical literature.
+- `search_clinical_trials`: Search ClinicalTrials.gov.
+- `search_biorxiv`: Search bioRxiv/medRxiv preprints.
+- `search_all`: Search all sources simultaneously.
 
 ## Development
 
@@ -53,13 +77,12 @@ make check
 
 DeepCritical uses a Vertical Slice Architecture:
 
-1.  **Search Slice**: Retrieving evidence from PubMed and the Web.
+1.  **Search Slice**: Retrieving evidence from PubMed, ClinicalTrials.gov, and bioRxiv.
 2.  **Judge Slice**: Evaluating evidence quality using LLMs.
 3.  **Orchestrator Slice**: Managing the research loop and UI.
 
 Built with:
 - **PydanticAI**: For robust agent interactions.
 - **Gradio**: For the streaming user interface.
-- **PubMed**: For biomedical literature.
-- **DuckDuckGo**: For general web search.
-
+- **PubMed, ClinicalTrials.gov, bioRxiv**: For biomedical data.
+- **MCP**: For universal tool access.

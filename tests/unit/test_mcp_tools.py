@@ -184,17 +184,17 @@ class TestMCPTypeHints:
         sig = inspect.signature(search_pubmed)
 
         # Check parameter hints
-        assert sig.parameters["query"].annotation == str
-        assert sig.parameters["max_results"].annotation == int
+        assert sig.parameters["query"].annotation is str
+        assert sig.parameters["max_results"].annotation is int
 
         # Check return hint
-        assert sig.return_annotation == str
+        assert sig.return_annotation is str
 
     def test_search_clinical_trials_type_hints(self) -> None:
         """All parameters and return must have type hints."""
         import inspect
 
         sig = inspect.signature(search_clinical_trials)
-        assert sig.parameters["query"].annotation == str
-        assert sig.parameters["max_results"].annotation == int
-        assert sig.return_annotation == str
+        assert sig.parameters["query"].annotation is str
+        assert sig.parameters["max_results"].annotation is int
+        assert sig.return_annotation is str
