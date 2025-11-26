@@ -27,7 +27,7 @@ class LlamaIndexRAGService:
         self,
         collection_name: str = "deepcritical_evidence",
         persist_dir: str | None = None,
-        embedding_model: str = "text-embedding-3-small",
+        embedding_model: str | None = None,
         similarity_top_k: int = 5,
     ) -> None:
         """
@@ -36,7 +36,7 @@ class LlamaIndexRAGService:
         Args:
             collection_name: Name of the ChromaDB collection
             persist_dir: Directory to persist ChromaDB data
-            embedding_model: OpenAI embedding model to use
+            embedding_model: OpenAI embedding model (defaults to settings.openai_embedding_model)
             similarity_top_k: Number of top results to retrieve
         """
         # Lazy import - only when instantiated
@@ -64,6 +64,7 @@ class LlamaIndexRAGService:
         self.collection_name = collection_name
         self.persist_dir = persist_dir or settings.chroma_db_path
         self.similarity_top_k = similarity_top_k
+        self.embedding_model = embedding_model or settings.openai_embedding_model
 
         # Validate API key before use
         if not settings.openai_api_key:
@@ -75,7 +76,7 @@ class LlamaIndexRAGService:
             api_key=settings.openai_api_key,
         )
         self._Settings.embed_model = OpenAIEmbedding(
-            model=embedding_model,
+            model=self.embedding_model,
             api_key=settings.openai_api_key,
         )
 
