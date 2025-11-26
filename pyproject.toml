@@ -17,7 +17,7 @@ dependencies = [
     "beautifulsoup4>=4.12", # HTML parsing
     "xmltodict>=0.13", # PubMed XML -> dict
     # UI
-    "gradio[mcp]>=5.32.0", # Chat interface with MCP server support
+    "gradio[mcp]>=6.0.0", # Chat interface with MCP server support (6.0 required for css in launch())
     # Utils
     "python-dotenv>=1.0", # .env loading
     "tenacity>=8.2", # Retry logic
