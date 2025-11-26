@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     # Logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
+    # Partner Service Configuration (Mario's Modal Integration)
+    modal_token_id: str | None = Field(default=None, description="Modal token ID")
+    modal_token_secret: str | None = Field(default=None, description="Modal token secret")
+    chroma_db_path: str = Field(default="./chroma_db", description="ChromaDB storage path")
+
     def get_api_key(self) -> str:
         """Get the API key for the configured provider."""
         if self.llm_provider == "openai":
