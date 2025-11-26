@@ -8,6 +8,7 @@ import gradio as gr
 
 from src.agent_factory.judges import JudgeHandler, MockJudgeHandler
 from src.mcp_tools import (
+    analyze_hypothesis,
     search_all_sources,
     search_biorxiv,
     search_clinical_trials,
@@ -209,6 +210,22 @@ def create_demo() -> Any:
                 ],
                 outputs=gr.Markdown(label="Results"),
                 api_name="search_all",
+            )
+
+        with gr.Tab("Analyze Hypothesis"):
+            gr.Interface(
+                fn=analyze_hypothesis,
+                inputs=[
+                    gr.Textbox(label="Drug", placeholder="metformin"),
+                    gr.Textbox(label="Condition", placeholder="Alzheimer's disease"),
+                    gr.Textbox(
+                        label="Evidence Summary",
+                        placeholder="Studies show metformin reduces tau phosphorylation...",
+                        lines=5,
+                    ),
+                ],
+                outputs=gr.Markdown(label="Analysis Result"),
+                api_name="analyze_hypothesis",
             )
 
         gr.Markdown("""

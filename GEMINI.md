@@ -1,27 +1,31 @@
 # DeepCritical Context
 
 ## Project Overview
+
 **DeepCritical** is an AI-native Medical Drug Repurposing Research Agent.
-**Goal:** To accelerate the discovery of new uses for existing drugs by intelligently searching biomedical literature (PubMed), evaluating evidence, and hypothesizing potential applications.
+**Goal:** To accelerate the discovery of new uses for existing drugs by intelligently searching biomedical literature (PubMed, ClinicalTrials.gov, bioRxiv), evaluating evidence, and hypothesizing potential applications.
 
 **Architecture:**
 The project follows a **Vertical Slice Architecture** (Search -> Judge -> Orchestrator) and adheres to **Strict TDD** (Test-Driven Development).
 
 **Current Status:**
-- **Phases 1-8:** COMPLETE. Foundation, Search, Judge, UI, Orchestrator, Embeddings, Hypothesis, Report.
-- **Phase 9 (Source Cleanup):** COMPLETE. Removed DuckDuckGo web search (unreliable for scientific research).
-- **Phase 10-11:** PLANNED. ClinicalTrials.gov and bioRxiv integration.
+
+- **Phases 1-9:** COMPLETE. Foundation, Search, Judge, UI, Orchestrator, Embeddings, Hypothesis, Report, Cleanup.
+- **Phases 10-11:** COMPLETE. ClinicalTrials.gov and bioRxiv integration.
+- **Phase 12:** COMPLETE. MCP Server integration (Gradio MCP at `/gradio_api/mcp/`).
+- **Phase 13:** COMPLETE. Modal sandbox for statistical analysis.
 
 ## Tech Stack & Tooling
+
 - **Language:** Python 3.11 (Pinned)
 - **Package Manager:** `uv` (Rust-based, extremely fast)
-- **Frameworks:** `pydantic`, `pydantic-ai`, `httpx`, `gradio`
+- **Frameworks:** `pydantic`, `pydantic-ai`, `httpx`, `gradio[mcp]`
 - **Vector DB:** `chromadb` with `sentence-transformers` for semantic search
+- **Code Execution:** `modal` for secure sandboxed Python execution
 - **Testing:** `pytest`, `pytest-asyncio`, `respx` (for mocking)
 - **Quality:** `ruff` (linting/formatting), `mypy` (strict type checking), `pre-commit`
 
 ## Building & Running
-We use a `Makefile` to standardize developer commands.
 
 | Command | Description |
 | :--- | :--- |
@@ -34,21 +38,61 @@ We use a `Makefile` to standardize developer commands.
 | `make clean` | Clean up cache and artifacts. |
 
 ## Directory Structure
+
 - `src/`: Source code
   - `utils/`: Shared utilities (`config.py`, `exceptions.py`, `models.py`)
-  - `tools/`: Search tools (`pubmed.py`, `base.py`, `search_handler.py`)
-  - `services/`: Services (`embeddings.py` - ChromaDB vector store)
+  - `tools/`: Search tools (`pubmed.py`, `clinicaltrials.py`, `biorxiv.py`, `code_execution.py`)
+  - `services/`: Services (`embeddings.py`, `statistical_analyzer.py`)
   - `agents/`: Magentic multi-agent mode agents
   - `agent_factory/`: Agent definitions (judges, prompts)
+  - `mcp_tools.py`: MCP tool wrappers for Claude Desktop integration
+  - `app.py`: Gradio UI with MCP server
 - `tests/`: Test suite
   - `unit/`: Isolated unit tests (Mocked)
   - `integration/`: Real API tests (Marked as slow/integration)
 - `docs/`: Documentation and Implementation Specs
 - `examples/`: Working demos for each phase
 
+## Key Components
+
+- `src/orchestrator.py` - Main agent loop
+- `src/tools/pubmed.py` - PubMed E-utilities search
+- `src/tools/clinicaltrials.py` - ClinicalTrials.gov API
+- `src/tools/biorxiv.py` - bioRxiv/medRxiv preprint search
+- `src/tools/code_execution.py` - Modal sandbox execution
+- `src/services/statistical_analyzer.py` - Statistical analysis via Modal
+- `src/mcp_tools.py` - MCP tool wrappers
+- `src/app.py` - Gradio UI (HuggingFace Spaces) with MCP server
+
+## Configuration
+
+Settings via pydantic-settings from `.env`:
+
+- `LLM_PROVIDER`: "openai" or "anthropic"
+- `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`: LLM keys
+- `NCBI_API_KEY`: Optional, for higher PubMed rate limits
+- `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`: For Modal sandbox (optional)
+- `MAX_ITERATIONS`: 1-50, default 10
+- `LOG_LEVEL`: DEBUG, INFO, WARNING, ERROR
+
 ## Development Conventions
-1.  **Strict TDD:** Write failing tests in `tests/unit/` *before* implementing logic in `src/`.
-2.  **Type Safety:** All code must pass `mypy --strict`. Use Pydantic models for data exchange.
-3.  **Linting:** Zero tolerance for Ruff errors.
-4.  **Mocking:** Use `respx` or `unittest.mock` for all external API calls in unit tests. Real calls go in `tests/integration`.
-5.  **Vertical Slices:** Implement features end-to-end (Search -> Judge -> UI) rather than layer-by-layer.
+
+1. **Strict TDD:** Write failing tests in `tests/unit/` *before* implementing logic in `src/`.
+2. **Type Safety:** All code must pass `mypy --strict`. Use Pydantic models for data exchange.
+3. **Linting:** Zero tolerance for Ruff errors.
+4. **Mocking:** Use `respx` or `unittest.mock` for all external API calls in unit tests.
+5. **Vertical Slices:** Implement features end-to-end rather than layer-by-layer.
+
+## Git Workflow
+
+- `main`: Production-ready (GitHub)
+- `dev`: Development integration (GitHub)
+- Remote `origin`: GitHub (source of truth for PRs/code review)
+- Remote `huggingface-upstream`: HuggingFace Spaces (deployment target)
+
+**HuggingFace Spaces Collaboration:**
+
+- Each contributor should use their own dev branch: `yourname-dev` (e.g., `vcms-dev`, `mario-dev`)
+- **DO NOT push directly to `main` or `dev` on HuggingFace** - these can be overwritten easily
+- GitHub is the source of truth; HuggingFace is for deployment/demo
+- Consider using git hooks to prevent accidental pushes to protected branches

@@ -6,6 +6,7 @@ from typing import Any, Protocol
 
 import structlog
 
+from src.utils.config import settings
 from src.utils.models import (
     AgentEvent,
     Evidence,
@@ -41,6 +42,7 @@ class Orchestrator:
         search_handler: SearchHandlerProtocol,
         judge_handler: JudgeHandlerProtocol,
         config: OrchestratorConfig | None = None,
+        enable_analysis: bool = False,
     ):
         """
         Initialize the orchestrator.
@@ -49,11 +51,68 @@ class Orchestrator:
             search_handler: Handler for executing searches
             judge_handler: Handler for assessing evidence
             config: Optional configuration (uses defaults if not provided)
+            enable_analysis: Whether to perform statistical analysis (if Modal available)
         """
         self.search = search_handler
         self.judge = judge_handler
         self.config = config or OrchestratorConfig()
         self.history: list[dict[str, Any]] = []
+        self._enable_analysis = enable_analysis and settings.modal_available
+
+        # Lazy-load analysis (NO agent_framework dependency!)
+        self._analyzer: Any = None
+
+    def _get_analyzer(self) -> Any:
+        """Lazy initialization of StatisticalAnalyzer.
+
+        Note: This imports from src.services, NOT src.agents,
+        so it works without the magentic optional dependency.
+        """
+        if self._analyzer is None:
+            from src.services.statistical_analyzer import get_statistical_analyzer
+
+            self._analyzer = get_statistical_analyzer()
+        return self._analyzer
+
+    async def _run_analysis_phase(
+        self, query: str, evidence: list[Evidence], iteration: int
+    ) -> AsyncGenerator[AgentEvent, None]:
+        """Run the optional analysis phase."""
+        if not self._enable_analysis:
+            return
+
+        yield AgentEvent(
+            type="analyzing",
+            message="Running statistical analysis in Modal sandbox...",
+            data={},
+            iteration=iteration,
+        )
+
+        try:
+            analyzer = self._get_analyzer()
+
+            # Run Modal analysis (no agent_framework needed!)
+            analysis_result = await analyzer.analyze(
+                query=query,
+                evidence=evidence,
+                hypothesis=None,  # Could add hypothesis generation later
+            )
+
+            yield AgentEvent(
+                type="analysis_complete",
+                message=f"Analysis verdict: {analysis_result.verdict}",
+                data=analysis_result.model_dump(),
+                iteration=iteration,
+            )
+
+        except Exception as e:
+            logger.error("Modal analysis failed", error=str(e))
+            yield AgentEvent(
+                type="error",
+                message=f"Modal analysis failed: {e}",
+                data={"error": str(e)},
+                iteration=iteration,
+            )
 
     async def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:
         """
@@ -176,6 +235,10 @@ class Orchestrator:
 
                 # === DECISION PHASE ===
                 if assessment.sufficient and assessment.recommendation == "synthesize":
+                    # Optional Analysis Phase
+                    async for event in self._run_analysis_phase(query, all_evidence, iteration):
+                        yield event
+
                     yield AgentEvent(
                         type="synthesizing",
                         message="Evidence sufficient! Preparing synthesis...",

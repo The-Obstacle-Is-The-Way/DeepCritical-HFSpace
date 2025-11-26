@@ -154,3 +154,72 @@ async def search_all_sources(query: str, max_per_source: int = 5) -> str:
         formatted.append(f"## Preprints\n*Error: {biorxiv_results}*\n")
 
     return "\n---\n".join(formatted)
+
+
+async def analyze_hypothesis(
+    drug: str,
+    condition: str,
+    evidence_summary: str,
+) -> str:
+    """Perform statistical analysis of drug repurposing hypothesis using Modal.
+
+    Executes AI-generated Python code in a secure Modal sandbox to analyze
+    the statistical evidence for a drug repurposing hypothesis.
+
+    Args:
+        drug: The drug being evaluated (e.g., "metformin")
+        condition: The target condition (e.g., "Alzheimer's disease")
+        evidence_summary: Summary of evidence to analyze
+
+    Returns:
+        Analysis result with verdict (SUPPORTED/REFUTED/INCONCLUSIVE) and statistics
+    """
+    from src.services.statistical_analyzer import get_statistical_analyzer
+    from src.utils.config import settings
+    from src.utils.models import Citation, Evidence
+
+    if not settings.modal_available:
+        return "Error: Modal credentials not configured. Set MODAL_TOKEN_ID and MODAL_TOKEN_SECRET."
+
+    # Create evidence from summary
+    evidence = [
+        Evidence(
+            content=evidence_summary,
+            citation=Citation(
+                source="pubmed",
+                title=f"Evidence for {drug} in {condition}",
+                url="https://example.com",
+                date="2024-01-01",
+                authors=["User Provided"],
+            ),
+            relevance=0.9,
+        )
+    ]
+
+    analyzer = get_statistical_analyzer()
+    result = await analyzer.analyze(
+        query=f"Can {drug} treat {condition}?",
+        evidence=evidence,
+        hypothesis={"drug": drug, "target": "unknown", "pathway": "unknown", "effect": condition},
+    )
+
+    return f"""## Statistical Analysis: {drug} for {condition}
+
+### Verdict: **{result.verdict}**
+**Confidence**: {result.confidence:.0%}
+
+### Key Findings
+{chr(10).join(f"- {f}" for f in result.key_findings) or "- No specific findings extracted"}
+
+### Execution Output
+```
+{result.execution_output}
+```
+
+### Generated Code
+```python
+{result.code_generated}
+```
+
+**Executed in Modal Sandbox** - Isolated, secure, reproducible.
+"""

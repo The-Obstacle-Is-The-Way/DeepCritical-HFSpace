@@ -111,7 +111,9 @@ class AgentEvent(BaseModel):
         "complete",
         "error",
         "streaming",
-        "hypothesizing",  # NEW for Phase 7
+        "hypothesizing",
+        "analyzing",  # NEW for Phase 13
+        "analysis_complete",  # NEW for Phase 13
     ]
     message: str
     data: Any = None
@@ -132,6 +134,8 @@ class AgentEvent(BaseModel):
             "error": "❌",
             "streaming": "📡",
             "hypothesizing": "🔬",  # NEW
+            "analyzing": "📊",  # NEW
+            "analysis_complete": "📈",  # NEW
         }
         icon = icons.get(self.type, "•")
         return f"{icon} **{self.type.upper()}**: {self.message}"
