@@ -185,23 +185,15 @@ def create_demo() -> Any:
         title="DeepCritical - Drug Repurposing Research Agent",
         fill_height=True,
     ) as demo:
-        gr.Markdown("""
-        # 🧬 DeepCritical
-        ## AI-Powered Drug Repurposing Research Agent
-
-        Ask questions about potential drug repurposing opportunities.
-        The agent searches PubMed, ClinicalTrials.gov, and bioRxiv/medRxiv preprints.
-
-        **Example questions:**
-        - "What drugs could be repurposed for Alzheimer's disease?"
-        - "Is metformin effective for cancer treatment?"
-        - "What existing medications show promise for Long COVID?"
-        """)
-
-        # Main chat interface
+        # Main chat interface - title/description inside ChatInterface for proper layout
         gr.ChatInterface(
             fn=research_agent,
-            title="",
+            title="🧬 DeepCritical",
+            description=(
+                "**AI-Powered Drug Repurposing Research Agent**\n\n"
+                "Ask questions about potential drug repurposing opportunities. "
+                "The agent searches PubMed, ClinicalTrials.gov, and bioRxiv/medRxiv preprints."
+            ),
             examples=[
                 [
                     "What drugs could be repurposed for Alzheimer's disease?",
