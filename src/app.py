@@ -143,7 +143,7 @@ def create_demo() -> Any:
         - "What existing medications show promise for Long COVID?"
         """)
 
-        # Main chat interface (existing)
+        # Main chat interface
         gr.ChatInterface(
             fn=research_agent,
             title="",
@@ -246,7 +246,7 @@ def main() -> None:
         server_name="0.0.0.0",
         server_port=7860,
         share=False,
-        mcp_server=True,  # Enable MCP server
+        mcp_server=True,
     )
 
 
