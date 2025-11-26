@@ -47,6 +47,15 @@ embeddings = [
     "chromadb>=0.4.0",
     "sentence-transformers>=2.2.0",
 ]
+modal = [
+    # Mario's Modal code execution + LlamaIndex RAG
+    "modal>=0.63.0",
+    "llama-index>=0.11.0",
+    "llama-index-llms-openai",
+    "llama-index-embeddings-openai",
+    "llama-index-vector-stores-chroma",
+    "chromadb>=0.4.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -75,6 +84,9 @@ select = [
 ignore = [
     "PLR0913",  # Too many arguments (agents need many params)
     "PLR0912",  # Too many branches (complex orchestrator logic)
+    "PLR0911",  # Too many return statements (complex agent logic)
+    "PLR2004",  # Magic values (statistical constants like p-values)
+    "PLW0603",  # Global statement (singleton pattern for Modal)
     "PLC0415",  # Lazy imports for optional dependencies
     "E402",     # Module level import not at top (needed for pytest.importorskip)
     "RUF100",   # Unused noqa (version differences between local/CI)

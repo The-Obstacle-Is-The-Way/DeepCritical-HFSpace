@@ -11,18 +11,24 @@ import chromadb
 import structlog
 from sentence_transformers import SentenceTransformer
 
+from src.utils.config import settings
 from src.utils.models import Evidence
 
 
 class EmbeddingService:
-    """Handles text embedding and vector storage.
+    """Handles text embedding and vector storage using local sentence-transformers.
 
     All embedding operations run in a thread pool to avoid blocking
     the async event loop.
+
+    Note:
+        Uses local sentence-transformers models (no API key required).
+        Model is configured via settings.local_embedding_model.
     """
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        self._model = SentenceTransformer(model_name)
+    def __init__(self, model_name: str | None = None):
+        self._model_name = model_name or settings.local_embedding_model
+        self._model = SentenceTransformer(self._model_name)
         self._client = chromadb.Client()  # In-memory for hackathon
         self._collection = self._client.create_collection(
             name="evidence", metadata={"hnsw:space": "cosine"}

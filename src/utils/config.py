@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     openai_model: str = Field(default="gpt-4o", description="OpenAI model name")
     anthropic_model: str = Field(default="claude-sonnet-4-20250514", description="Anthropic model")
 
+    # Embedding Configuration
+    # Note: OpenAI embeddings require OPENAI_API_KEY (Anthropic has no embeddings API)
+    openai_embedding_model: str = Field(
+        default="text-embedding-3-small",
+        description="OpenAI embedding model (used by LlamaIndex RAG)",
+    )
+    local_embedding_model: str = Field(
+        default="all-MiniLM-L6-v2",
+        description="Local sentence-transformers model (used by EmbeddingService)",
+    )
+
     # PubMed Configuration
     ncbi_api_key: str | None = Field(
         default=None, description="NCBI API key for higher rate limits"
@@ -40,6 +51,11 @@ class Settings(BaseSettings):
 
     # Logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+
+    # Partner Service Configuration (Mario's Modal Integration)
+    modal_token_id: str | None = Field(default=None, description="Modal token ID")
+    modal_token_secret: str | None = Field(default=None, description="Modal token secret")
+    chroma_db_path: str = Field(default="./chroma_db", description="ChromaDB storage path")
 
     def get_api_key(self) -> str:
         """Get the API key for the configured provider."""
