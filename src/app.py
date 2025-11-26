@@ -183,6 +183,7 @@ def create_demo() -> Any:
     """
     with gr.Blocks(
         title="DeepCritical - Drug Repurposing Research Agent",
+        fill_height=True,
     ) as demo:
         gr.Markdown("""
         # 🧬 DeepCritical
