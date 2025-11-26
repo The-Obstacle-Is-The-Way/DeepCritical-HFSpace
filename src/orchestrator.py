@@ -43,6 +43,7 @@ class Orchestrator:
         judge_handler: JudgeHandlerProtocol,
         config: OrchestratorConfig | None = None,
         enable_analysis: bool = False,
+        enable_embeddings: bool = True,
     ):
         """
         Initialize the orchestrator.
@@ -52,15 +53,18 @@ class Orchestrator:
             judge_handler: Handler for assessing evidence
             config: Optional configuration (uses defaults if not provided)
             enable_analysis: Whether to perform statistical analysis (if Modal available)
+            enable_embeddings: Whether to use semantic search for ranking/dedup
         """
         self.search = search_handler
         self.judge = judge_handler
         self.config = config or OrchestratorConfig()
         self.history: list[dict[str, Any]] = []
         self._enable_analysis = enable_analysis and settings.modal_available
+        self._enable_embeddings = enable_embeddings
 
-        # Lazy-load analysis (NO agent_framework dependency!)
+        # Lazy-load services
         self._analyzer: Any = None
+        self._embeddings: Any = None
 
     def _get_analyzer(self) -> Any:
         """Lazy initialization of StatisticalAnalyzer.
@@ -73,6 +77,41 @@ class Orchestrator:
 
             self._analyzer = get_statistical_analyzer()
         return self._analyzer
+
+    def _get_embeddings(self) -> Any:
+        """Lazy initialization of EmbeddingService.
+
+        Uses local sentence-transformers - NO API key required.
+        """
+        if self._embeddings is None and self._enable_embeddings:
+            try:
+                from src.services.embeddings import get_embedding_service
+
+                self._embeddings = get_embedding_service()
+                logger.info("Embedding service enabled for semantic ranking")
+            except Exception as e:
+                logger.warning("Embeddings unavailable, using basic ranking", error=str(e))
+                self._enable_embeddings = False
+        return self._embeddings
+
+    async def _deduplicate_and_rank(self, evidence: list[Evidence], query: str) -> list[Evidence]:
+        """Use embeddings to deduplicate and rank evidence by relevance."""
+        embeddings = self._get_embeddings()
+        if not embeddings or not evidence:
+            return evidence
+
+        try:
+            # Deduplicate using semantic similarity
+            unique_evidence: list[Evidence] = await embeddings.deduplicate(evidence, threshold=0.85)
+            logger.info(
+                "Deduplicated evidence",
+                before=len(evidence),
+                after=len(unique_evidence),
+            )
+            return unique_evidence
+        except Exception as e:
+            logger.warning("Deduplication failed, using original", error=str(e))
+            return evidence
 
     async def _run_analysis_phase(
         self, query: str, evidence: list[Evidence], iteration: int
@@ -114,7 +153,7 @@ class Orchestrator:
                 iteration=iteration,
             )
 
-    async def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:
+    async def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:  # noqa: PLR0915
         """
         Run the agent loop for a query.
 
@@ -171,10 +210,13 @@ class Orchestrator:
                         # Should not happen with return_exceptions=True but safe fallback
                         errors.append(f"Unknown result type for '{q}': {type(result)}")
 
-                # Deduplicate evidence by URL
+                # Deduplicate evidence by URL (fast, basic)
                 seen_urls = {e.citation.url for e in all_evidence}
                 unique_new = [e for e in new_evidence if e.citation.url not in seen_urls]
                 all_evidence.extend(unique_new)
+
+                # Semantic deduplication and ranking (if embeddings available)
+                all_evidence = await self._deduplicate_and_rank(all_evidence, query)
 
                 yield AgentEvent(
                     type="search_complete",

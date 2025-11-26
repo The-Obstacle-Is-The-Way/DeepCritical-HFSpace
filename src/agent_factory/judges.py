@@ -178,38 +178,13 @@ class MockJudgeHandler:
         return findings if findings else ["No specific findings extracted (demo mode)"]
 
     def _extract_drug_candidates(self, question: str, evidence: list[Evidence]) -> list[str]:
-        """Extract potential drug names from question and evidence."""
-        # Common drug-related keywords to look for
-        candidates = set()
-
-        # Extract from question (simple heuristic)
-        question_words = question.lower().split()
-        for word in question_words:
-            # Skip common words, keep potential drug names
-            if len(word) > 3 and word not in {
-                "what", "which", "could", "drugs", "drug", "medications",
-                "medicine", "treat", "treatment", "help", "best", "effective",
-                "repurposed", "repurposing", "disease", "condition", "therapy",
-            }:
-                # Capitalize as potential drug name
-                candidates.add(word.capitalize())
-
-        # Extract from evidence titles (look for capitalized terms)
-        for e in evidence[:10]:
-            words = e.citation.title.split()
-            for word in words:
-                # Look for capitalized words that might be drug names
-                cleaned = word.strip(".,;:()[]")
-                if (
-                    len(cleaned) > 3
-                    and cleaned[0].isupper()
-                    and cleaned.lower() not in {"the", "and", "for", "with", "from"}
-                ):
-                    candidates.add(cleaned)
-
-        # Return top candidates or placeholder
-        candidate_list = list(candidates)[:5]
-        return candidate_list if candidate_list else ["See evidence below for potential candidates"]
+        """Extract drug candidates - demo mode returns honest message."""
+        # Don't attempt heuristic extraction - it produces garbage like "Oral", "Kidney"
+        # Real drug extraction requires LLM analysis
+        return [
+            "Drug identification requires AI analysis",
+            "Enter API key above for full results",
+        ]
 
     async def assess(
         self,

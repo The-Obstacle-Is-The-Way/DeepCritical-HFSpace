@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -19,6 +19,211 @@ class BioRxivTool:
     DEFAULT_SERVER = "medrxiv"
     # Fetch papers from last N days
     DEFAULT_DAYS = 90
+
+    # Comprehensive stop words list - these are too common to be useful for filtering
+    STOP_WORDS: ClassVar[set[str]] = {
+        # Articles and prepositions
+        "the",
+        "a",
+        "an",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "between",
+        "under",
+        "about",
+        "against",
+        "among",
+        # Conjunctions
+        "and",
+        "or",
+        "but",
+        "nor",
+        "so",
+        "yet",
+        "both",
+        "either",
+        "neither",
+        # Pronouns
+        "i",
+        "you",
+        "he",
+        "she",
+        "it",
+        "we",
+        "they",
+        "me",
+        "him",
+        "her",
+        "us",
+        "them",
+        "my",
+        "your",
+        "his",
+        "its",
+        "our",
+        "their",
+        "this",
+        "that",
+        "these",
+        "those",
+        "which",
+        "who",
+        "whom",
+        "whose",
+        "what",
+        "whatever",
+        # Question words
+        "when",
+        "where",
+        "why",
+        "how",
+        # Modal and auxiliary verbs
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "am",
+        "have",
+        "has",
+        "had",
+        "having",
+        "do",
+        "does",
+        "did",
+        "doing",
+        "will",
+        "would",
+        "shall",
+        "should",
+        "can",
+        "could",
+        "may",
+        "might",
+        "must",
+        "need",
+        "ought",
+        # Common verbs
+        "get",
+        "got",
+        "make",
+        "made",
+        "take",
+        "taken",
+        "give",
+        "given",
+        "go",
+        "went",
+        "gone",
+        "come",
+        "came",
+        "see",
+        "saw",
+        "seen",
+        "know",
+        "knew",
+        "known",
+        "think",
+        "thought",
+        "find",
+        "found",
+        "show",
+        "shown",
+        "showed",
+        "use",
+        "used",
+        "using",
+        # Generic scientific terms (too common to filter on)
+        # Note: Keep medical terms like treatment, disease, drug - meaningful for queries
+        "study",
+        "studies",
+        "studied",
+        "result",
+        "results",
+        "method",
+        "methods",
+        "analysis",
+        "data",
+        "group",
+        "groups",
+        "research",
+        "findings",
+        "significant",
+        "associated",
+        "compared",
+        "observed",
+        "reported",
+        "participants",
+        "sample",
+        "samples",
+        # Other common words
+        "also",
+        "however",
+        "therefore",
+        "thus",
+        "although",
+        "because",
+        "since",
+        "while",
+        "if",
+        "then",
+        "than",
+        "such",
+        "same",
+        "different",
+        "other",
+        "another",
+        "each",
+        "every",
+        "all",
+        "any",
+        "some",
+        "no",
+        "not",
+        "only",
+        "just",
+        "more",
+        "most",
+        "less",
+        "least",
+        "very",
+        "much",
+        "many",
+        "few",
+        "new",
+        "old",
+        "first",
+        "last",
+        "next",
+        "previous",
+        "high",
+        "low",
+        "large",
+        "small",
+        "long",
+        "short",
+        "good",
+        "well",
+        "better",
+        "best",
+    }
 
     def __init__(self, server: str = DEFAULT_SERVER, days: int = DEFAULT_DAYS) -> None:
         """
@@ -81,18 +286,20 @@ class BioRxivTool:
             return [self._paper_to_evidence(paper) for paper in matching]
 
     def _extract_terms(self, query: str) -> list[str]:
-        """Extract search terms from query."""
+        """Extract meaningful search terms from query."""
         # Simple tokenization, lowercase
         terms = re.findall(r"\b\w+\b", query.lower())
-        # Filter out common stop words
-        stop_words = {"the", "a", "an", "in", "on", "for", "and", "or", "of", "to"}
-        return [t for t in terms if t not in stop_words and len(t) > 2]
+        # Filter out stop words and short terms
+        return [t for t in terms if t not in self.STOP_WORDS and len(t) > 2]
 
     def _filter_by_keywords(
         self, papers: list[dict[str, Any]], terms: list[str], max_results: int
     ) -> list[dict[str, Any]]:
         """Filter papers that contain query terms in title or abstract."""
         scored_papers = []
+
+        # Require at least 2 matching terms, or all terms if fewer than 2
+        min_matches = min(2, len(terms)) if terms else 1
 
         for paper in papers:
             title = paper.get("title", "").lower()
@@ -102,7 +309,8 @@ class BioRxivTool:
             # Count matching terms
             matches = sum(1 for term in terms if term in text)
 
-            if matches > 0:
+            # Only include papers meeting minimum match threshold
+            if matches >= min_matches:
                 scored_papers.append((matches, paper))
 
         # Sort by match count (descending)
