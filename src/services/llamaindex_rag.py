@@ -8,6 +8,7 @@ from typing import Any
 import structlog
 
 from src.utils.config import settings
+from src.utils.exceptions import ConfigurationError
 from src.utils.models import Evidence
 
 logger = structlog.get_logger()
@@ -57,6 +58,10 @@ class LlamaIndexRAGService:
         self.collection_name = collection_name
         self.persist_dir = persist_dir or settings.chroma_db_path
         self.similarity_top_k = similarity_top_k
+
+        # Validate API key before use
+        if not settings.openai_api_key:
+            raise ConfigurationError("OPENAI_API_KEY required for LlamaIndex RAG service")
 
         # Configure LlamaIndex settings (use centralized config)
         self._Settings.llm = OpenAI(
@@ -190,7 +195,7 @@ class LlamaIndexRAGService:
 
         except Exception as e:
             logger.error("failed_to_retrieve", error=str(e), query=query[:50])
-            return []
+            raise  # Re-raise to allow callers to distinguish errors from empty results
 
     def query(self, query_str: str, top_k: int | None = None) -> str:
         """
@@ -217,7 +222,7 @@ class LlamaIndexRAGService:
 
         except Exception as e:
             logger.error("failed_to_query", error=str(e), query=query_str[:50])
-            return f"Error generating response: {e}"
+            raise  # Re-raise to allow callers to handle errors explicitly
 
     def clear_collection(self) -> None:
         """Clear all documents from the collection."""
