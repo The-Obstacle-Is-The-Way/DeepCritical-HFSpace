@@ -15,7 +15,7 @@ class TestSearchHandler:
     @pytest.mark.asyncio
     async def test_execute_aggregates_results(self):
         """SearchHandler should aggregate results from all tools."""
-        # Create mock tool
+        # Create mock tools
         mock_tool_1 = AsyncMock()
         mock_tool_1.name = "pubmed"
         mock_tool_1.search = AsyncMock(
@@ -27,12 +27,11 @@ class TestSearchHandler:
             ]
         )
 
-        # Using two pubmed tools to simulate aggregation if we wanted,
-        # but for now just testing one is fine, or we can mock a second valid tool instance
-        # even if it shares the name 'pubmed' (though in reality we'd have different tools).
-        # Since we strictly only have pubmed right now, we test that.
+        mock_tool_2 = AsyncMock()
+        mock_tool_2.name = "pubmed"  # Type system currently restricts to pubmed
+        mock_tool_2.search = AsyncMock(return_value=[])
 
-        handler = SearchHandler(tools=[mock_tool_1])
+        handler = SearchHandler(tools=[mock_tool_1, mock_tool_2])
         result = await handler.execute("test query")
 
         assert result.total_found == 1

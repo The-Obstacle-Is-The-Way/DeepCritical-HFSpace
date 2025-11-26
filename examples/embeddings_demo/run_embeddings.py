@@ -47,9 +47,9 @@ def create_sample_evidence() -> list[Evidence]:
             citation=Citation(
                 source="pubmed",
                 title="How Viagra Works",
-                url="https://example.com/viagra-mechanism",
+                url="https://pubmed.ncbi.nlm.nih.gov/99999/",
                 date="2023",
-                authors=["WebMD"],
+                authors=["Smith J"],
             ),
         ),
         Evidence(
