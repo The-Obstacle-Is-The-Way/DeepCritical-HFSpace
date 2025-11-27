@@ -20,7 +20,7 @@ from src.agents.magentic_agents import (
     create_report_agent,
     create_search_agent,
 )
-from src.agents.state import init_magentic_state
+from src.state import init_magentic_state
 from src.utils.config import settings
 from src.utils.llm_factory import check_magentic_requirements
 from src.utils.models import AgentEvent

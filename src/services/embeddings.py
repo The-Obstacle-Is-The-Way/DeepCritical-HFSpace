@@ -29,8 +29,8 @@ class EmbeddingService:
     def __init__(self, model_name: str | None = None):
         self._model_name = model_name or settings.local_embedding_model
         self._model = SentenceTransformer(self._model_name)
-        self._client = chromadb.Client()  # In-memory for hackathon
-        self._collection = self._client.create_collection(
+        self._client = chromadb.PersistentClient(path=settings.chroma_db_path)
+        self._collection = self._client.get_or_create_collection(
             name="evidence", metadata={"hnsw:space": "cosine"}
         )
 

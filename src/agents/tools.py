@@ -6,7 +6,7 @@ They also interact with the thread-safe MagenticState to persist evidence.
 
 from agent_framework import ai_function
 
-from src.agents.state import get_magentic_state
+from src.state import get_magentic_state
 from src.tools.clinicaltrials import ClinicalTrialsTool
 from src.tools.europepmc import EuropePMCTool
 from src.tools.pubmed import PubMedTool

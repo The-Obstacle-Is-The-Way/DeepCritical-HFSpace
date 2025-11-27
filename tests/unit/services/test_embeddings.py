@@ -23,9 +23,9 @@ class TestEmbeddingService:
 
     @pytest.fixture
     def mock_chroma_client(self):
-        with patch("src.services.embeddings.chromadb.Client") as mock_client_class:
+        with patch("src.services.embeddings.chromadb.PersistentClient") as mock_client_class:
             mock_client = mock_client_class.return_value
-            mock_collection = mock_client.create_collection.return_value
+            mock_collection = mock_client.get_or_create_collection.return_value
             # Mock query return structure
             mock_collection.query.return_value = {
                 "ids": [["id1"]],
@@ -73,7 +73,7 @@ class TestEmbeddingService:
         )
 
         # Verify add was called
-        mock_collection = mock_chroma_client.create_collection.return_value
+        mock_collection = mock_chroma_client.get_or_create_collection.return_value
         mock_collection.add.assert_called_once()
 
         results = await service.search_similar("AMPK activation drugs", n_results=1)
@@ -88,7 +88,7 @@ class TestEmbeddingService:
         self, mock_sentence_transformer, mock_chroma_client
     ):
         """Search on empty collection should return empty list, not error."""
-        mock_collection = mock_chroma_client.create_collection.return_value
+        mock_collection = mock_chroma_client.get_or_create_collection.return_value
         mock_collection.query.return_value = {
             "ids": [[]],
             "documents": [[]],
@@ -109,7 +109,7 @@ class TestEmbeddingService:
 
         # Mock search to return a match for the first item (duplicate)
         # and no match for the second (unique)
-        mock_collection = mock_chroma_client.create_collection.return_value
+        mock_collection = mock_chroma_client.get_or_create_collection.return_value
 
         # First call returns match (distance 0.05 < threshold)
         # Second call returns no match or high distance
