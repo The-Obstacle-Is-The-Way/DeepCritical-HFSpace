@@ -6,7 +6,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import BaseModel, Field
 
 # Centralized source type - add new sources here (e.g., new databases)
-SourceName = Literal["pubmed", "clinicaltrials", "europepmc", "preprint", "openalex"]
+SourceName = Literal["pubmed", "clinicaltrials", "europepmc", "preprint", "openalex", "web"]
 
 
 class Citation(BaseModel):
