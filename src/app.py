@@ -11,13 +11,6 @@ from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from src.agent_factory.judges import HFInferenceJudgeHandler, JudgeHandler, MockJudgeHandler
-from src.mcp_tools import (
-    analyze_hypothesis,
-    search_all_sources,
-    search_biorxiv,
-    search_clinical_trials,
-    search_pubmed,
-)
 from src.orchestrator_factory import create_orchestrator
 from src.tools.biorxiv import BioRxivTool
 from src.tools.clinicaltrials import ClinicalTrialsTool
@@ -202,168 +195,59 @@ def create_demo() -> Any:
     """
     with gr.Blocks(
         title="DeepCritical - Drug Repurposing Research Agent",
-        # fill_height=True removed to prevent header cutoff in HF Spaces
     ) as demo:
-        # 1. Title & Description (Top of page)
-        gr.Markdown("""
-        # 🧬 DeepCritical
-        ## AI-Powered Drug Repurposing Research Agent
+        # Minimal header (2 lines) to fit in single viewport
+        gr.Markdown(
+            "# 🧬 DeepCritical\n"
+            "*AI-powered drug repurposing research — searches PubMed, ClinicalTrials.gov & bioRxiv*"
+        )
 
-        Ask questions about potential drug repurposing opportunities.
-        The agent searches PubMed, ClinicalTrials.gov, and bioRxiv/medRxiv preprints.
-
-        **Example questions:**
-        - "What drugs could be repurposed for Alzheimer's disease?"
-        - "Is metformin effective for cancer treatment?"
-        - "What existing medications show promise for Long COVID?"
-        """)
-
-        # 2. Main chat interface
-        # Note: additional_inputs will render in an accordion below the chat input by default.
-        # This is standard Gradio ChatInterface behavior and ensures a clean layout.
+        # Main chat interface with config in collapsed accordion
         gr.ChatInterface(
             fn=research_agent,
             examples=[
-                [
-                    "What drugs could be repurposed for Alzheimer's disease?",
-                    "simple",
-                    "",
-                    "openai",
-                ],
-                [
-                    "Is metformin effective for treating cancer?",
-                    "simple",
-                    "",
-                    "openai",
-                ],
-                [
-                    "What medications show promise for Long COVID treatment?",
-                    "simple",
-                    "",
-                    "openai",
-                ],
-                [
-                    "Can statins be repurposed for neurological conditions?",
-                    "simple",
-                    "",
-                    "openai",
-                ],
+                ["What drugs could be repurposed for Alzheimer's disease?"],
+                ["Is metformin effective for treating cancer?"],
+                ["What medications show promise for Long COVID?"],
             ],
             additional_inputs=[
                 gr.Radio(
                     choices=["simple", "magentic"],
                     value="simple",
-                    label="Orchestrator Mode",
-                    info="Simple: Linear (OpenAI/Anthropic) | Magentic: Multi-Agent (OpenAI)",
+                    label="Mode",
+                    info="Simple: Linear | Magentic: Multi-Agent (OpenAI only)",
                 ),
                 gr.Textbox(
-                    label="🔑 API Key (Optional - Bring Your Own Key)",
+                    label="API Key (Optional)",
                     placeholder="sk-... or sk-ant-...",
                     type="password",
-                    info="Enter your own API key for full AI analysis. Never stored.",
+                    info="Bring your own key for premium models. Never stored.",
                 ),
                 gr.Radio(
                     choices=["openai", "anthropic"],
                     value="openai",
-                    label="API Provider",
-                    info="Select the provider for your API key",
+                    label="Provider",
                 ),
             ],
         )
 
-        # MCP Tool Interfaces (exposed via MCP protocol)
-        gr.Markdown("---\n## MCP Tools (Also Available via Claude Desktop)")
-
-        with gr.Tab("PubMed Search"):
-            gr.Interface(
-                fn=search_pubmed,
-                inputs=[
-                    gr.Textbox(label="Query", placeholder="metformin alzheimer"),
-                    gr.Slider(1, 50, value=10, step=1, label="Max Results"),
-                ],
-                outputs=gr.Markdown(label="Results"),
-                api_name="search_pubmed",
-            )
-
-        with gr.Tab("Clinical Trials"):
-            gr.Interface(
-                fn=search_clinical_trials,
-                inputs=[
-                    gr.Textbox(label="Query", placeholder="diabetes phase 3"),
-                    gr.Slider(1, 50, value=10, step=1, label="Max Results"),
-                ],
-                outputs=gr.Markdown(label="Results"),
-                api_name="search_clinical_trials",
-            )
-
-        with gr.Tab("Preprints"):
-            gr.Interface(
-                fn=search_biorxiv,
-                inputs=[
-                    gr.Textbox(label="Query", placeholder="long covid treatment"),
-                    gr.Slider(1, 50, value=10, step=1, label="Max Results"),
-                ],
-                outputs=gr.Markdown(label="Results"),
-                api_name="search_biorxiv",
-            )
-
-        with gr.Tab("Search All"):
-            gr.Interface(
-                fn=search_all_sources,
-                inputs=[
-                    gr.Textbox(label="Query", placeholder="metformin cancer"),
-                    gr.Slider(1, 20, value=5, step=1, label="Max Per Source"),
-                ],
-                outputs=gr.Markdown(label="Results"),
-                api_name="search_all",
-            )
-
-        with gr.Tab("Analyze Hypothesis"):
-            gr.Interface(
-                fn=analyze_hypothesis,
-                inputs=[
-                    gr.Textbox(label="Drug", placeholder="metformin"),
-                    gr.Textbox(label="Condition", placeholder="Alzheimer's disease"),
-                    gr.Textbox(
-                        label="Evidence Summary",
-                        placeholder="Studies show metformin reduces tau phosphorylation...",
-                        lines=5,
-                    ),
-                ],
-                outputs=gr.Markdown(label="Analysis Result"),
-                api_name="analyze_hypothesis",
-            )
-
-        gr.Markdown("""
-        ---
-        **Note**: This is a research tool and should not be used for medical decisions.
-        Always consult healthcare professionals for medical advice.
-
-        Built with PydanticAI + PubMed, ClinicalTrials.gov & bioRxiv
-
-        **MCP Server**: Available at `/gradio_api/mcp/` for Claude Desktop integration
-        """)
+        # Minimal footer
+        gr.Markdown(
+            "*Research tool only — not for medical decisions. " "MCP: `/gradio_api/mcp/`*",
+            elem_classes=["footer"],
+        )
 
     return demo
 
 
 def main() -> None:
     """Run the Gradio app with MCP server enabled."""
-    # CSS to fix the header cutoff issue in HuggingFace Spaces
-    # Adds padding to the top of the container to clear the HF banner
-    css = """
-    .gradio-container {
-        padding-top: 50px !important;
-    }
-    """
-
     demo = create_demo()
     demo.launch(
         server_name="0.0.0.0",
         server_port=7860,
         share=False,
         mcp_server=True,
-        css=css,
         ssr_mode=False,  # Fix for intermittent loading/hydration issues in HF Spaces
     )
 
