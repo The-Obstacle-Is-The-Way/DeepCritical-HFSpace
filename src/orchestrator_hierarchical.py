@@ -15,7 +15,7 @@ from src.utils.models import AgentEvent
 logger = structlog.get_logger()
 
 
-class ResearchTeam(SubIterationTeam[str]):
+class ResearchTeam(SubIterationTeam):
     """Adapts Magentic ChatAgent to SubIterationTeam protocol."""
 
     def __init__(self) -> None:
