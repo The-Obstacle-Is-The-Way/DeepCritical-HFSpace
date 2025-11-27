@@ -7,6 +7,12 @@ pydantic-ai>=0.0.16
 openai>=1.0.0
 anthropic>=0.18.0
 
+# Multi-agent orchestration (Advanced mode)
+agent-framework-core>=1.0.0b251120
+
+# Web search
+duckduckgo-search>=5.0
+
 # HTTP & Parsing
 httpx>=0.27
 beautifulsoup4>=4.12
