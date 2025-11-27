@@ -20,6 +20,7 @@ python-dotenv>=1.0
 tenacity>=8.2
 structlog>=24.1
 requests>=2.32.5
+limits>=3.0  # Rate limiting (Phase 17)
 
 # Optional: Modal for code execution
 modal>=0.63.0
