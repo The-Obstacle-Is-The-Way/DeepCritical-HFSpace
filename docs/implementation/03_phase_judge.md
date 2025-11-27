@@ -350,20 +350,228 @@ class JudgeHandler:
         )
 
 
+class HFInferenceJudgeHandler:
+    """
+    JudgeHandler using HuggingFace Inference API for FREE LLM calls.
+
+    This is the DEFAULT for demo mode - provides real AI analysis without
+    requiring users to have OpenAI/Anthropic API keys.
+
+    Model Fallback Chain (handles gated models and rate limits):
+        1. meta-llama/Llama-3.1-8B-Instruct (best quality, requires HF_TOKEN)
+        2. mistralai/Mistral-7B-Instruct-v0.3 (good quality, may require token)
+        3. HuggingFaceH4/zephyr-7b-beta (ungated, always works)
+
+    Rate Limit Handling:
+        - Exponential backoff with 3 retries
+        - Falls back to next model on persistent 429/503 errors
+    """
+
+    # Model fallback chain: gated (best) → ungated (fallback)
+    FALLBACK_MODELS = [
+        "meta-llama/Llama-3.1-8B-Instruct",      # Best quality (gated)
+        "mistralai/Mistral-7B-Instruct-v0.3",    # Good quality
+        "HuggingFaceH4/zephyr-7b-beta",          # Ungated fallback
+    ]
+
+    def __init__(self, model_id: str | None = None) -> None:
+        """
+        Initialize with HF Inference client.
+
+        Args:
+            model_id: Optional specific model ID. If None, uses FALLBACK_MODELS chain.
+        """
+        self.model_id = model_id
+        # Will automatically use HF_TOKEN from env if available
+        self.client = InferenceClient()
+        self.call_count = 0
+        self.last_question: str | None = None
+        self.last_evidence: list[Evidence] | None = None
+
+    def _extract_json(self, text: str) -> dict[str, Any] | None:
+        """
+        Robust JSON extraction that handles markdown blocks and nested braces.
+        """
+        text = text.strip()
+
+        # Remove markdown code blocks if present (with bounds checking)
+        if "```json" in text:
+            parts = text.split("```json", 1)
+            if len(parts) > 1:
+                inner_parts = parts[1].split("```", 1)
+                text = inner_parts[0]
+        elif "```" in text:
+            parts = text.split("```", 1)
+            if len(parts) > 1:
+                inner_parts = parts[1].split("```", 1)
+                text = inner_parts[0]
+
+        text = text.strip()
+
+        # Find first '{'
+        start_idx = text.find("{")
+        if start_idx == -1:
+            return None
+
+        # Stack-based parsing ignoring chars in strings
+        count = 0
+        in_string = False
+        escape = False
+
+        for i, char in enumerate(text[start_idx:], start=start_idx):
+            if in_string:
+                if escape:
+                    escape = False
+                elif char == "\\":
+                    escape = True
+                elif char == '"':
+                    in_string = False
+            elif char == '"':
+                in_string = True
+            elif char == "{":
+                count += 1
+            elif char == "}":
+                count -= 1
+                if count == 0:
+                    try:
+                        result = json.loads(text[start_idx : i + 1])
+                        if isinstance(result, dict):
+                            return result
+                        return None
+                    except json.JSONDecodeError:
+                        return None
+
+        return None
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=4),
+        retry=retry_if_exception_type(Exception),
+        reraise=True,
+    )
+    async def _call_with_retry(self, model: str, prompt: str, question: str) -> JudgeAssessment:
+        """Make API call with retry logic using chat_completion."""
+        loop = asyncio.get_running_loop()
+
+        # Build messages for chat_completion (model-agnostic)
+        messages = [
+            {
+                "role": "system",
+                "content": f"""{SYSTEM_PROMPT}
+
+IMPORTANT: Respond with ONLY valid JSON matching this schema:
+{{
+    "details": {{
+        "mechanism_score": <int 0-10>,
+        "mechanism_reasoning": "<string>",
+        "clinical_evidence_score": <int 0-10>,
+        "clinical_reasoning": "<string>",
+        "drug_candidates": ["<string>", ...],
+        "key_findings": ["<string>", ...]
+    }},
+    "sufficient": <bool>,
+    "confidence": <float 0-1>,
+    "recommendation": "continue" | "synthesize",
+    "next_search_queries": ["<string>", ...],
+    "reasoning": "<string>"
+}}""",
+            },
+            {"role": "user", "content": prompt},
+        ]
+
+        # Use chat_completion (conversational task - supported by all models)
+        response = await loop.run_in_executor(
+            None,
+            lambda: self.client.chat_completion(
+                messages=messages,
+                model=model,
+                max_tokens=1024,
+                temperature=0.1,
+            ),
+        )
+
+        # Extract content from response
+        content = response.choices[0].message.content
+        if not content:
+            raise ValueError("Empty response from model")
+
+        # Extract and parse JSON
+        json_data = self._extract_json(content)
+        if not json_data:
+            raise ValueError("No valid JSON found in response")
+
+        return JudgeAssessment(**json_data)
+
+    async def assess(
+        self,
+        question: str,
+        evidence: list[Evidence],
+    ) -> JudgeAssessment:
+        """
+        Assess evidence using HuggingFace Inference API.
+        Attempts models in order until one succeeds.
+        """
+        self.call_count += 1
+        self.last_question = question
+        self.last_evidence = evidence
+
+        # Format the user prompt
+        if evidence:
+            user_prompt = format_user_prompt(question, evidence)
+        else:
+            user_prompt = format_empty_evidence_prompt(question)
+
+        models_to_try: list[str] = [self.model_id] if self.model_id else self.FALLBACK_MODELS
+        last_error: Exception | None = None
+
+        for model in models_to_try:
+            try:
+                return await self._call_with_retry(model, user_prompt, question)
+            except Exception as e:
+                logger.warning("Model failed", model=model, error=str(e))
+                last_error = e
+                continue
+
+        # All models failed
+        logger.error("All HF models failed", error=str(last_error))
+        return self._create_fallback_assessment(question, str(last_error))
+
+    def _create_fallback_assessment(
+        self,
+        question: str,
+        error: str,
+    ) -> JudgeAssessment:
+        """Create a fallback assessment when inference fails."""
+        return JudgeAssessment(
+            details=AssessmentDetails(
+                mechanism_score=0,
+                mechanism_reasoning=f"Assessment failed: {error}",
+                clinical_evidence_score=0,
+                clinical_reasoning=f"Assessment failed: {error}",
+                drug_candidates=[],
+                key_findings=[],
+            ),
+            sufficient=False,
+            confidence=0.0,
+            recommendation="continue",
+            next_search_queries=[
+                f"{question} mechanism",
+                f"{question} clinical trials",
+                f"{question} drug candidates",
+            ],
+            reasoning=f"HF Inference failed: {error}. Recommend retrying.",
+        )
+
+
 class MockJudgeHandler:
     """
-    Mock JudgeHandler for testing without LLM calls.
+    Mock JudgeHandler for UNIT TESTING ONLY.
 
-    Use this in unit tests to avoid API calls.
+    NOT for production use. Use HFInferenceJudgeHandler for demo mode.
     """
 
     def __init__(self, mock_response: JudgeAssessment | None = None):
-        """
-        Initialize with optional mock response.
-
-        Args:
-            mock_response: The assessment to return. If None, uses default.
-        """
+        """Initialize with optional mock response for testing."""
         self.mock_response = mock_response
         self.call_count = 0
         self.last_question = None
@@ -374,7 +582,7 @@ class MockJudgeHandler:
         question: str,
         evidence: List[Evidence],
     ) -> JudgeAssessment:
-        """Return the mock response."""
+        """Return the mock response (for testing only)."""
         self.call_count += 1
         self.last_question = question
         self.last_evidence = evidence
@@ -382,21 +590,21 @@ class MockJudgeHandler:
         if self.mock_response:
             return self.mock_response
 
-        # Default mock response
+        # Default mock response for tests
         return JudgeAssessment(
             details=AssessmentDetails(
                 mechanism_score=7,
-                mechanism_reasoning="Mock assessment - good mechanism evidence",
+                mechanism_reasoning="Mock assessment for testing",
                 clinical_evidence_score=6,
-                clinical_reasoning="Mock assessment - moderate clinical evidence",
-                drug_candidates=["Drug A", "Drug B"],
-                key_findings=["Finding 1", "Finding 2"],
+                clinical_reasoning="Mock assessment for testing",
+                drug_candidates=["TestDrug"],
+                key_findings=["Test finding"],
             ),
             sufficient=len(evidence) >= 3,
             confidence=0.75,
             recommendation="synthesize" if len(evidence) >= 3 else "continue",
             next_search_queries=["query 1", "query 2"] if len(evidence) < 3 else [],
-            reasoning="Mock assessment for testing purposes",
+            reasoning="Mock assessment for unit testing only",
         )
 ```
 
@@ -547,8 +755,89 @@ class TestJudgeHandler:
             assert "failed" in result.reasoning.lower()
 
 
+class TestHFInferenceJudgeHandler:
+    """Tests for HFInferenceJudgeHandler."""
+
+    @pytest.mark.asyncio
+    async def test_extract_json_raw(self):
+        """Should extract raw JSON."""
+        from src.agent_factory.judges import HFInferenceJudgeHandler
+
+        handler = HFInferenceJudgeHandler.__new__(HFInferenceJudgeHandler)
+        # Bypass __init__ for unit testing extraction
+
+        result = handler._extract_json('{"key": "value"}')
+        assert result == {"key": "value"}
+
+    @pytest.mark.asyncio
+    async def test_extract_json_markdown_block(self):
+        """Should extract JSON from markdown code block."""
+        from src.agent_factory.judges import HFInferenceJudgeHandler
+
+        handler = HFInferenceJudgeHandler.__new__(HFInferenceJudgeHandler)
+
+        response = '''Here is the assessment:
+```json
+{"key": "value", "nested": {"inner": 1}}
+```
+'''
+        result = handler._extract_json(response)
+        assert result == {"key": "value", "nested": {"inner": 1}}
+
+    @pytest.mark.asyncio
+    async def test_extract_json_with_preamble(self):
+        """Should extract JSON with preamble text."""
+        from src.agent_factory.judges import HFInferenceJudgeHandler
+
+        handler = HFInferenceJudgeHandler.__new__(HFInferenceJudgeHandler)
+
+        response = 'Here is your JSON response:\n{"sufficient": true, "confidence": 0.85}'
+        result = handler._extract_json(response)
+        assert result == {"sufficient": True, "confidence": 0.85}
+
+    @pytest.mark.asyncio
+    async def test_extract_json_nested_braces(self):
+        """Should handle nested braces correctly."""
+        from src.agent_factory.judges import HFInferenceJudgeHandler
+
+        handler = HFInferenceJudgeHandler.__new__(HFInferenceJudgeHandler)
+
+        response = '{"details": {"mechanism_score": 8}, "reasoning": "test"}'
+        result = handler._extract_json(response)
+        assert result["details"]["mechanism_score"] == 8
+
+    @pytest.mark.asyncio
+    async def test_hf_handler_uses_fallback_models(self):
+        """HFInferenceJudgeHandler should have fallback model chain."""
+        from src.agent_factory.judges import HFInferenceJudgeHandler
+
+        # Check class has fallback models defined
+        assert len(HFInferenceJudgeHandler.FALLBACK_MODELS) >= 3
+        assert "zephyr-7b-beta" in HFInferenceJudgeHandler.FALLBACK_MODELS[-1]
+
+    @pytest.mark.asyncio
+    async def test_hf_handler_fallback_on_auth_error(self):
+        """Should fall back to ungated model on auth error."""
+        from src.agent_factory.judges import HFInferenceJudgeHandler
+        from unittest.mock import MagicMock, patch
+
+        with patch("src.agent_factory.judges.InferenceClient") as mock_client_class:
+            # First call raises 403, second succeeds
+            mock_client = MagicMock()
+            mock_client.chat_completion.side_effect = [
+                Exception("403 Forbidden: gated model"),
+                MagicMock(choices=[MagicMock(message=MagicMock(content='{"sufficient": false}'))])
+            ]
+            mock_client_class.return_value = mock_client
+
+            handler = HFInferenceJudgeHandler()
+            # Manually trigger fallback test
+            assert handler._try_fallback_model() is True
+            assert handler.model_id != "meta-llama/Llama-3.1-8B-Instruct"
+
+
 class TestMockJudgeHandler:
-    """Tests for MockJudgeHandler."""
+    """Tests for MockJudgeHandler (UNIT TESTING ONLY)."""
 
     @pytest.mark.asyncio
     async def test_mock_handler_returns_default(self):
@@ -641,8 +930,14 @@ dependencies = [
     "pydantic-ai>=0.0.16",
     "openai>=1.0.0",
     "anthropic>=0.18.0",
+    "huggingface-hub>=0.20.0",  # For HFInferenceJudgeHandler (FREE LLM)
 ]
 ```
+
+**Note**: `huggingface-hub` is required for the free tier to work. It:
+- Provides `InferenceClient` for API calls
+- Auto-reads `HF_TOKEN` from environment (optional, for gated models)
+- Works without any token for ungated models like `zephyr-7b-beta`
 
 ---
 

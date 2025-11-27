@@ -10,7 +10,7 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 
-from src.agent_factory.judges import JudgeHandler, MockJudgeHandler
+from src.agent_factory.judges import HFInferenceJudgeHandler, JudgeHandler, MockJudgeHandler
 from src.mcp_tools import (
     analyze_hypothesis,
     search_all_sources,
@@ -32,7 +32,7 @@ def configure_orchestrator(
     mode: str = "simple",
     user_api_key: str | None = None,
     api_provider: str = "openai",
-) -> Any:
+) -> tuple[Any, str]:
     """
     Create an orchestrator instance.
 
@@ -43,7 +43,7 @@ def configure_orchestrator(
         api_provider: API provider ("openai" or "anthropic")
 
     Returns:
-        Configured Orchestrator instance
+        Tuple of (Orchestrator instance, backend_name)
     """
     # Create orchestrator config
     config = OrchestratorConfig(
@@ -57,30 +57,56 @@ def configure_orchestrator(
         timeout=config.search_timeout,
     )
 
-    # Create judge (mock or real)
-    judge_handler: JudgeHandler | MockJudgeHandler
+    # Create judge (mock, real, or free tier)
+    judge_handler: JudgeHandler | MockJudgeHandler | HFInferenceJudgeHandler
+    backend_info = "Unknown"
+
+    # 1. Forced Mock (Unit Testing)
     if use_mock:
         judge_handler = MockJudgeHandler()
-    else:
-        # Create model with user's API key if provided
+        backend_info = "Mock (Testing)"
+
+    # 2. Paid API Key (User provided or Env)
+    elif (
+        user_api_key
+        or (api_provider == "openai" and os.getenv("OPENAI_API_KEY"))
+        or (api_provider == "anthropic" and os.getenv("ANTHROPIC_API_KEY"))
+    ):
         model: AnthropicModel | OpenAIModel | None = None
         if user_api_key:
+            # Validate key/provider match to prevent silent auth failures
+            if api_provider == "openai" and user_api_key.startswith("sk-ant-"):
+                raise ValueError("Anthropic key provided but OpenAI provider selected")
+            is_openai_key = user_api_key.startswith("sk-") and not user_api_key.startswith(
+                "sk-ant-"
+            )
+            if api_provider == "anthropic" and is_openai_key:
+                raise ValueError("OpenAI key provided but Anthropic provider selected")
             if api_provider == "anthropic":
                 anthropic_provider = AnthropicProvider(api_key=user_api_key)
                 model = AnthropicModel(settings.anthropic_model, provider=anthropic_provider)
             elif api_provider == "openai":
                 openai_provider = OpenAIProvider(api_key=user_api_key)
                 model = OpenAIModel(settings.openai_model, provider=openai_provider)
-            else:
-                raise ValueError(f"Unsupported API provider: {api_provider}")
+            backend_info = f"Paid API ({api_provider.upper()})"
+        else:
+            backend_info = "Paid API (Env Config)"
+
         judge_handler = JudgeHandler(model=model)
 
-    return create_orchestrator(
+    # 3. Free Tier (HuggingFace Inference)
+    else:
+        judge_handler = HFInferenceJudgeHandler()
+        backend_info = "Free Tier (Llama 3.1 / Mistral)"
+
+    orchestrator = create_orchestrator(
         search_handler=search_handler,
         judge_handler=judge_handler,
         config=config,
         mode=mode,  # type: ignore
     )
+
+    return orchestrator, backend_info
 
 
 async def research_agent(
@@ -110,54 +136,47 @@ async def research_agent(
     # Clean user-provided API key
     user_api_key = api_key.strip() if api_key else None
 
-    # Decide whether to use real LLMs or mock based on mode and available keys
+    # Check available keys
     has_openai = bool(os.getenv("OPENAI_API_KEY"))
     has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
     has_user_key = bool(user_api_key)
+    has_paid_key = has_openai or has_anthropic or has_user_key
 
-    if mode == "magentic":
-        # Magentic currently supports OpenAI only
-        use_mock = not (has_openai or (has_user_key and api_provider == "openai"))
-    else:
-        # Simple mode can work with either provider
-        use_mock = not (has_openai or has_anthropic or has_user_key)
-
-    # If magentic mode requested but no OpenAI key, fallback/warn
-    if mode == "magentic" and use_mock:
+    # Magentic mode requires OpenAI specifically
+    if mode == "magentic" and not (has_openai or (has_user_key and api_provider == "openai")):
         yield (
-            "⚠️ **Warning**: Magentic mode requires OpenAI API key. "
-            "Falling back to demo mode.\n\n"
+            "⚠️ **Warning**: Magentic mode requires OpenAI API key. Falling back to simple mode.\n\n"
         )
         mode = "simple"
 
     # Inform user about their key being used
-    if has_user_key and not use_mock:
+    if has_user_key:
         yield (
             f"🔑 **Using your {api_provider.upper()} API key** - "
             "Your key is used only for this session and is never stored.\n\n"
         )
-
-    # Warn users when running in demo mode (no LLM keys)
-    if use_mock:
+    elif not has_paid_key:
+        # No paid keys - will use FREE HuggingFace Inference
         yield (
-            "🔬 **Demo Mode**: Running with real biomedical searches but without "
-            "LLM-powered analysis.\n\n"
-            "**To unlock full AI analysis:**\n"
-            "- Enter your OpenAI or Anthropic API key below, OR\n"
-            "- Configure secrets in HuggingFace Space settings\n\n"
-            "---\n\n"
+            "🤗 **Free Tier**: Using HuggingFace Inference (Llama 3.1 / Mistral) for AI analysis.\n"
+            "For premium models, enter an OpenAI or Anthropic API key below.\n\n"
         )
 
     # Run the agent and stream events
     response_parts: list[str] = []
 
     try:
-        orchestrator = configure_orchestrator(
-            use_mock=use_mock,
+        # use_mock=False - let configure_orchestrator decide based on available keys
+        # It will use: Paid API > HF Inference (free tier)
+        orchestrator, backend_name = configure_orchestrator(
+            use_mock=False,  # Never use mock in production - HF Inference is the free fallback
             mode=mode,
             user_api_key=user_api_key,
             api_provider=api_provider,
         )
+
+        yield f"🧠 **Backend**: {backend_name}\n\n"
+
         async for event in orchestrator.run(message):
             # Format event as markdown
             event_md = event.to_markdown()

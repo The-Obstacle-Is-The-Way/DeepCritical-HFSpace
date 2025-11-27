@@ -1,18 +1,9 @@
-"""Magentic-based orchestrator for DeepCritical.
-
-NOTE: Magentic mode currently requires OpenAI API keys. The MagenticBuilder's
-standard manager uses OpenAIChatClient. Anthropic support may be added when
-the agent_framework provides an AnthropicChatClient.
-"""
+"""Magentic-based orchestrator using ChatAgent pattern."""
 
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 
 import structlog
-
-if TYPE_CHECKING:
-    from src.services.embeddings import EmbeddingService
-
 from agent_framework import (
     MagenticAgentDeltaEvent,
     MagenticAgentMessageEvent,
@@ -23,45 +14,49 @@ from agent_framework import (
 )
 from agent_framework.openai import OpenAIChatClient
 
-from src.agents.hypothesis_agent import HypothesisAgent
-from src.agents.judge_agent import JudgeAgent
-from src.agents.report_agent import ReportAgent
-from src.agents.search_agent import SearchAgent
-from src.orchestrator import JudgeHandlerProtocol, SearchHandlerProtocol
+from src.agents.magentic_agents import (
+    create_hypothesis_agent,
+    create_judge_agent,
+    create_report_agent,
+    create_search_agent,
+)
+from src.agents.state import init_magentic_state
 from src.utils.config import settings
 from src.utils.exceptions import ConfigurationError
-from src.utils.models import AgentEvent, Evidence
+from src.utils.models import AgentEvent
+
+if TYPE_CHECKING:
+    from src.services.embeddings import EmbeddingService
 
 logger = structlog.get_logger()
 
 
-def _truncate(text: str, max_len: int = 100) -> str:
-    """Truncate text with ellipsis only if needed."""
-    return f"{text[:max_len]}..." if len(text) > max_len else text
-
-
 class MagenticOrchestrator:
     """
-    Magentic-based orchestrator - same API as Orchestrator.
+    Magentic-based orchestrator using ChatAgent pattern.
 
-    Uses Microsoft Agent Framework's MagenticBuilder for multi-agent coordination.
-
-    Note:
-        Magentic mode requires OPENAI_API_KEY. The MagenticBuilder's standard
-        manager currently only supports OpenAI. If you have only an Anthropic
-        key, use the "simple" orchestrator mode instead.
+    Each agent has an internal LLM that understands natural language
+    instructions from the manager and can call tools appropriately.
     """
 
     def __init__(
         self,
-        search_handler: SearchHandlerProtocol,
-        judge_handler: JudgeHandlerProtocol,
         max_rounds: int = 10,
+        chat_client: OpenAIChatClient | None = None,
     ) -> None:
-        self._search_handler = search_handler
-        self._judge_handler = judge_handler
+        """Initialize orchestrator.
+
+        Args:
+            max_rounds: Maximum coordination rounds
+            chat_client: Optional shared chat client for agents
+        """
+        if not settings.openai_api_key:
+            raise ConfigurationError(
+                "Magentic mode requires OPENAI_API_KEY. " "Set the key or use mode='simple'."
+            )
+
         self._max_rounds = max_rounds
-        self._evidence_store: dict[str, list[Evidence]] = {"current": []}
+        self._chat_client = chat_client
 
     def _init_embedding_service(self) -> "EmbeddingService | None":
         """Initialize embedding service if available."""
@@ -77,19 +72,19 @@ class MagenticOrchestrator:
             logger.warning("Failed to initialize embedding service", error=str(e))
         return None
 
-    def _build_workflow(
-        self,
-        search_agent: SearchAgent,
-        hypothesis_agent: HypothesisAgent,
-        judge_agent: JudgeAgent,
-        report_agent: ReportAgent,
-    ) -> Any:
-        """Build the Magentic workflow with participants."""
-        if not settings.openai_api_key:
-            raise ConfigurationError(
-                "Magentic mode requires OPENAI_API_KEY. "
-                "Set the key or use mode='simple' with Anthropic."
-            )
+    def _build_workflow(self) -> Any:
+        """Build the Magentic workflow with ChatAgent participants."""
+        # Create agents with internal LLMs
+        search_agent = create_search_agent(self._chat_client)
+        judge_agent = create_judge_agent(self._chat_client)
+        hypothesis_agent = create_hypothesis_agent(self._chat_client)
+        report_agent = create_report_agent(self._chat_client)
+
+        # Manager chat client (orchestrates the agents)
+        manager_client = OpenAIChatClient(
+            model_id=settings.openai_model,  # Use configured model
+            api_key=settings.openai_api_key,
+        )
 
         return (
             MagenticBuilder()
@@ -100,9 +95,7 @@ class MagenticOrchestrator:
                 reporter=report_agent,
             )
             .with_standard_manager(
-                chat_client=OpenAIChatClient(
-                    model_id=settings.openai_model, api_key=settings.openai_api_key
-                ),
+                chat_client=manager_client,
                 max_round_count=self._max_rounds,
                 max_stall_count=3,
                 max_reset_count=2,
@@ -110,46 +103,15 @@ class MagenticOrchestrator:
             .build()
         )
 
-    def _format_task(self, query: str, has_embeddings: bool) -> str:
-        """Format the task instruction for the manager."""
-        semantic_note = ""
-        if has_embeddings:
-            semantic_note = """
-The system has semantic search enabled. When evidence is found:
-1. Related concepts will be automatically surfaced
-2. Duplicates are removed by meaning, not just URL
-3. Use the surfaced related concepts to refine searches
-"""
-        return f"""Research drug repurposing opportunities for: {query}
-{semantic_note}
-Workflow:
-1. SearcherAgent: Find initial evidence from PubMed and web. SEND ONLY A SIMPLE KEYWORD QUERY.
-2. HypothesisAgent: Generate mechanistic hypotheses (Drug -> Target -> Pathway -> Effect).
-3. SearcherAgent: Use hypothesis-suggested queries for targeted search.
-4. JudgeAgent: Evaluate if evidence supports hypotheses.
-5. If sufficient -> ReportAgent: Generate structured research report.
-6. If not sufficient -> Repeat from step 1 with refined queries.
-
-Focus on:
-- Identifying specific molecular targets
-- Understanding mechanism of action
-- Finding supporting/contradicting evidence for hypotheses
-
-The final output should be a complete research report with:
-- Executive summary
-- Methodology
-- Hypotheses tested
-- Mechanistic and clinical findings
-- Drug candidates
-- Limitations
-- Conclusion with references
-"""
-
     async def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:
         """
-        Run the Magentic workflow - same API as simple Orchestrator.
+        Run the Magentic workflow.
 
-        Yields AgentEvent objects for real-time UI updates.
+        Args:
+            query: User's research question
+
+        Yields:
+            AgentEvent objects for real-time UI updates
         """
         logger.info("Starting Magentic orchestrator", query=query)
 
@@ -159,20 +121,27 @@ The final output should be a complete research report with:
             iteration=0,
         )
 
-        # Initialize services and agents
+        # Initialize context state
         embedding_service = self._init_embedding_service()
-        search_agent = SearchAgent(
-            self._search_handler, self._evidence_store, embedding_service=embedding_service
-        )
-        judge_agent = JudgeAgent(self._judge_handler, self._evidence_store)
-        hypothesis_agent = HypothesisAgent(
-            self._evidence_store, embedding_service=embedding_service
-        )
-        report_agent = ReportAgent(self._evidence_store, embedding_service=embedding_service)
+        init_magentic_state(embedding_service)
 
-        # Build workflow and task
-        workflow = self._build_workflow(search_agent, hypothesis_agent, judge_agent, report_agent)
-        task = self._format_task(query, embedding_service is not None)
+        workflow = self._build_workflow()
+
+        task = f"""Research drug repurposing opportunities for: {query}
+
+Workflow:
+1. SearchAgent: Find evidence from PubMed, ClinicalTrials.gov, and bioRxiv
+2. HypothesisAgent: Generate mechanistic hypotheses (Drug -> Target -> Pathway -> Effect)
+3. JudgeAgent: Evaluate if evidence is sufficient
+4. If insufficient -> SearchAgent refines search based on gaps
+5. If sufficient -> ReportAgent synthesizes final report
+
+Focus on:
+- Identifying specific molecular targets
+- Understanding mechanism of action
+- Finding clinical evidence supporting hypotheses
+
+The final output should be a structured research report."""
 
         iteration = 0
         try:
@@ -182,6 +151,7 @@ The final output should be a complete research report with:
                     if isinstance(event, MagenticAgentMessageEvent):
                         iteration += 1
                     yield agent_event
+
         except Exception as e:
             logger.error("Magentic workflow failed", error=str(e))
             yield AgentEvent(
@@ -191,35 +161,41 @@ The final output should be a complete research report with:
             )
 
     def _process_event(self, event: Any, iteration: int) -> AgentEvent | None:
-        """Process a workflow event and return an AgentEvent if applicable."""
+        """Process workflow event into AgentEvent."""
         if isinstance(event, MagenticOrchestratorMessageEvent):
-            message_text = (
-                event.message.text if event.message and hasattr(event.message, "text") else ""
-            )
-            kind = getattr(event, "kind", "manager")
-            if message_text:
+            text = event.message.text if event.message else ""
+            if text:
                 return AgentEvent(
                     type="judging",
-                    message=f"Manager ({kind}): {_truncate(message_text)}",
+                    message=f"Manager ({event.kind}): {text[:200]}...",
                     iteration=iteration,
                 )
 
         elif isinstance(event, MagenticAgentMessageEvent):
             agent_name = event.agent_id or "unknown"
-            msg_text = (
-                event.message.text if event.message and hasattr(event.message, "text") else ""
+            text = event.message.text if event.message else ""
+
+            event_type = "judging"
+            if "search" in agent_name.lower():
+                event_type = "search_complete"
+            elif "judge" in agent_name.lower():
+                event_type = "judge_complete"
+            elif "hypothes" in agent_name.lower():
+                event_type = "hypothesizing"
+            elif "report" in agent_name.lower():
+                event_type = "synthesizing"
+
+            return AgentEvent(
+                type=event_type,  # type: ignore[arg-type]
+                message=f"{agent_name}: {text[:200]}...",
+                iteration=iteration + 1,
             )
-            return self._agent_message_event(agent_name, msg_text, iteration + 1)
 
         elif isinstance(event, MagenticFinalResultEvent):
-            final_text = (
-                event.message.text
-                if event.message and hasattr(event.message, "text")
-                else "No result"
-            )
+            text = event.message.text if event.message else "No result"
             return AgentEvent(
                 type="complete",
-                message=final_text,
+                message=text,
                 data={"iterations": iteration},
                 iteration=iteration,
             )
@@ -242,35 +218,3 @@ The final output should be a complete research report with:
                 )
 
         return None
-
-    def _agent_message_event(self, agent_name: str, msg_text: str, iteration: int) -> AgentEvent:
-        """Create an AgentEvent for an agent message."""
-        if "search" in agent_name.lower():
-            return AgentEvent(
-                type="search_complete",
-                message=f"Search agent: {_truncate(msg_text)}",
-                iteration=iteration,
-            )
-        elif "hypothes" in agent_name.lower():
-            return AgentEvent(
-                type="hypothesizing",
-                message=f"Hypothesis agent: {_truncate(msg_text)}",
-                iteration=iteration,
-            )
-        elif "judge" in agent_name.lower():
-            return AgentEvent(
-                type="judge_complete",
-                message=f"Judge agent: {_truncate(msg_text)}",
-                iteration=iteration,
-            )
-        elif "report" in agent_name.lower():
-            return AgentEvent(
-                type="synthesizing",
-                message=f"Report agent: {_truncate(msg_text)}" if msg_text else "Report generated.",
-                iteration=iteration,
-            )
-        return AgentEvent(
-            type="judging",
-            message=f"{agent_name}: {_truncate(msg_text)}",
-            iteration=iteration,
-        )

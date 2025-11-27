@@ -1,13 +1,17 @@
 """Judge handler for evidence assessment using PydanticAI."""
 
-from typing import Any
+import asyncio
+import json
+from typing import Any, ClassVar
 
 import structlog
+from huggingface_hub import InferenceClient
 from pydantic_ai import Agent
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from src.prompts.judge import (
     SYSTEM_PROMPT,
@@ -143,6 +147,207 @@ class JudgeHandler:
                 f"{question} drug candidates",
             ],
             reasoning=f"Assessment failed: {error}. Recommend retrying with refined queries.",
+        )
+
+
+class HFInferenceJudgeHandler:
+    """
+    JudgeHandler using HuggingFace Inference API for FREE LLM calls.
+    Defaults to Llama-3.1-8B-Instruct (requires HF_TOKEN) or falls back to public models.
+    """
+
+    FALLBACK_MODELS: ClassVar[list[str]] = [
+        "meta-llama/Llama-3.1-8B-Instruct",  # Primary (Gated)
+        "mistralai/Mistral-7B-Instruct-v0.3",  # Secondary
+        "HuggingFaceH4/zephyr-7b-beta",  # Fallback (Ungated)
+    ]
+
+    def __init__(self, model_id: str | None = None) -> None:
+        """
+        Initialize with HF Inference client.
+
+        Args:
+            model_id: Optional specific model ID. If None, uses FALLBACK_MODELS chain.
+        """
+        self.model_id = model_id
+        # Will automatically use HF_TOKEN from env if available
+        self.client = InferenceClient()
+        self.call_count = 0
+        self.last_question: str | None = None
+        self.last_evidence: list[Evidence] | None = None
+
+    async def assess(
+        self,
+        question: str,
+        evidence: list[Evidence],
+    ) -> JudgeAssessment:
+        """
+        Assess evidence using HuggingFace Inference API.
+        Attempts models in order until one succeeds.
+        """
+        self.call_count += 1
+        self.last_question = question
+        self.last_evidence = evidence
+
+        # Format the user prompt
+        if evidence:
+            user_prompt = format_user_prompt(question, evidence)
+        else:
+            user_prompt = format_empty_evidence_prompt(question)
+
+        models_to_try: list[str] = [self.model_id] if self.model_id else self.FALLBACK_MODELS
+        last_error: Exception | None = None
+
+        for model in models_to_try:
+            try:
+                return await self._call_with_retry(model, user_prompt, question)
+            except Exception as e:
+                logger.warning("Model failed", model=model, error=str(e))
+                last_error = e
+                continue
+
+        # All models failed
+        logger.error("All HF models failed", error=str(last_error))
+        return self._create_fallback_assessment(question, str(last_error))
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=4),
+        retry=retry_if_exception_type(Exception),
+        reraise=True,
+    )
+    async def _call_with_retry(self, model: str, prompt: str, question: str) -> JudgeAssessment:
+        """Make API call with retry logic using chat_completion."""
+        loop = asyncio.get_running_loop()
+
+        # Build messages for chat_completion (model-agnostic)
+        messages = [
+            {
+                "role": "system",
+                "content": f"""{SYSTEM_PROMPT}
+
+IMPORTANT: Respond with ONLY valid JSON matching this schema:
+{{
+    "details": {{
+        "mechanism_score": <int 0-10>,
+        "mechanism_reasoning": "<string>",
+        "clinical_evidence_score": <int 0-10>,
+        "clinical_reasoning": "<string>",
+        "drug_candidates": ["<string>", ...],
+        "key_findings": ["<string>", ...]
+    }},
+    "sufficient": <bool>,
+    "confidence": <float 0-1>,
+    "recommendation": "continue" | "synthesize",
+    "next_search_queries": ["<string>", ...],
+    "reasoning": "<string>"
+}}""",
+            },
+            {"role": "user", "content": prompt},
+        ]
+
+        # Use chat_completion (conversational task - supported by all models)
+        response = await loop.run_in_executor(
+            None,
+            lambda: self.client.chat_completion(
+                messages=messages,
+                model=model,
+                max_tokens=1024,
+                temperature=0.1,
+            ),
+        )
+
+        # Extract content from response
+        content = response.choices[0].message.content
+        if not content:
+            raise ValueError("Empty response from model")
+
+        # Extract and parse JSON
+        json_data = self._extract_json(content)
+        if not json_data:
+            raise ValueError("No valid JSON found in response")
+
+        return JudgeAssessment(**json_data)
+
+    def _extract_json(self, text: str) -> dict[str, Any] | None:
+        """
+        Robust JSON extraction that handles markdown blocks and nested braces.
+        """
+        text = text.strip()
+
+        # Remove markdown code blocks if present (with bounds checking)
+        if "```json" in text:
+            parts = text.split("```json", 1)
+            if len(parts) > 1:
+                inner_parts = parts[1].split("```", 1)
+                text = inner_parts[0]
+        elif "```" in text:
+            parts = text.split("```", 1)
+            if len(parts) > 1:
+                inner_parts = parts[1].split("```", 1)
+                text = inner_parts[0]
+
+        text = text.strip()
+
+        # Find first '{'
+        start_idx = text.find("{")
+        if start_idx == -1:
+            return None
+
+        # Stack-based parsing ignoring chars in strings
+        count = 0
+        in_string = False
+        escape = False
+
+        for i, char in enumerate(text[start_idx:], start=start_idx):
+            if in_string:
+                if escape:
+                    escape = False
+                elif char == "\\":
+                    escape = True
+                elif char == '"':
+                    in_string = False
+            elif char == '"':
+                in_string = True
+            elif char == "{":
+                count += 1
+            elif char == "}":
+                count -= 1
+                if count == 0:
+                    try:
+                        result = json.loads(text[start_idx : i + 1])
+                        if isinstance(result, dict):
+                            return result
+                        return None
+                    except json.JSONDecodeError:
+                        return None
+
+        return None
+
+    def _create_fallback_assessment(
+        self,
+        question: str,
+        error: str,
+    ) -> JudgeAssessment:
+        """Create a fallback assessment when inference fails."""
+        return JudgeAssessment(
+            details=AssessmentDetails(
+                mechanism_score=0,
+                mechanism_reasoning=f"Assessment failed: {error}",
+                clinical_evidence_score=0,
+                clinical_reasoning=f"Assessment failed: {error}",
+                drug_candidates=[],
+                key_findings=[],
+            ),
+            sufficient=False,
+            confidence=0.0,
+            recommendation="continue",
+            next_search_queries=[
+                f"{question} mechanism",
+                f"{question} clinical trials",
+                f"{question} drug candidates",
+            ],
+            reasoning=f"HF Inference failed: {error}. Recommend configuring OpenAI/Anthropic key.",
         )
 
 

@@ -124,13 +124,13 @@ async def format_report_prompt(
 {hypotheses_summary}
 
 ## Assessment Scores
-- Mechanism Score: {assessment.get('mechanism_score', 'N/A')}/10
-- Clinical Evidence Score: {assessment.get('clinical_score', 'N/A')}/10
-- Overall Confidence: {assessment.get('confidence', 0):.0%}
+- Mechanism Score: {assessment.get("mechanism_score", "N/A")}/10
+- Clinical Evidence Score: {assessment.get("clinical_score", "N/A")}/10
+- Overall Confidence: {assessment.get("confidence", 0):.0%}
 
 ## Metadata
 - Sources Searched: {sources}
-- Search Iterations: {metadata.get('iterations', 0)}
+- Search Iterations: {metadata.get("iterations", 0)}
 
 Generate a complete ResearchReport with all sections filled in.
 

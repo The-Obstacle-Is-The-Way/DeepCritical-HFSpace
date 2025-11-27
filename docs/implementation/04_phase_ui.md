@@ -408,33 +408,65 @@ from typing import AsyncGenerator
 
 from src.orchestrator import Orchestrator
 from src.tools.pubmed import PubMedTool
-from src.tools.websearch import WebTool
+from src.tools.clinicaltrials import ClinicalTrialsTool
+from src.tools.biorxiv import BioRxivTool
 from src.tools.search_handler import SearchHandler
-from src.agent_factory.judges import JudgeHandler, MockJudgeHandler
+from src.agent_factory.judges import JudgeHandler, HFInferenceJudgeHandler
 from src.utils.models import OrchestratorConfig, AgentEvent
 
 
-def create_orchestrator(use_mock: bool = False) -> Orchestrator:
+def create_orchestrator(
+    user_api_key: str | None = None,
+    api_provider: str = "openai",
+) -> tuple[Orchestrator, str]:
     """
     Create an orchestrator instance.
 
     Args:
-        use_mock: If True, use MockJudgeHandler (no API key needed)
+        user_api_key: Optional user-provided API key (BYOK)
+        api_provider: API provider ("openai" or "anthropic")
 
     Returns:
-        Configured Orchestrator instance
+        Tuple of (Configured Orchestrator instance, backend_name)
+
+    Priority:
+        1. User-provided API key → JudgeHandler (OpenAI/Anthropic)
+        2. Environment API key → JudgeHandler (OpenAI/Anthropic)
+        3. No key → HFInferenceJudgeHandler (FREE, automatic fallback chain)
+
+    HF Inference Fallback Chain:
+        1. Llama 3.1 8B (requires HF_TOKEN for gated model)
+        2. Mistral 7B (may require token)
+        3. Zephyr 7B (ungated, always works)
     """
+    import os
+
     # Create search tools
     search_handler = SearchHandler(
-        tools=[PubMedTool(), WebTool()],
+        tools=[PubMedTool(), ClinicalTrialsTool(), BioRxivTool()],
         timeout=30.0,
     )
 
-    # Create judge (mock or real)
-    if use_mock:
-        judge_handler = MockJudgeHandler()
+    # Determine which judge to use
+    has_env_key = bool(os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY"))
+    has_user_key = bool(user_api_key)
+    has_hf_token = bool(os.getenv("HF_TOKEN"))
+
+    if has_user_key:
+        # User provided their own key
+        judge_handler = JudgeHandler(model=None)
+        backend_name = f"your {api_provider.upper()} API key"
+    elif has_env_key:
+        # Environment has API key configured
+        judge_handler = JudgeHandler(model=None)
+        backend_name = "configured API key"
     else:
-        judge_handler = JudgeHandler()
+        # Use FREE HuggingFace Inference with automatic fallback
+        judge_handler = HFInferenceJudgeHandler()
+        if has_hf_token:
+            backend_name = "HuggingFace Inference (Llama 3.1)"
+        else:
+            backend_name = "HuggingFace Inference (free tier)"
 
     # Create orchestrator
     config = OrchestratorConfig(
@@ -446,12 +478,14 @@ def create_orchestrator(use_mock: bool = False) -> Orchestrator:
         search_handler=search_handler,
         judge_handler=judge_handler,
         config=config,
-    )
+    ), backend_name
 
 
 async def research_agent(
     message: str,
     history: list[dict],
+    api_key: str = "",
+    api_provider: str = "openai",
 ) -> AsyncGenerator[str, None]:
     """
     Gradio chat function that runs the research agent.
@@ -459,6 +493,8 @@ async def research_agent(
     Args:
         message: User's research question
         history: Chat history (Gradio format)
+        api_key: Optional user-provided API key (BYOK)
+        api_provider: API provider ("openai" or "anthropic")
 
     Yields:
         Markdown-formatted responses for streaming
@@ -467,10 +503,31 @@ async def research_agent(
         yield "Please enter a research question."
         return
 
-    # Create orchestrator (use mock if no API key)
     import os
-    use_mock = not (os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY"))
-    orchestrator = create_orchestrator(use_mock=use_mock)
+
+    # Clean user-provided API key
+    user_api_key = api_key.strip() if api_key else None
+
+    # Create orchestrator with appropriate judge
+    orchestrator, backend_name = create_orchestrator(
+        user_api_key=user_api_key,
+        api_provider=api_provider,
+    )
+
+    # Determine icon based on backend
+    has_hf_token = bool(os.getenv("HF_TOKEN"))
+    if "HuggingFace" in backend_name:
+        icon = "🤗"
+        extra_note = (
+            "\n*For premium analysis, enter an OpenAI or Anthropic API key.*"
+            if not has_hf_token else ""
+        )
+    else:
+        icon = "🔑"
+        extra_note = ""
+
+    # Inform user which backend is being used
+    yield f"{icon} **Using {backend_name}**{extra_note}\n\n"
 
     # Run the agent and stream events
     response_parts = []
@@ -516,19 +573,43 @@ def create_demo() -> gr.Blocks:
         - "What existing medications show promise for Long COVID?"
         """)
 
-        chatbot = gr.ChatInterface(
+        # Note: additional_inputs render in an accordion below the chat input
+        gr.ChatInterface(
             fn=research_agent,
-            type="messages",
-            title="",
             examples=[
-                "What drugs could be repurposed for Alzheimer's disease?",
-                "Is metformin effective for treating cancer?",
-                "What medications show promise for Long COVID treatment?",
-                "Can statins be repurposed for neurological conditions?",
+                [
+                    "What drugs could be repurposed for Alzheimer's disease?",
+                    "simple",
+                    "",
+                    "openai",
+                ],
+                [
+                    "Is metformin effective for treating cancer?",
+                    "simple",
+                    "",
+                    "openai",
+                ],
             ],
-            retry_btn="🔄 Retry",
-            undo_btn="↩️ Undo",
-            clear_btn="🗑️ Clear",
+            additional_inputs=[
+                gr.Radio(
+                    choices=["simple", "magentic"],
+                    value="simple",
+                    label="Orchestrator Mode",
+                    info="Simple: Linear | Magentic: Multi-Agent (OpenAI)",
+                ),
+                gr.Textbox(
+                    label="API Key (Optional - Bring Your Own Key)",
+                    placeholder="sk-... or sk-ant-...",
+                    type="password",
+                    info="Enter your own API key for full AI analysis. Never stored.",
+                ),
+                gr.Radio(
+                    choices=["openai", "anthropic"],
+                    value="openai",
+                    label="API Provider",
+                    info="Select the provider for your API key",
+                ),
+            ],
         )
 
         gr.Markdown("""
@@ -952,15 +1033,22 @@ uv run python -m src.app
 import asyncio
 from src.orchestrator import Orchestrator
 from src.tools.pubmed import PubMedTool
-from src.tools.websearch import WebTool
+from src.tools.biorxiv import BioRxivTool
+from src.tools.clinicaltrials import ClinicalTrialsTool
 from src.tools.search_handler import SearchHandler
-from src.agent_factory.judges import MockJudgeHandler
+from src.agent_factory.judges import HFInferenceJudgeHandler, MockJudgeHandler
 from src.utils.models import OrchestratorConfig
 
 async def test_full_flow():
     # Create components
-    search_handler = SearchHandler([PubMedTool(), WebTool()])
-    judge_handler = MockJudgeHandler()  # Use mock for testing
+    search_handler = SearchHandler([PubMedTool(), ClinicalTrialsTool(), BioRxivTool()])
+
+    # Option 1: Use FREE HuggingFace Inference (real AI analysis)
+    judge_handler = HFInferenceJudgeHandler()
+
+    # Option 2: Use MockJudgeHandler for UNIT TESTING ONLY
+    # judge_handler = MockJudgeHandler()
+
     config = OrchestratorConfig(max_iterations=3)
 
     # Create orchestrator
@@ -979,6 +1067,8 @@ async def test_full_flow():
 
 asyncio.run(test_full_flow())
 ```
+
+**Important**: `MockJudgeHandler` is for **unit testing only**. For actual demo/production use, always use `HFInferenceJudgeHandler` (free) or `JudgeHandler` (with API key).
 
 ---
 

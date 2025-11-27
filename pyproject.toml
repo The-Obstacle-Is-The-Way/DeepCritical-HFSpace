@@ -16,6 +16,7 @@ dependencies = [
     "httpx>=0.27", # Async HTTP client (PubMed)
     "beautifulsoup4>=4.12", # HTML parsing
     "xmltodict>=0.13", # PubMed XML -> dict
+    "huggingface-hub>=0.20.0", # Hugging Face Inference API
     # UI
     "gradio[mcp]>=6.0.0", # Chat interface with MCP server support (6.0 required for css in launch())
     # Utils
@@ -42,7 +43,7 @@ dev = [
     "pre-commit>=3.7",
 ]
 magentic = [
-    "agent-framework-core",
+    "agent-framework-core>=1.0.0b251120,<2.0.0",  # Pin to avoid breaking changes
 ]
 embeddings = [
     "chromadb>=0.4.0",
@@ -132,5 +133,5 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 
-# Note: agent-framework-core is optional and installed locally for magentic mode
-# CI skips tests that require it via pytest.importorskip
+# Note: agent-framework-core is optional for magentic mode (multi-agent orchestration)
+# Version pinned to 1.0.0b* to avoid breaking changes. CI skips tests via pytest.importorskip
