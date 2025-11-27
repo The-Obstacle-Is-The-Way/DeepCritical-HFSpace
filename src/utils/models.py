@@ -300,6 +300,6 @@ class ResearchReport(BaseModel):
 class OrchestratorConfig(BaseModel):
     """Configuration for the orchestrator."""
 
-    max_iterations: int = Field(default=5, ge=1, le=10)
+    max_iterations: int = Field(default=10, ge=1, le=20)
     max_results_per_tool: int = Field(default=10, ge=1, le=50)
     search_timeout: float = Field(default=30.0, ge=5.0, le=120.0)

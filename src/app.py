@@ -40,7 +40,7 @@ def configure_orchestrator(
     """
     # Create orchestrator config
     config = OrchestratorConfig(
-        max_iterations=5,
+        max_iterations=10,
         max_results_per_tool=10,
     )
 
