@@ -196,44 +196,66 @@ def create_demo() -> Any:
     with gr.Blocks(
         title="DeepCritical - Drug Repurposing Research Agent",
     ) as demo:
-        # Minimal header (2 lines) to fit in single viewport
+        # 1. Minimal Header (Option A: 2 lines max)
         gr.Markdown(
             "# 🧬 DeepCritical\n"
-            "*AI-powered drug repurposing research — searches PubMed, ClinicalTrials.gov & bioRxiv*"
+            "*AI-Powered Drug Repurposing Agent — searches PubMed, ClinicalTrials.gov & bioRxiv*"
         )
 
-        # Main chat interface with config in collapsed accordion
+        # 2. Main Chat Interface
+        # Config inputs will be in a collapsed accordion below the chat input
         gr.ChatInterface(
             fn=research_agent,
             examples=[
-                ["What drugs could be repurposed for Alzheimer's disease?"],
-                ["Is metformin effective for treating cancer?"],
-                ["What medications show promise for Long COVID?"],
+                [
+                    "What drugs could be repurposed for Alzheimer's disease?",
+                    "simple",
+                    "",
+                    "openai",
+                ],
+                [
+                    "Is metformin effective for treating cancer?",
+                    "simple",
+                    "",
+                    "openai",
+                ],
+                [
+                    "What medications show promise for Long COVID treatment?",
+                    "simple",
+                    "",
+                    "openai",
+                ],
             ],
+            additional_inputs_accordion=gr.Accordion(label="⚙️ Settings", open=False),
             additional_inputs=[
                 gr.Radio(
                     choices=["simple", "magentic"],
                     value="simple",
-                    label="Mode",
-                    info="Simple: Linear | Magentic: Multi-Agent (OpenAI only)",
+                    label="Orchestrator Mode",
+                    info="Simple: Linear | Magentic: Multi-Agent (OpenAI)",
                 ),
                 gr.Textbox(
-                    label="API Key (Optional)",
+                    label="🔑 API Key (Optional - BYOK)",
                     placeholder="sk-... or sk-ant-...",
                     type="password",
-                    info="Bring your own key for premium models. Never stored.",
+                    info="Enter your own API key. Never stored.",
                 ),
                 gr.Radio(
                     choices=["openai", "anthropic"],
                     value="openai",
-                    label="Provider",
+                    label="API Provider",
+                    info="Select the provider for your API key",
                 ),
             ],
         )
 
-        # Minimal footer
+        # 3. Minimal Footer (Option C: Remove MCP Tabs, keep info)
         gr.Markdown(
-            "*Research tool only — not for medical decisions. " "MCP: `/gradio_api/mcp/`*",
+            """
+            ---
+            *Research tool only — not for medical advice.*
+            **MCP Server Active**: Connect Claude Desktop to `/gradio_api/mcp/`
+            """,
             elem_classes=["footer"],
         )
 
