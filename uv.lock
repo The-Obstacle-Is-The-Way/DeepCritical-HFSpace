@@ -1066,6 +1066,7 @@ dependencies = [
     { name = "gradio", extra = ["mcp"] },
     { name = "httpx" },
     { name = "huggingface-hub" },
+    { name = "limits" },
     { name = "openai" },
     { name = "pydantic" },
     { name = "pydantic-ai" },
@@ -1116,6 +1117,7 @@ requires-dist = [
     { name = "gradio", extras = ["mcp"], specifier = ">=6.0.0" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "huggingface-hub", specifier = ">=0.20.0" },
+    { name = "limits", specifier = ">=3.0" },
     { name = "llama-index", marker = "extra == 'modal'", specifier = ">=0.11.0" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'modal'" },
     { name = "llama-index-llms-openai", marker = "extra == 'modal'" },
@@ -2257,6 +2259,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ef/55/3f880ef65f559cbed44a9aa20d3bdbc219a2c3a3bac4a30a513029b03ee9/kubernetes-34.1.0.tar.gz", hash = "sha256:8fe8edb0b5d290a2f3ac06596b23f87c658977d46b5f8df9d0f4ea83d0003912", size = 1083771 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ca/ec/65f7d563aa4a62dd58777e8f6aa882f15db53b14eb29aba0c28a20f7eb26/kubernetes-34.1.0-py2.py3-none-any.whl", hash = "sha256:bffba2272534e224e6a7a74d582deb0b545b7c9879d2cd9e4aae9481d1f2cc2a", size = 2008380 },
+]
+
+[[package]]
+name = "limits"
+version = "5.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "deprecated" },
+    { name = "packaging" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bb/e5/c968d43a65128cd54fb685f257aafb90cd5e4e1c67d084a58f0e4cbed557/limits-5.6.0.tar.gz", hash = "sha256:807fac75755e73912e894fdd61e2838de574c5721876a19f7ab454ae1fffb4b5", size = 182984 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/96/4fcd44aed47b8fcc457653b12915fcad192cd646510ef3f29fd216f4b0ab/limits-5.6.0-py3-none-any.whl", hash = "sha256:b585c2104274528536a5b68864ec3835602b3c4a802cd6aa0b07419798394021", size = 60604 },
 ]
 
 [[package]]
