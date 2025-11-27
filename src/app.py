@@ -186,7 +186,7 @@ async def research_agent(
         yield f"❌ **Error**: {e!s}"
 
 
-def create_demo() -> Any:
+def create_demo() -> gr.ChatInterface:
     """
     Create the Gradio demo interface with MCP support.
 
