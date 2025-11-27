@@ -19,6 +19,8 @@ class ClinicalTrialsTool:
     """
 
     BASE_URL = "https://clinicaltrials.gov/api/v2/studies"
+
+    # Fields to retrieve
     FIELDS: ClassVar[list[str]] = [
         "NCTId",
         "BriefTitle",
@@ -30,6 +32,12 @@ class ClinicalTrialsTool:
         "BriefSummary",
     ]
 
+    # Status filter: Only active/completed studies with potential data
+    STATUS_FILTER = "COMPLETED,ACTIVE_NOT_RECRUITING,RECRUITING,ENROLLING_BY_INVITATION"
+
+    # Study type filter: Only interventional (drug/treatment studies)
+    STUDY_TYPE_FILTER = "INTERVENTIONAL"
+
     @property
     def name(self) -> str:
         return "clinicaltrials"
@@ -40,7 +48,7 @@ class ClinicalTrialsTool:
         reraise=True,
     )
     async def search(self, query: str, max_results: int = 10) -> list[Evidence]:
-        """Search ClinicalTrials.gov for studies.
+        """Search ClinicalTrials.gov for interventional studies.
 
         Args:
             query: Search query (e.g., "metformin alzheimer")
@@ -49,10 +57,16 @@ class ClinicalTrialsTool:
         Returns:
             List of Evidence objects from clinical trials
         """
-        params: dict[str, str | int] = {
-            "query.term": query,
+        # Add study type filter to query string (parameter is not supported)
+        # AREA[StudyType]INTERVENTIONAL restricts to interventional studies
+        final_query = f"{query} AND AREA[StudyType]INTERVENTIONAL"
+
+        params: dict[str, Any] = {
+            "query.term": final_query,
             "pageSize": min(max_results, 100),
-            "fields": "|".join(self.FIELDS),
+            "fields": ",".join(self.FIELDS),
+            # FILTERS - Only active/completed studies
+            "filter.overallStatus": self.STATUS_FILTER,
         }
 
         try:

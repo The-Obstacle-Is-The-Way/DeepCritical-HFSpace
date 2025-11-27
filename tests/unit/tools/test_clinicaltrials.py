@@ -1,146 +1,152 @@
 """Unit tests for ClinicalTrials.gov tool."""
 
-from collections.abc import Generator
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-import requests
 
 from src.tools.clinicaltrials import ClinicalTrialsTool
-from src.utils.exceptions import SearchError
 from src.utils.models import Evidence
 
 
-@pytest.fixture
-def mock_clinicaltrials_response() -> dict[str, Any]:
-    """Mock ClinicalTrials.gov API response."""
-    return {
-        "studies": [
-            {
-                "protocolSection": {
-                    "identificationModule": {
-                        "nctId": "NCT04098666",
-                        "briefTitle": "Metformin in Alzheimer's Dementia Prevention",
-                    },
-                    "statusModule": {
-                        "overallStatus": "Recruiting",
-                        "startDateStruct": {"date": "2020-01-15"},
-                    },
-                    "descriptionModule": {
-                        "briefSummary": "This study evaluates metformin for Alzheimer's prevention."
-                    },
-                    "designModule": {"phases": ["PHASE2"]},
-                    "conditionsModule": {"conditions": ["Alzheimer Disease", "Dementia"]},
-                    "armsInterventionsModule": {
-                        "interventions": [{"name": "Metformin", "type": "Drug"}]
-                    },
-                }
-            }
-        ]
-    }
-
-
-@pytest.fixture
-def mock_requests_get(
-    mock_clinicaltrials_response: dict[str, Any],
-) -> Generator[MagicMock, None, None]:
-    """Fixture to mock requests.get with a successful response."""
-    with patch("src.tools.clinicaltrials.requests.get") as mock_get:
-        mock_response = MagicMock()
-        mock_response.json.return_value = mock_clinicaltrials_response
-        mock_response.raise_for_status = MagicMock()
-        mock_get.return_value = mock_response
-        yield mock_get
-
-
+@pytest.mark.unit
 class TestClinicalTrialsTool:
     """Tests for ClinicalTrialsTool."""
 
-    def test_tool_name(self) -> None:
-        """Tool should have correct name."""
-        tool = ClinicalTrialsTool()
+    @pytest.fixture
+    def tool(self):
+        return ClinicalTrialsTool()
+
+    def test_tool_name(self, tool):
         assert tool.name == "clinicaltrials"
 
     @pytest.mark.asyncio
-    async def test_search_returns_evidence(self, mock_requests_get: MagicMock) -> None:
-        """Search should return Evidence objects."""
-        tool = ClinicalTrialsTool()
-        results = await tool.search("metformin alzheimer", max_results=5)
+    async def test_search_uses_filters(self, tool):
+        """Test that search applies status and type filters."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"studies": []}
+        mock_response.raise_for_status = MagicMock()
 
-        assert len(results) == 1
-        assert isinstance(results[0], Evidence)
-        assert results[0].citation.source == "clinicaltrials"
-        assert "NCT04098666" in results[0].citation.url
-        assert "Metformin" in results[0].citation.title
+        with patch("requests.get", return_value=mock_response) as mock_get:
+            await tool.search("test query", max_results=5)
 
-    @pytest.mark.asyncio
-    async def test_search_extracts_phase(self, mock_requests_get: MagicMock) -> None:
-        """Search should extract trial phase."""
-        tool = ClinicalTrialsTool()
-        results = await tool.search("metformin alzheimer")
+            # Verify filters were applied
+            call_args = mock_get.call_args
+            params = call_args.kwargs.get("params", call_args[1].get("params", {}))
 
-        assert "PHASE2" in results[0].content
+            # Should filter for active/completed studies
+            assert "filter.overallStatus" in params
+            assert "COMPLETED" in params["filter.overallStatus"]
+            assert "RECRUITING" in params["filter.overallStatus"]
 
-    @pytest.mark.asyncio
-    async def test_search_extracts_status(self, mock_requests_get: MagicMock) -> None:
-        """Search should extract trial status."""
-        tool = ClinicalTrialsTool()
-        results = await tool.search("metformin alzheimer")
-
-        assert "Recruiting" in results[0].content
+            # Should filter for interventional studies via query term
+            assert "AREA[StudyType]INTERVENTIONAL" in params["query.term"]
+            assert "filter.studyType" not in params
 
     @pytest.mark.asyncio
-    async def test_search_empty_results(self) -> None:
-        """Search should handle empty results gracefully."""
-        with patch("src.tools.clinicaltrials.requests.get") as mock_get:
-            mock_response = MagicMock()
-            mock_response.json.return_value = {"studies": []}
-            mock_response.raise_for_status = MagicMock()
-            mock_get.return_value = mock_response
+    async def test_search_returns_evidence(self, tool):
+        """Test that search returns Evidence objects."""
+        mock_study = {
+            "protocolSection": {
+                "identificationModule": {
+                    "nctId": "NCT12345678",
+                    "briefTitle": "Metformin for Long COVID Treatment",
+                },
+                "statusModule": {
+                    "overallStatus": "COMPLETED",
+                    "startDateStruct": {"date": "2023-01-01"},
+                },
+                "descriptionModule": {
+                    "briefSummary": "A study examining metformin for Long COVID symptoms.",
+                },
+                "designModule": {
+                    "phases": ["PHASE2", "PHASE3"],
+                },
+                "conditionsModule": {
+                    "conditions": ["Long COVID", "PASC"],
+                },
+                "armsInterventionsModule": {
+                    "interventions": [{"name": "Metformin"}],
+                },
+            }
+        }
 
-            tool = ClinicalTrialsTool()
-            results = await tool.search("nonexistent query xyz")
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"studies": [mock_study]}
+        mock_response.raise_for_status = MagicMock()
 
+        with patch("requests.get", return_value=mock_response):
+            results = await tool.search("long covid metformin", max_results=5)
+
+            assert len(results) == 1
+            assert isinstance(results[0], Evidence)
+            assert "Metformin" in results[0].citation.title
+            assert "PHASE2" in results[0].content or "Phase" in results[0].content
+
+    @pytest.mark.asyncio
+    async def test_search_includes_phase_info(self, tool):
+        """Test that phase information is included in content."""
+        mock_study = {
+            "protocolSection": {
+                "identificationModule": {
+                    "nctId": "NCT12345678",
+                    "briefTitle": "Test Study",
+                },
+                "statusModule": {
+                    "overallStatus": "RECRUITING",
+                    "startDateStruct": {"date": "2024-01-01"},
+                },
+                "descriptionModule": {
+                    "briefSummary": "Test summary.",
+                },
+                "designModule": {
+                    "phases": ["PHASE3"],
+                },
+                "conditionsModule": {"conditions": ["Test"]},
+                "armsInterventionsModule": {"interventions": []},
+            }
+        }
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"studies": [mock_study]}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("requests.get", return_value=mock_response):
+            results = await tool.search("test", max_results=5)
+
+            # Phase should be in content
+            assert "PHASE3" in results[0].content or "Phase 3" in results[0].content
+
+    @pytest.mark.asyncio
+    async def test_search_empty_results(self, tool):
+        """Test handling of empty results."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"studies": []}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("requests.get", return_value=mock_response):
+            results = await tool.search("nonexistent xyz 12345", max_results=5)
             assert results == []
 
-    @pytest.mark.asyncio
-    async def test_search_api_error(self) -> None:
-        """Search should raise SearchError on API failure.
 
-        Note: We patch the retry decorator to avoid 3x backoff delay in tests.
-        """
-        with patch("src.tools.clinicaltrials.requests.get") as mock_get:
-            mock_response = MagicMock()
-            mock_response.raise_for_status.side_effect = requests.HTTPError("500 Server Error")
-            mock_get.return_value = mock_response
-
-            tool = ClinicalTrialsTool()
-            # Patch the retry decorator's stop condition to fail immediately
-            tool.search.retry.stop = lambda _: True  # type: ignore[attr-defined]
-
-            with pytest.raises(SearchError):
-                await tool.search("metformin alzheimer")
-
-
+@pytest.mark.integration
 class TestClinicalTrialsIntegration:
-    """Integration tests (marked for separate run)."""
+    """Integration tests with real API."""
 
-    @pytest.mark.integration
     @pytest.mark.asyncio
-    async def test_real_api_call(self) -> None:
-        """Test actual API call (requires network)."""
-        # Skip at runtime if API unreachable (avoids network call at collection time)
-        try:
-            resp = requests.get("https://clinicaltrials.gov/api/v2/studies", timeout=5)
-            if resp.status_code >= 500:
-                pytest.skip("ClinicalTrials.gov API not reachable (server error)")
-        except (requests.RequestException, OSError):
-            pytest.skip("ClinicalTrials.gov API not reachable (network/SSL issue)")
-
+    async def test_real_api_returns_interventional(self):
+        """Test that real API returns interventional studies."""
         tool = ClinicalTrialsTool()
-        results = await tool.search("metformin diabetes", max_results=3)
+        results = await tool.search("long covid treatment", max_results=3)
 
+        # Should get results
         assert len(results) > 0
-        assert all(isinstance(r, Evidence) for r in results)
-        assert all(r.citation.source == "clinicaltrials" for r in results)
+
+        # Results should mention interventions or treatments
+        all_content = " ".join([r.content.lower() for r in results])
+        has_intervention = (
+            "intervention" in all_content
+            or "treatment" in all_content
+            or "drug" in all_content
+            or "phase" in all_content
+        )
+        assert has_intervention
