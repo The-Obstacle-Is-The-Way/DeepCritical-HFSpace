@@ -186,78 +186,66 @@ async def research_agent(
         yield f"❌ **Error**: {e!s}"
 
 
-def create_demo() -> Any:
+def create_demo() -> gr.ChatInterface:
     """
     Create the Gradio demo interface with MCP support.
 
     Returns:
         Configured Gradio Blocks interface with MCP server enabled
     """
-    with gr.Blocks(
-        title="DeepCritical - Drug Repurposing Research Agent",
-    ) as demo:
-        # 1. Minimal Header (Option A: 2 lines max)
-        gr.Markdown(
-            "# 🧬 DeepCritical\n"
-            "*AI-Powered Drug Repurposing Agent — searches PubMed, ClinicalTrials.gov & Europe PMC*"
-        )
-
-        # 2. Main Chat Interface
-        # Config inputs will be in a collapsed accordion below the chat input
-        gr.ChatInterface(
-            fn=research_agent,
-            examples=[
-                [
-                    "What drugs could be repurposed for Alzheimer's disease?",
-                    "simple",
-                    "",
-                    "openai",
-                ],
-                [
-                    "Is metformin effective for treating cancer?",
-                    "simple",
-                    "",
-                    "openai",
-                ],
-                [
-                    "What medications show promise for Long COVID treatment?",
-                    "simple",
-                    "",
-                    "openai",
-                ],
+    # 1. Unwrapped ChatInterface (Fixes Accordion Bug)
+    demo = gr.ChatInterface(
+        fn=research_agent,
+        title="🧬 DeepCritical",
+        description=(
+            "*AI-Powered Drug Repurposing Agent — searches PubMed, "
+            "ClinicalTrials.gov & Europe PMC*\n\n"
+            "---\n"
+            "*Research tool only — not for medical advice.*  \n"
+            "**MCP Server Active**: Connect Claude Desktop to `/gradio_api/mcp/`"
+        ),
+        examples=[
+            [
+                "What drugs could be repurposed for Alzheimer's disease?",
+                "simple",
+                "",
+                "openai",
             ],
-            additional_inputs_accordion=gr.Accordion(label="⚙️ Settings", open=False),
-            additional_inputs=[
-                gr.Radio(
-                    choices=["simple", "magentic"],
-                    value="simple",
-                    label="Orchestrator Mode",
-                    info="Simple: Linear | Magentic: Multi-Agent (OpenAI)",
-                ),
-                gr.Textbox(
-                    label="🔑 API Key (Optional - BYOK)",
-                    placeholder="sk-... or sk-ant-...",
-                    type="password",
-                    info="Enter your own API key. Never stored.",
-                ),
-                gr.Radio(
-                    choices=["openai", "anthropic"],
-                    value="openai",
-                    label="API Provider",
-                    info="Select the provider for your API key",
-                ),
+            [
+                "Is metformin effective for treating cancer?",
+                "simple",
+                "",
+                "openai",
             ],
-        )
-
-        # 3. Minimal Footer (Option C: Remove MCP Tabs, keep info)
-        gr.Markdown(
-            """
-            ---
-            *Research tool only — not for medical advice.*
-            **MCP Server Active**: Connect Claude Desktop to `/gradio_api/mcp/`
-            """,
-            elem_classes=["footer"],
-        )
+            [
+                "What medications show promise for Long COVID treatment?",
+                "simple",
+                "",
+                "openai",
+            ],
+        ],
+        additional_inputs_accordion=gr.Accordion(label="⚙️ Settings", open=False),
+        additional_inputs=[
+            gr.Radio(
+                choices=["simple", "magentic"],
+                value="simple",
+                label="Orchestrator Mode",
+                info="Simple: Linear | Magentic: Multi-Agent (OpenAI)",
+            ),
+            gr.Textbox(
+                label="🔑 API Key (Optional - BYOK)",
+                placeholder="sk-... or sk-ant-...",
+                type="password",
+                info="Enter your own API key. Never stored.",
+            ),
+            gr.Radio(
+                choices=["openai", "anthropic"],
+                value="openai",
+                label="API Provider",
+                info="Select the provider for your API key",
+            ),
+        ],
+    )
 
     return demo
 

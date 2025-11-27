@@ -1,6 +1,5 @@
 """PubMed search tool using NCBI E-utilities."""
 
-import asyncio
 from typing import Any
 
 import httpx
@@ -8,6 +7,7 @@ import xmltodict
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.tools.query_utils import preprocess_query
+from src.tools.rate_limiter import get_pubmed_limiter
 from src.utils.config import settings
 from src.utils.exceptions import RateLimitError, SearchError
 from src.utils.models import Citation, Evidence
@@ -17,7 +17,6 @@ class PubMedTool:
     """Search tool for PubMed/NCBI."""
 
     BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
-    RATE_LIMIT_DELAY = 0.34  # ~3 requests/sec without API key
     HTTP_TOO_MANY_REQUESTS = 429
 
     def __init__(self, api_key: str | None = None) -> None:
@@ -25,7 +24,9 @@ class PubMedTool:
         # Ignore placeholder values from .env.example
         if self.api_key == "your-ncbi-key-here":
             self.api_key = None
-        self._last_request_time = 0.0
+
+        # Use shared rate limiter
+        self._limiter = get_pubmed_limiter(self.api_key)
 
     @property
     def name(self) -> str:
@@ -33,12 +34,7 @@ class PubMedTool:
 
     async def _rate_limit(self) -> None:
         """Enforce NCBI rate limiting."""
-        loop = asyncio.get_running_loop()
-        now = loop.time()
-        elapsed = now - self._last_request_time
-        if elapsed < self.RATE_LIMIT_DELAY:
-            await asyncio.sleep(self.RATE_LIMIT_DELAY - elapsed)
-        self._last_request_time = loop.time()
+        await self._limiter.acquire()
 
     def _build_params(self, **kwargs: Any) -> dict[str, Any]:
         """Build request params with optional API key."""
