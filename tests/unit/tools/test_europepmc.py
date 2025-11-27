@@ -13,14 +13,14 @@ class TestEuropePMCTool:
     """Tests for EuropePMCTool."""
 
     @pytest.fixture
-    def tool(self):
+    def tool(self) -> EuropePMCTool:
         return EuropePMCTool()
 
-    def test_tool_name(self, tool):
+    def test_tool_name(self, tool: EuropePMCTool) -> None:
         assert tool.name == "europepmc"
 
     @pytest.mark.asyncio
-    async def test_search_returns_evidence(self, tool):
+    async def test_search_returns_evidence(self, tool: EuropePMCTool) -> None:
         """Test that search returns Evidence objects."""
         mock_response = {
             "resultList": {
@@ -56,7 +56,7 @@ class TestEuropePMCTool:
             assert "Long COVID Treatment Study" in results[0].citation.title
 
     @pytest.mark.asyncio
-    async def test_search_marks_preprints(self, tool):
+    async def test_search_marks_preprints(self, tool: EuropePMCTool) -> None:
         """Test that preprints are marked correctly."""
         mock_response = {
             "resultList": {
@@ -89,7 +89,7 @@ class TestEuropePMCTool:
             assert results[0].citation.source == "preprint"
 
     @pytest.mark.asyncio
-    async def test_search_empty_results(self, tool):
+    async def test_search_empty_results(self, tool: EuropePMCTool) -> None:
         """Test handling of empty results."""
         mock_response = {"resultList": {"result": []}}
 
@@ -112,7 +112,7 @@ class TestEuropePMCIntegration:
     """Integration tests with real API."""
 
     @pytest.mark.asyncio
-    async def test_real_api_call(self):
+    async def test_real_api_call(self) -> None:
         """Test actual API returns relevant results."""
         tool = EuropePMCTool()
         results = await tool.search("long covid treatment", max_results=3)

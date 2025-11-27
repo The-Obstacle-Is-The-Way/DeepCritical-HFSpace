@@ -13,14 +13,14 @@ class TestClinicalTrialsTool:
     """Tests for ClinicalTrialsTool."""
 
     @pytest.fixture
-    def tool(self):
+    def tool(self) -> ClinicalTrialsTool:
         return ClinicalTrialsTool()
 
-    def test_tool_name(self, tool):
+    def test_tool_name(self, tool: ClinicalTrialsTool) -> None:
         assert tool.name == "clinicaltrials"
 
     @pytest.mark.asyncio
-    async def test_search_uses_filters(self, tool):
+    async def test_search_uses_filters(self, tool: ClinicalTrialsTool) -> None:
         """Test that search applies status and type filters."""
         mock_response = MagicMock()
         mock_response.json.return_value = {"studies": []}
@@ -43,7 +43,7 @@ class TestClinicalTrialsTool:
             assert "filter.studyType" not in params
 
     @pytest.mark.asyncio
-    async def test_search_returns_evidence(self, tool):
+    async def test_search_returns_evidence(self, tool: ClinicalTrialsTool) -> None:
         """Test that search returns Evidence objects."""
         mock_study = {
             "protocolSection": {
@@ -83,7 +83,7 @@ class TestClinicalTrialsTool:
             assert "PHASE2" in results[0].content or "Phase" in results[0].content
 
     @pytest.mark.asyncio
-    async def test_search_includes_phase_info(self, tool):
+    async def test_search_includes_phase_info(self, tool: ClinicalTrialsTool) -> None:
         """Test that phase information is included in content."""
         mock_study = {
             "protocolSection": {
@@ -117,7 +117,7 @@ class TestClinicalTrialsTool:
             assert "PHASE3" in results[0].content or "Phase 3" in results[0].content
 
     @pytest.mark.asyncio
-    async def test_search_empty_results(self, tool):
+    async def test_search_empty_results(self, tool: ClinicalTrialsTool) -> None:
         """Test handling of empty results."""
         mock_response = MagicMock()
         mock_response.json.return_value = {"studies": []}
@@ -133,7 +133,7 @@ class TestClinicalTrialsIntegration:
     """Integration tests with real API."""
 
     @pytest.mark.asyncio
-    async def test_real_api_returns_interventional(self):
+    async def test_real_api_returns_interventional(self) -> None:
         """Test that real API returns interventional studies."""
         tool = ClinicalTrialsTool()
         results = await tool.search("long covid treatment", max_results=3)

@@ -84,7 +84,7 @@ class TestAnalysisResult:
         """Verdict should be one of the expected values."""
         for verdict in ["SUPPORTED", "REFUTED", "INCONCLUSIVE"]:
             result = AnalysisResult(
-                verdict=verdict,
+                verdict=verdict,  # type: ignore
                 confidence=0.8,
                 statistical_evidence="test",
                 code_generated="print('test')",
