@@ -3,6 +3,8 @@
 from unittest.mock import patch
 
 import pytest
+
+pytestmark = pytest.mark.unit
 from pydantic_ai.models.anthropic import AnthropicModel
 
 # We expect this import to exist after we implement it, or we mock it if it's not there yet

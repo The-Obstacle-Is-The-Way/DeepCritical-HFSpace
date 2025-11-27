@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 from src.orchestrator import Orchestrator
 from src.orchestrator_factory import create_orchestrator
 

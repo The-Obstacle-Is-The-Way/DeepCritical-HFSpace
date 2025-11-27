@@ -119,32 +119,37 @@
 ## 5. Mode Selection Logic
 
 ```python
-# src/orchestrator_factory.py
+# src/orchestrator_factory.py (actual implementation)
 
-def create_orchestrator(config: OrchestratorConfig) -> OrchestratorProtocol:
+def create_orchestrator(
+    search_handler: SearchHandlerProtocol | None = None,
+    judge_handler: JudgeHandlerProtocol | None = None,
+    config: OrchestratorConfig | None = None,
+    mode: Literal["simple", "magentic", "advanced"] | None = None,
+) -> Any:
     """
     Auto-select orchestrator based on available credentials.
 
     Priority:
     1. If mode explicitly set, use that
-    2. If OpenAI/Anthropic key available -> Advanced Mode
+    2. If OpenAI key available -> Advanced Mode (currently OpenAI only)
     3. Otherwise -> Simple Mode (HuggingFace free tier)
     """
-    if config.mode == "simple":
-        return create_simple_orchestrator(config)
+    effective_mode = _determine_mode(mode)
 
-    if config.mode == "advanced":
-        if not settings.has_openai_key and not settings.has_anthropic_key:
-            raise ConfigurationError(
-                "Advanced mode requires OpenAI or Anthropic API key"
-            )
-        return create_magentic_orchestrator(config)
+    if effective_mode == "advanced":
+        orchestrator_cls = _get_magentic_orchestrator_class()
+        return orchestrator_cls(max_rounds=config.max_iterations if config else 10)
 
-    # Auto-detect
-    if settings.has_openai_key or settings.has_anthropic_key:
-        return create_magentic_orchestrator(config)
+    # Simple mode requires handlers
+    if search_handler is None or judge_handler is None:
+        raise ValueError("Simple mode requires search_handler and judge_handler")
 
-    return create_simple_orchestrator(config)
+    return Orchestrator(
+        search_handler=search_handler,
+        judge_handler=judge_handler,
+        config=config,
+    )
 ```
 
 ---

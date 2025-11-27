@@ -30,7 +30,7 @@ We almost merged a refactor that would have **deleted** multi-agent orchestratio
 ### Key Files at Risk
 
 **On `origin/dev` (PRESERVED):**
-```
+```text
 src/agents/
 ├── analysis_agent.py      # StatisticalAnalyzer wrapper
 ├── hypothesis_agent.py    # Hypothesis generation
@@ -52,7 +52,7 @@ src/utils/llm_factory.py      # Centralized LLM client factory
 
 ## 3. Target Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │  Microsoft Agent Framework (Orchestration Layer)                │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │

@@ -4,6 +4,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 # Import conditional on package availability, but for this test we expect it to be there
 try:
     from agent_framework import ChatAgent
@@ -17,6 +19,7 @@ except ImportError:
 def test_agent_framework_import():
     """Test that agent_framework can be imported."""
     assert ChatAgent is not None
+    assert OpenAIChatClient is not None  # Verify both imports work
 
 
 @pytest.mark.skipif(ChatAgent is None, reason="agent-framework-core not installed")

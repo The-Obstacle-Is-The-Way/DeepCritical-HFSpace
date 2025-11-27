@@ -4,6 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+pytestmark = [pytest.mark.integration, pytest.mark.slow]
+
 from src.orchestrator_factory import create_orchestrator
 from src.utils.models import Citation, Evidence, OrchestratorConfig
 
