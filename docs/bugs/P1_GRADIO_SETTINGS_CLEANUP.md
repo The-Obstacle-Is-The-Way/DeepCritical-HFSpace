@@ -1,140 +1,133 @@
-# P1: Gradio Settings Panel - Keep or Remove?
+# P1 Bug: Gradio Settings Accordion Not Collapsing
 
-**Priority**: P1 (UX improvement)
-**Status**: NEEDS DECISION
+**Priority**: P1 (UX Bug)
+**Status**: OPEN
 **Date**: 2025-11-27
 
 ---
 
-## Current State
+## Bug Description
 
-The Gradio UI has a "Settings" accordion containing:
-
-1. **Orchestrator Mode**: simple | magentic
-2. **API Key (BYOK)**: User can enter their own key
-3. **API Provider**: openai | anthropic
-
-Screenshot shows it takes up vertical space even when collapsed.
+The "Settings" accordion in the Gradio UI does not collapse/hide its content. Even when the accordion arrow shows "collapsed" state, all settings (Orchestrator Mode, API Key, API Provider) remain visible.
 
 ---
 
-## The Question
+## Root Cause
 
-Should we **keep**, **simplify**, or **remove** this settings panel?
+**Known Gradio Bug**: `additional_inputs_accordion` does not work correctly when `ChatInterface` is used inside `gr.Blocks()`.
 
----
+**GitHub Issue**: [gradio-app/gradio#8861](https://github.com/gradio-app/gradio/issues/8861)
+> "Is there any subsequent plan to support gr.ChatInterface inheritance under gr.Block()? Currently using accordion is not working well."
 
-## Analysis
-
-### Option A: Remove Entirely
-
-**Pros:**
-- Cleaner, simpler UI
-- Magentic mode is broken anyway (P0 bug)
-- 95% of users will use defaults
-- Less cognitive load for hackathon judges
-
-**Cons:**
-- No BYOK option (users stuck with server's API key or free tier)
-- No way to test Magentic mode when fixed
-
-**Code Change:**
+**Our Code** (`src/app.py` lines 196-250):
 ```python
-# Remove additional_inputs entirely
-gr.ChatInterface(
+with gr.Blocks(...) as demo:  # <-- Using gr.Blocks wrapper
+    gr.ChatInterface(
+        ...
+        additional_inputs_accordion=gr.Accordion(label="⚙️ Settings", open=False),
+        additional_inputs=[...],
+    )
+```
+
+The `additional_inputs_accordion` parameter is designed for standalone `ChatInterface`, but breaks when wrapped in `gr.Blocks()`.
+
+---
+
+## Evidence
+
+- Accordion arrow toggles (visual feedback works)
+- Content does NOT hide when collapsed
+- Same behavior in local dev and HuggingFace Spaces
+
+---
+
+## Possible Fixes
+
+### Option 1: Remove gr.Blocks Wrapper (Recommended)
+
+If we don't need the header/footer markdown, use standalone `ChatInterface`:
+
+```python
+# Instead of gr.Blocks wrapper
+demo = gr.ChatInterface(
     fn=research_agent,
-    examples=[...],
-    # No additional_inputs_accordion
-    # No additional_inputs
+    title="🧬 DeepCritical",
+    description="AI-Powered Drug Repurposing Agent",
+    additional_inputs_accordion=gr.Accordion(label="⚙️ Settings", open=False),
+    additional_inputs=[...],
 )
 ```
 
-### Option B: Simplify to Just BYOK
+**Pros**: Accordion should work correctly
+**Cons**: Less control over layout, no custom header/footer
 
-**Pros:**
-- Keep useful feature (bring your own key)
-- Remove broken Magentic option
-- Simpler UI
+### Option 2: Manual Accordion Outside ChatInterface
 
-**Cons:**
-- Still has settings panel
+Move settings outside `ChatInterface` into a proper `gr.Accordion`:
 
-**Code Change:**
 ```python
-additional_inputs=[
-    gr.Textbox(
-        label="🔑 API Key (Optional)",
-        placeholder="sk-... or sk-ant-...",
-        type="password",
-    ),
-]
+with gr.Blocks() as demo:
+    gr.Markdown("# 🧬 DeepCritical")
+
+    with gr.Accordion("⚙️ Settings", open=False):
+        mode = gr.Radio(choices=["simple", "magentic"], value="simple", label="Mode")
+        api_key = gr.Textbox(label="API Key", type="password")
+        provider = gr.Radio(choices=["openai", "anthropic"], value="openai", label="Provider")
+
+    chatbot = gr.Chatbot()
+    msg = gr.Textbox(label="Ask a research question")
+
+    msg.submit(research_agent, [msg, chatbot, mode, api_key, provider], chatbot)
 ```
 
-### Option C: Keep But Fix Accordion
+**Pros**: Full control, accordion works
+**Cons**: More code, lose ChatInterface conveniences (examples, etc.)
 
-**Pros:**
-- All options available
-- Power users can access
+### Option 3: Wait for Gradio Fix
 
-**Cons:**
-- Magentic is broken
-- Adds complexity
+Gradio added `.expand()` and `.collapse()` events in recent versions. Upgrading might help.
 
-**Code Change:**
-- Ensure `open=False` works correctly
-- Maybe move to footer or separate tab
+**Check current version**:
+```bash
+pip show gradio | grep Version
+```
+
+**Upgrade**:
+```bash
+pip install --upgrade gradio
+```
 
 ---
 
 ## Recommendation
 
-**For Hackathon**: **Option A (Remove)** or **Option B (BYOK only)**
+**Option 1** (Remove gr.Blocks) is cleanest if we can live without custom header/footer.
 
-Reasoning:
-1. Magentic mode has a P0 bug - offering it confuses users
-2. Simple mode works perfectly
-3. Clean UI impresses judges
-4. BYOK is the only genuinely useful setting
+If header/footer needed, **Option 2** gives working accordion at cost of more code.
 
 ---
 
-## Decision Needed
+## Files to Modify
 
-- [ ] **Remove all settings** (cleanest)
-- [ ] **Keep only BYOK** (useful subset)
-- [ ] **Keep all but hide better** (preserve functionality)
-- [ ] **Keep as-is** (no change)
+| File | Change |
+|------|--------|
+| `src/app.py` | Restructure UI per chosen option |
+| `pyproject.toml` | Possibly upgrade Gradio version |
 
 ---
 
-## Implementation
+## Test Plan
 
-If removing settings:
+1. Run locally: `uv run python -m src.app`
+2. Click Settings accordion to collapse
+3. Verify content hides when collapsed
+4. Verify content shows when expanded
+5. Test on HuggingFace Spaces after deploy
 
-**File**: `src/app.py`
+---
 
-```python
-# Before (lines 229-249)
-additional_inputs_accordion=gr.Accordion(label="⚙️ Settings", open=False),
-additional_inputs=[
-    gr.Radio(...),  # mode
-    gr.Textbox(...),  # api_key
-    gr.Radio(...),  # provider
-],
+## Sources
 
-# After
-# Delete additional_inputs_accordion and additional_inputs
-# Update research_agent signature to remove unused params
-```
-
-Also update `research_agent()` function signature:
-```python
-# Before
-async def research_agent(message, history, mode, api_key, api_provider):
-
-# After (if removing all settings)
-async def research_agent(message, history):
-    mode = "simple"  # Hardcode
-    api_key = ""
-    api_provider = "openai"
-```
+- [Gradio Issue #8861 - Accordion not working in Blocks](https://github.com/gradio-app/gradio/issues/8861)
+- [Gradio ChatInterface Docs](https://www.gradio.app/docs/gradio/chatinterface)
+- [Gradio Accordion Docs](https://www.gradio.app/docs/gradio/accordion)
