@@ -44,7 +44,7 @@ dev = [
     "pre-commit>=3.7",
 ]
 magentic = [
-    "agent-framework-core>=1.0.0b251120,<2.0.0",  # Pin to avoid breaking changes
+    "agent-framework-core>=1.0.0b251120,<2.0.0",  # Microsoft Agent Framework (PyPI)
 ]
 embeddings = [
     "chromadb>=0.4.0",

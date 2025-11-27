@@ -31,7 +31,7 @@ def configure_orchestrator(
 
     Args:
         use_mock: If True, use MockJudgeHandler (no API key needed)
-        mode: Orchestrator mode ("simple" or "magentic")
+        mode: Orchestrator mode ("simple" or "advanced")
         user_api_key: Optional user-provided API key (BYOK)
         api_provider: API provider ("openai" or "anthropic")
 
@@ -115,7 +115,7 @@ async def research_agent(
     Args:
         message: User's research question
         history: Chat history (Gradio format)
-        mode: Orchestrator mode ("simple" or "magentic")
+        mode: Orchestrator mode ("simple" or "advanced")
         api_key: Optional user-provided API key (BYOK - Bring Your Own Key)
         api_provider: API provider ("openai" or "anthropic")
 
@@ -135,10 +135,11 @@ async def research_agent(
     has_user_key = bool(user_api_key)
     has_paid_key = has_openai or has_anthropic or has_user_key
 
-    # Magentic mode requires OpenAI specifically
-    if mode == "magentic" and not (has_openai or (has_user_key and api_provider == "openai")):
+    # Advanced mode requires OpenAI specifically (due to agent-framework binding)
+    if mode == "advanced" and not (has_openai or (has_user_key and api_provider == "openai")):
         yield (
-            "⚠️ **Warning**: Magentic mode requires OpenAI API key. Falling back to simple mode.\n\n"
+            "⚠️ **Warning**: Advanced mode currently requires OpenAI API key. "
+            "Falling back to simple mode.\n\n"
         )
         mode = "simple"
 
@@ -227,10 +228,13 @@ def create_demo() -> gr.ChatInterface:
         additional_inputs_accordion=gr.Accordion(label="⚙️ Settings", open=False),
         additional_inputs=[
             gr.Radio(
-                choices=["simple", "magentic"],
+                choices=["simple", "advanced"],
                 value="simple",
                 label="Orchestrator Mode",
-                info="Simple: Linear | Magentic: Multi-Agent (OpenAI)",
+                info=(
+                    "Simple: Linear (Free Tier Friendly) | "
+                    "Advanced: Multi-Agent (Requires OpenAI)"
+                ),
             ),
             gr.Textbox(
                 label="🔑 API Key (Optional - BYOK)",
