@@ -3,7 +3,7 @@
 Demo: Hypothesis Generation (Phase 7).
 
 This script demonstrates the REAL hypothesis generation pipeline:
-1. REAL search: PubMed + ClinicalTrials + bioRxiv (actual API calls)
+1. REAL search: PubMed + ClinicalTrials + Europe PMC (actual API calls)
 2. REAL embeddings: Semantic deduplication
 3. REAL LLM: Mechanistic hypothesis generation
 
@@ -37,7 +37,7 @@ async def run_hypothesis_demo(query: str) -> None:
         print(f"{'=' * 60}\n")
 
         # Step 1: REAL Search
-        print("[Step 1] Searching PubMed + ClinicalTrials + bioRxiv...")
+        print("[Step 1] Searching PubMed + ClinicalTrials + Europe PMC...")
         search_handler = SearchHandler(
             tools=[PubMedTool(), ClinicalTrialsTool(), EuropePMCTool()], timeout=30.0
         )
@@ -132,7 +132,7 @@ Examples:
 
     print("\n" + "=" * 60)
     print("Demo complete! This was a REAL pipeline:")
-    print("  1. REAL search: PubMed + ClinicalTrials + bioRxiv APIs")
+    print("  1. REAL search: PubMed + ClinicalTrials + Europe PMC APIs")
     print("  2. REAL embeddings: Actual sentence-transformers")
     print("  3. REAL LLM: Actual hypothesis generation")
     print("=" * 60 + "\n")

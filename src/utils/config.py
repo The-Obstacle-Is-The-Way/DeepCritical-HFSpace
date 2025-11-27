@@ -78,6 +78,30 @@ class Settings(BaseSettings):
 
         raise ConfigurationError(f"Unknown LLM provider: {self.llm_provider}")
 
+    def get_openai_api_key(self) -> str:
+        """Get OpenAI API key (required for Magentic function calling)."""
+        if not self.openai_api_key:
+            raise ConfigurationError(
+                "OPENAI_API_KEY not set. Magentic mode requires OpenAI for function calling. "
+                "Use mode='simple' for other providers."
+            )
+        return self.openai_api_key
+
+    @property
+    def has_openai_key(self) -> bool:
+        """Check if OpenAI API key is available."""
+        return bool(self.openai_api_key)
+
+    @property
+    def has_anthropic_key(self) -> bool:
+        """Check if Anthropic API key is available."""
+        return bool(self.anthropic_api_key)
+
+    @property
+    def has_any_llm_key(self) -> bool:
+        """Check if any LLM API key is available."""
+        return self.has_openai_key or self.has_anthropic_key
+
 
 def get_settings() -> Settings:
     """Factory function to get settings (allows mocking in tests)."""

@@ -106,8 +106,8 @@ disallow_untyped_defs = true
 warn_return_any = true
 warn_unused_ignores = false
 exclude = [
-    "reference_repos",
-    "examples",
+    "^reference_repos/",
+    "^examples/",
 ]
 
 # ============== PYTEST CONFIG ==============

@@ -3,7 +3,7 @@
 Demo: Full Stack DeepCritical Agent (Phases 1-8).
 
 This script demonstrates the COMPLETE REAL drug repurposing research pipeline:
-- Phase 2: REAL Search (PubMed + ClinicalTrials + bioRxiv)
+- Phase 2: REAL Search (PubMed + ClinicalTrials + Europe PMC)
 - Phase 6: REAL Embeddings (sentence-transformers + ChromaDB)
 - Phase 7: REAL Hypothesis (LLM mechanistic reasoning)
 - Phase 3: REAL Judge (LLM evidence assessment)
@@ -225,7 +225,7 @@ Examples:
     print("  DeepCritical Full Stack Demo Complete!")
     print("  ")
     print("  Everything you just saw was REAL:")
-    print("    - Real PubMed + ClinicalTrials + bioRxiv searches")
+    print("    - Real PubMed + ClinicalTrials + Europe PMC searches")
     print("    - Real embedding computations")
     print("    - Real LLM reasoning")
     print("    - Real scientific report")

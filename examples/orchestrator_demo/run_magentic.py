@@ -32,9 +32,11 @@ async def main() -> None:
     parser.add_argument("--iterations", type=int, default=10, help="Max rounds")
     args = parser.parse_args()
 
-    # Check for keys
-    if not (os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")):
-        print("Error: No API key found. Magentic requires real LLM.")
+    # Check for OpenAI key specifically - Magentic requires function calling
+    # which is only supported by OpenAI's API (not Anthropic or HF Inference)
+    if not os.getenv("OPENAI_API_KEY"):
+        print("Error: OPENAI_API_KEY required. Magentic uses function calling")
+        print("       which requires OpenAI's API. For other providers, use mode='simple'.")
         sys.exit(1)
 
     print(f"\n{'=' * 60}")

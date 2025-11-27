@@ -22,7 +22,7 @@ from src.agents.magentic_agents import (
 )
 from src.agents.state import init_magentic_state
 from src.utils.config import settings
-from src.utils.exceptions import ConfigurationError
+from src.utils.llm_factory import check_magentic_requirements
 from src.utils.models import AgentEvent
 
 if TYPE_CHECKING:
@@ -50,10 +50,8 @@ class MagenticOrchestrator:
             max_rounds: Maximum coordination rounds
             chat_client: Optional shared chat client for agents
         """
-        if not settings.openai_api_key:
-            raise ConfigurationError(
-                "Magentic mode requires OPENAI_API_KEY. Set the key or use mode='simple'."
-            )
+        # Validate requirements via centralized factory
+        check_magentic_requirements()
 
         self._max_rounds = max_rounds
         self._chat_client = chat_client
