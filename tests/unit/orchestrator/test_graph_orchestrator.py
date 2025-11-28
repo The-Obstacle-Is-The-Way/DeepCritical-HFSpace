@@ -245,9 +245,9 @@ class TestGraphOrchestrator:
                     break
 
             error_events = [e for e in events if e.type == "error"]
-            assert (
-                len(error_events) > 0
-            ), f"No error events found. Events: {[e.type for e in events]}"
+            assert len(error_events) > 0, (
+                f"No error events found. Events: {[e.type for e in events]}"
+            )
             assert (
                 "error" in error_events[0].message.lower()
                 or "failed" in error_events[0].message.lower()

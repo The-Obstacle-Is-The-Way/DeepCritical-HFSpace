@@ -79,7 +79,13 @@ packages = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["src", "tests"]
+src = ["src"]
+exclude = [
+    "tests/",
+    "examples/",
+    "reference_repos/",
+    "folder/",
+]
 
 [tool.ruff.lint]
 select = [

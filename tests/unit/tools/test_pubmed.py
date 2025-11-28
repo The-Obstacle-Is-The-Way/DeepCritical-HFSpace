@@ -173,9 +173,9 @@ class TestPubMedTool:
             await tool.search("test query 4")
             # Rate limiter uses polling with 0.01s sleep, so sleep should be called
             # multiple times until enough time has passed (at least once)
-            assert (
-                mock_sleep.call_count > 0
-            ), f"Rate limiter should call sleep when rate limit is hit. Call count: {mock_sleep.call_count}"
+            assert mock_sleep.call_count > 0, (
+                f"Rate limiter should call sleep when rate limit is hit. Call count: {mock_sleep.call_count}"
+            )
 
     @pytest.mark.asyncio
     async def test_api_key_included_in_params(self, mocker):

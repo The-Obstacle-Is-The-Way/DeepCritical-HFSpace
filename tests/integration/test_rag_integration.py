@@ -260,9 +260,9 @@ class TestRAGAgentIntegration:
             or "neural" in output_lower
             or "learning" in output_lower
         )
-        assert (
-            has_relevant_content
-        ), f"Output should contain relevant content, got: {result.output[:200]}"
+        assert has_relevant_content, (
+            f"Output should contain relevant content, got: {result.output[:200]}"
+        )
         assert len(result.sources) > 0
 
         # Cleanup

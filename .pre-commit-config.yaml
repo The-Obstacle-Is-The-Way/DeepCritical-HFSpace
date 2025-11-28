@@ -3,9 +3,10 @@ repos:
     rev: v0.4.4
     hooks:
       - id: ruff
-        args: [--fix]
+        args: [--fix, --exclude, tests]
         exclude: ^reference_repos/
       - id: ruff-format
+        args: [--exclude, tests]
         exclude: ^reference_repos/
 
   - repo: https://github.com/pre-commit/mirrors-mypy

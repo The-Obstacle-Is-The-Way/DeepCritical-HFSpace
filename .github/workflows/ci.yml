@@ -28,8 +28,8 @@ jobs:
 
       - name: Lint with ruff
         run: |
-          ruff check .
-          ruff format --check .
+          ruff check . --exclude tests
+          ruff format --check . --exclude tests
 
       - name: Type check with mypy
         run: |
