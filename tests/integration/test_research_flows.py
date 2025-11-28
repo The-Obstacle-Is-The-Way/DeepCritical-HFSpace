@@ -22,7 +22,7 @@ class TestPlannerAgentIntegration:
     @pytest.mark.asyncio
     async def test_planner_agent_creates_plan(self):
         """PlannerAgent should create a valid report plan with real API."""
-        if not settings.has_openai_key and not settings.has_anthropic_key:
+        if not settings.has_openai_key() and not settings.has_anthropic_key():
             pytest.skip("No OpenAI or Anthropic API key available")
 
         planner = create_planner_agent()
