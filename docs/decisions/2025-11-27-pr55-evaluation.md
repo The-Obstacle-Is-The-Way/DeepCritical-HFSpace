@@ -56,7 +56,7 @@ The 3 import errors cause pytest to crash during collection, preventing any test
 
 ## Comparison: Contribution Standards
 
-For context, here are merged PRs from @The-Obstacle-Is-The-Way on [DeepCritical/DeepCritical](https://github.com/DeepCritical/DeepCritical) (the upstream project also maintained by @Josephrp):
+For context, here are merged PRs from @The-Obstacle-Is-The-Way on [DeepCritical/DeepCritical](https://github.com/DeepCritical/DeepCritical) (@Josephrp's separate main project):
 
 | PR | Description | Quality |
 |----|-------------|---------|
