@@ -94,6 +94,17 @@ This project (DeepCritical-1) is an independent HuggingFace Spaces hackathon ent
 
 All contributors have direct push access to this HuggingFace Space. Contributors are encouraged to push directly to production when confident in their code, rather than submitting PRs with untested code for others to review and take responsibility for.
 
+## Withdrawal
+
+As of 2025-11-28, @The-Obstacle-Is-The-Way has formally withdrawn from active participation in the hackathon. This was communicated directly to @Josephrp on PR #55 and all issues he commented on.
+
+Key points reiterated:
+
+1. This GitHub repo is a personal fork for version control
+2. @Josephrp created the HuggingFace Space and org - he is the lead maintainer
+3. GitHub issues are personal brainstorming notes, not official requirements
+4. @Josephrp has direct push access to HF Spaces and does not need approval
+
 ## Links
 
 - [PR #55](https://github.com/The-Obstacle-Is-The-Way/DeepCritical-HFSpace/pull/55)
