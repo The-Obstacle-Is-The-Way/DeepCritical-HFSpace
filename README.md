@@ -109,7 +109,8 @@ Built with:
 
 - The-Obstacle-Is-The-Way
 - MarioAderman
-- Josephrp
+- EmployeeNo427
+- Josephrp *(provided initial template)*
 
 ## Links
 
