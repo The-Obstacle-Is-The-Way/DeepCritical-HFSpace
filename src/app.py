@@ -31,7 +31,7 @@ def configure_orchestrator(
 
     Args:
         use_mock: If True, use MockJudgeHandler (no API key needed)
-        mode: Orchestrator mode ("simple" or "magentic")
+        mode: Orchestrator mode ("simple" or "advanced")
         user_api_key: Optional user-provided API key (BYOK)
         api_provider: API provider ("openai" or "anthropic")
 
@@ -115,7 +115,7 @@ async def research_agent(
     Args:
         message: User's research question
         history: Chat history (Gradio format)
-        mode: Orchestrator mode ("simple" or "magentic")
+        mode: Orchestrator mode ("simple" or "advanced")
         api_key: Optional user-provided API key (BYOK - Bring Your Own Key)
         api_provider: API provider ("openai" or "anthropic")
 
@@ -135,10 +135,11 @@ async def research_agent(
     has_user_key = bool(user_api_key)
     has_paid_key = has_openai or has_anthropic or has_user_key
 
-    # Magentic mode requires OpenAI specifically
-    if mode == "magentic" and not (has_openai or (has_user_key and api_provider == "openai")):
+    # Advanced mode requires OpenAI specifically (due to agent-framework binding)
+    if mode == "advanced" and not (has_openai or (has_user_key and api_provider == "openai")):
         yield (
-            "⚠️ **Warning**: Magentic mode requires OpenAI API key. Falling back to simple mode.\n\n"
+            "⚠️ **Warning**: Advanced mode currently requires OpenAI API key. "
+            "Falling back to simple mode.\n\n"
         )
         mode = "simple"
 
@@ -186,78 +187,68 @@ async def research_agent(
         yield f"❌ **Error**: {e!s}"
 
 
-def create_demo() -> Any:
+def create_demo() -> gr.ChatInterface:
     """
     Create the Gradio demo interface with MCP support.
 
     Returns:
         Configured Gradio Blocks interface with MCP server enabled
     """
-    with gr.Blocks(
-        title="DeepCritical - Drug Repurposing Research Agent",
-    ) as demo:
-        # 1. Minimal Header (Option A: 2 lines max)
-        gr.Markdown(
-            "# 🧬 DeepCritical\n"
-            "*AI-Powered Drug Repurposing Agent — searches PubMed, ClinicalTrials.gov & bioRxiv*"
-        )
-
-        # 2. Main Chat Interface
-        # Config inputs will be in a collapsed accordion below the chat input
-        gr.ChatInterface(
-            fn=research_agent,
-            examples=[
-                [
-                    "What drugs could be repurposed for Alzheimer's disease?",
-                    "simple",
-                    "",
-                    "openai",
-                ],
-                [
-                    "Is metformin effective for treating cancer?",
-                    "simple",
-                    "",
-                    "openai",
-                ],
-                [
-                    "What medications show promise for Long COVID treatment?",
-                    "simple",
-                    "",
-                    "openai",
-                ],
+    # 1. Unwrapped ChatInterface (Fixes Accordion Bug)
+    demo = gr.ChatInterface(
+        fn=research_agent,
+        title="🧬 DeepCritical",
+        description=(
+            "*AI-Powered Drug Repurposing Agent — searches PubMed, "
+            "ClinicalTrials.gov & Europe PMC*\n\n"
+            "---\n"
+            "*Research tool only — not for medical advice.*  \n"
+            "**MCP Server Active**: Connect Claude Desktop to `/gradio_api/mcp/`"
+        ),
+        examples=[
+            [
+                "What drugs could be repurposed for Alzheimer's disease?",
+                "simple",
+                "",
+                "openai",
             ],
-            additional_inputs_accordion=gr.Accordion(label="⚙️ Settings", open=False),
-            additional_inputs=[
-                gr.Radio(
-                    choices=["simple", "magentic"],
-                    value="simple",
-                    label="Orchestrator Mode",
-                    info="Simple: Linear | Magentic: Multi-Agent (OpenAI)",
-                ),
-                gr.Textbox(
-                    label="🔑 API Key (Optional - BYOK)",
-                    placeholder="sk-... or sk-ant-...",
-                    type="password",
-                    info="Enter your own API key. Never stored.",
-                ),
-                gr.Radio(
-                    choices=["openai", "anthropic"],
-                    value="openai",
-                    label="API Provider",
-                    info="Select the provider for your API key",
-                ),
+            [
+                "Is metformin effective for treating cancer?",
+                "simple",
+                "",
+                "openai",
             ],
-        )
-
-        # 3. Minimal Footer (Option C: Remove MCP Tabs, keep info)
-        gr.Markdown(
-            """
-            ---
-            *Research tool only — not for medical advice.*
-            **MCP Server Active**: Connect Claude Desktop to `/gradio_api/mcp/`
-            """,
-            elem_classes=["footer"],
-        )
+            [
+                "What medications show promise for Long COVID treatment?",
+                "simple",
+                "",
+                "openai",
+            ],
+        ],
+        additional_inputs_accordion=gr.Accordion(label="⚙️ Settings", open=False),
+        additional_inputs=[
+            gr.Radio(
+                choices=["simple", "advanced"],
+                value="simple",
+                label="Orchestrator Mode",
+                info=(
+                    "Simple: Linear (Free Tier Friendly) | Advanced: Multi-Agent (Requires OpenAI)"
+                ),
+            ),
+            gr.Textbox(
+                label="🔑 API Key (Optional - BYOK)",
+                placeholder="sk-... or sk-ant-...",
+                type="password",
+                info="Enter your own API key. Never stored.",
+            ),
+            gr.Radio(
+                choices=["openai", "anthropic"],
+                value="openai",
+                label="API Provider",
+                info="Select the provider for your API key",
+            ),
+        ],
+    )
 
     return demo
 

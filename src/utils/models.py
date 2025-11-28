@@ -36,6 +36,10 @@ class Evidence(BaseModel):
     content: str = Field(min_length=1, description="The actual text content")
     citation: Citation
     relevance: float = Field(default=0.0, ge=0.0, le=1.0, description="Relevance score 0-1")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata (e.g., cited_by_count, concepts, is_open_access)",
+    )
 
     model_config = {"frozen": True}
 

@@ -8,8 +8,10 @@ import structlog
 from huggingface_hub import InferenceClient
 from pydantic_ai import Agent
 from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.models.huggingface import HuggingFaceModel
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.providers.huggingface import HuggingFaceProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -35,6 +37,12 @@ def get_model() -> Any:
     if llm_provider == "anthropic":
         provider = AnthropicProvider(api_key=settings.anthropic_api_key)
         return AnthropicModel(settings.anthropic_model, provider=provider)
+
+    if llm_provider == "huggingface":
+        # Free tier - uses HF_TOKEN from environment if available
+        model_name = settings.huggingface_model or "meta-llama/Llama-3.1-70B-Instruct"
+        hf_provider = HuggingFaceProvider(api_key=settings.hf_token)
+        return HuggingFaceModel(model_name, provider=hf_provider)
 
     if llm_provider != "openai":
         logger.warning("Unknown LLM provider, defaulting to OpenAI", provider=llm_provider)
@@ -434,7 +442,7 @@ class MockJudgeHandler:
                 clinical_evidence_score=clinical_score,
                 clinical_reasoning=(
                     f"Demo mode: {evidence_count} sources retrieved from PubMed, "
-                    "ClinicalTrials.gov, and bioRxiv. Full analysis requires LLM API key."
+                    "ClinicalTrials.gov, and Europe PMC. Full analysis requires LLM API key."
                 ),
                 drug_candidates=drug_candidates,
                 key_findings=key_findings,

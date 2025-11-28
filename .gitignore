@@ -69,4 +69,9 @@ logs/
 .mypy_cache/
 .coverage
 htmlcov/
+
+# Database files
+chroma_db/
+*.sqlite3
+
 # Trigger rebuild Wed Nov 26 17:51:41 EST 2025

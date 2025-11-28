@@ -1,4 +1,4 @@
-"""Integration tests for Modal (requires credentials)."""
+"""Integration tests for Modal (requires credentials and modal package)."""
 
 import pytest
 
@@ -7,9 +7,18 @@ from src.utils.config import settings
 # Check if any LLM API key is available
 _llm_available = bool(settings.openai_api_key or settings.anthropic_api_key)
 
+# Check if modal package is installed
+try:
+    import modal  # noqa: F401
+
+    _modal_installed = True
+except ImportError:
+    _modal_installed = False
+
 
 @pytest.mark.integration
-@pytest.mark.skipif(not settings.modal_available, reason="Modal not configured")
+@pytest.mark.skipif(not _modal_installed, reason="Modal package not installed")
+@pytest.mark.skipif(not settings.modal_available, reason="Modal credentials not configured")
 class TestModalIntegration:
     """Integration tests requiring Modal credentials."""
 

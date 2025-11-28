@@ -23,12 +23,19 @@ class Settings(BaseSettings):
     # LLM Configuration
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
     anthropic_api_key: str | None = Field(default=None, description="Anthropic API key")
-    llm_provider: Literal["openai", "anthropic"] = Field(
+    llm_provider: Literal["openai", "anthropic", "huggingface"] = Field(
         default="openai", description="Which LLM provider to use"
     )
     openai_model: str = Field(default="gpt-5.1", description="OpenAI model name")
     anthropic_model: str = Field(
         default="claude-sonnet-4-5-20250929", description="Anthropic model"
+    )
+    # HuggingFace (free tier)
+    huggingface_model: str | None = Field(
+        default="meta-llama/Llama-3.1-70B-Instruct", description="HuggingFace model name"
+    )
+    hf_token: str | None = Field(
+        default=None, alias="HF_TOKEN", description="HuggingFace API token"
     )
 
     # Embedding Configuration
@@ -176,9 +183,14 @@ class Settings(BaseSettings):
         return bool(self.anthropic_api_key)
 
     @property
+    def has_huggingface_key(self) -> bool:
+        """Check if HuggingFace token is available."""
+        return bool(self.hf_token)
+
+    @property
     def has_any_llm_key(self) -> bool:
         """Check if any LLM API key is available."""
-        return self.has_openai_key or self.has_anthropic_key
+        return self.has_openai_key or self.has_anthropic_key or self.has_huggingface_key
 
     @property
     def has_huggingface_key(self) -> bool:

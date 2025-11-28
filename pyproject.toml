@@ -25,6 +25,8 @@ dependencies = [
     "structlog>=24.1", # Structured logging
     "requests>=2.32.5", # ClinicalTrials.gov (httpx blocked by WAF)
     "pydantic-graph>=1.22.0",
+    "limits>=3.0", # Rate limiting
+    "duckduckgo-search>=5.0", # Web search
 ]
 
 [project.optional-dependencies]
@@ -44,7 +46,7 @@ dev = [
     "pre-commit>=3.7",
 ]
 magentic = [
-    "agent-framework-core>=1.0.0b251120,<2.0.0",  # Pin to avoid breaking changes
+    "agent-framework-core>=1.0.0b251120,<2.0.0",  # Microsoft Agent Framework (PyPI)
 ]
 embeddings = [
     "chromadb>=0.4.0",

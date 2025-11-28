@@ -29,7 +29,7 @@ def create_search_agent(chat_client: OpenAIChatClient | None = None) -> ChatAgen
     return ChatAgent(
         name="SearchAgent",
         description=(
-            "Searches biomedical databases (PubMed, ClinicalTrials.gov, bioRxiv) "
+            "Searches biomedical databases (PubMed, ClinicalTrials.gov, Europe PMC) "
             "for drug repurposing evidence"
         ),
         instructions="""You are a biomedical search specialist. When asked to find evidence:

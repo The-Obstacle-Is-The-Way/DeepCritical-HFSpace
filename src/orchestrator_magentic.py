@@ -128,7 +128,7 @@ class MagenticOrchestrator:
         task = f"""Research drug repurposing opportunities for: {query}
 
 Workflow:
-1. SearchAgent: Find evidence from PubMed, ClinicalTrials.gov, and bioRxiv
+1. SearchAgent: Find evidence from PubMed, ClinicalTrials.gov, and Europe PMC
 2. HypothesisAgent: Generate mechanistic hypotheses (Drug -> Target -> Pathway -> Effect)
 3. JudgeAgent: Evaluate if evidence is sufficient
 4. If insufficient -> SearchAgent refines search based on gaps
@@ -158,10 +158,41 @@ The final output should be a structured research report."""
                 iteration=iteration,
             )
 
+    def _extract_text(self, message: Any) -> str:
+        """
+        Defensively extract text from a message object.
+
+        Fixes bug where message.text might return the object itself or its repr.
+        """
+        if not message:
+            return ""
+
+        # Priority 1: .content (often the raw string or list of content)
+        if hasattr(message, "content") and message.content:
+            content = message.content
+            # If it's a list (e.g., Multi-modal), join text parts
+            if isinstance(content, list):
+                return " ".join([str(c.text) for c in content if hasattr(c, "text")])
+            return str(content)
+
+        # Priority 2: .text (standard, but sometimes buggy/missing)
+        if hasattr(message, "text") and message.text:
+            # Verify it's not the object itself or a repr string
+            text = str(message.text)
+            if text.startswith("<") and "object at" in text:
+                # Likely a repr string, ignore if possible
+                pass
+            else:
+                return text
+
+        # Fallback: If we can't find clean text, return str(message)
+        # taking care to avoid infinite recursion if str() calls .text
+        return str(message)
+
     def _process_event(self, event: Any, iteration: int) -> AgentEvent | None:
         """Process workflow event into AgentEvent."""
         if isinstance(event, MagenticOrchestratorMessageEvent):
-            text = event.message.text if event.message else ""
+            text = self._extract_text(event.message)
             if text:
                 return AgentEvent(
                     type="judging",
@@ -171,7 +202,7 @@ The final output should be a structured research report."""
 
         elif isinstance(event, MagenticAgentMessageEvent):
             agent_name = event.agent_id or "unknown"
-            text = event.message.text if event.message else ""
+            text = self._extract_text(event.message)
 
             event_type = "judging"
             if "search" in agent_name.lower():
@@ -190,7 +221,7 @@ The final output should be a structured research report."""
             )
 
         elif isinstance(event, MagenticFinalResultEvent):
-            text = event.message.text if event.message else "No result"
+            text = self._extract_text(event.message) if event.message else "No result"
             return AgentEvent(
                 type="complete",
                 message=text,
