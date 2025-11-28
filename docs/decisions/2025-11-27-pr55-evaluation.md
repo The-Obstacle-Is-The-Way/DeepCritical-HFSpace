@@ -74,6 +74,8 @@ These contributions:
 - Did not dump 17k lines of untested code
 - Did not minimize quality issues when identified
 
+**The contrast**: These PRs to @Josephrp's project were meticulously tested out of professional respect. The same standard was not reciprocated when contributing to this hackathon project.
+
 ## Decision
 
 The PR was not merged for the following reasons:
@@ -86,12 +88,14 @@ The PR was not merged for the following reasons:
 
 ## Context
 
-This project (DeepCritical-1) is a HuggingFace Spaces hackathon entry, separate from the upstream [DeepCritical/DeepCritical](https://github.com/DeepCritical/DeepCritical) repository.
+This project (DeepCritical-1) is an independent HuggingFace Spaces hackathon entry. @Josephrp provided a starter template; the actual implementation was built by the team.
 
-All contributors have direct push access to the HuggingFace Space. Contributors are encouraged to push directly to production when confident in their code, rather than submitting PRs with untested code for others to review and take responsibility for.
+[DeepCritical/DeepCritical](https://github.com/DeepCritical/DeepCritical) is @Josephrp's separate main project (not related to this hackathon entry despite the similar name). The PRs listed above were contributions to that separate project.
+
+All contributors have direct push access to this HuggingFace Space. Contributors are encouraged to push directly to production when confident in their code, rather than submitting PRs with untested code for others to review and take responsibility for.
 
 ## Links
 
 - [PR #55](https://github.com/The-Obstacle-Is-The-Way/DeepCritical-HFSpace/pull/55)
 - [CodeRabbit Review](https://github.com/The-Obstacle-Is-The-Way/DeepCritical-HFSpace/pull/55#issuecomment-3587631560)
-- [Upstream Project](https://github.com/DeepCritical/DeepCritical)
+- [@Josephrp's Separate Project](https://github.com/DeepCritical/DeepCritical)
