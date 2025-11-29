@@ -9,22 +9,35 @@ Design Principles:
 - Single Responsibility: Only handles orchestrator creation logic
 """
 
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 import structlog
 
-from src.orchestrators.base import JudgeHandlerProtocol, SearchHandlerProtocol
+from src.orchestrators.base import (
+    JudgeHandlerProtocol,
+    OrchestratorProtocol,
+    SearchHandlerProtocol,
+)
 from src.orchestrators.simple import Orchestrator
 from src.utils.config import settings
 from src.utils.models import OrchestratorConfig
 
+if TYPE_CHECKING:
+    from src.orchestrators.advanced import AdvancedOrchestrator
+
 logger = structlog.get_logger()
 
 
-def _get_advanced_orchestrator_class() -> Any:
+def _get_advanced_orchestrator_class() -> type["AdvancedOrchestrator"]:
     """Import AdvancedOrchestrator lazily to avoid hard dependency.
 
     This allows the simple mode to work without agent-framework-core installed.
+
+    Returns:
+        The AdvancedOrchestrator class
+
+    Raises:
+        ValueError: If agent-framework-core is not installed
     """
     try:
         from src.orchestrators.advanced import AdvancedOrchestrator
@@ -33,7 +46,9 @@ def _get_advanced_orchestrator_class() -> Any:
     except ImportError as e:
         logger.error("Failed to import AdvancedOrchestrator", error=str(e))
         raise ValueError(
-            "Advanced mode requires agent-framework-core. Please install it or use mode='simple'."
+            "Advanced mode requires agent-framework-core. "
+            "Install with: pip install agent-framework-core. "
+            "Or use mode='simple' instead."
         ) from e
 
 
@@ -43,7 +58,7 @@ def create_orchestrator(
     config: OrchestratorConfig | None = None,
     mode: Literal["simple", "magentic", "advanced", "hierarchical"] | None = None,
     api_key: str | None = None,
-) -> Any:
+) -> OrchestratorProtocol:
     """
     Create an orchestrator instance.
 
@@ -54,32 +69,33 @@ def create_orchestrator(
     Args:
         search_handler: The search handler (required for simple mode)
         judge_handler: The judge handler (required for simple mode)
-        config: Optional configuration
+        config: Optional configuration (max_iterations, timeouts, etc.)
         mode: "simple", "magentic", "advanced", "hierarchical" or None (auto-detect)
               Note: "magentic" is an alias for "advanced" (kept for backwards compatibility)
         api_key: Optional API key for advanced mode (OpenAI)
 
     Returns:
-        Orchestrator instance
+        Orchestrator instance implementing OrchestratorProtocol
 
     Raises:
         ValueError: If required handlers are missing for simple mode
         ValueError: If advanced mode is requested but dependencies are missing
     """
+    effective_config = config or OrchestratorConfig()
     effective_mode = _determine_mode(mode, api_key)
     logger.info("Creating orchestrator", mode=effective_mode)
 
     if effective_mode == "advanced":
         orchestrator_cls = _get_advanced_orchestrator_class()
         return orchestrator_cls(
-            max_rounds=config.max_iterations if config else 10,
+            max_rounds=effective_config.max_iterations,
             api_key=api_key,
         )
 
     if effective_mode == "hierarchical":
         from src.orchestrators.hierarchical import HierarchicalOrchestrator
 
-        return HierarchicalOrchestrator()
+        return HierarchicalOrchestrator(config=effective_config)
 
     # Simple mode requires handlers
     if search_handler is None or judge_handler is None:
@@ -88,7 +104,7 @@ def create_orchestrator(
     return Orchestrator(
         search_handler=search_handler,
         judge_handler=judge_handler,
-        config=config,
+        config=effective_config,
     )
 
 

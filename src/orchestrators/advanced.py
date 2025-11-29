@@ -279,6 +279,26 @@ The final output should be a structured research report."""
         # taking care to avoid infinite recursion if str() calls .text
         return str(message)
 
+    def _get_event_type_for_agent(self, agent_name: str) -> str:
+        """Map agent name to appropriate event type.
+
+        Args:
+            agent_name: The agent ID from the workflow event
+
+        Returns:
+            Event type string matching AgentEvent.type Literal
+        """
+        agent_lower = agent_name.lower()
+        if "search" in agent_lower:
+            return "search_complete"
+        if "judge" in agent_lower:
+            return "judge_complete"
+        if "hypothes" in agent_lower:
+            return "hypothesizing"
+        if "report" in agent_lower:
+            return "synthesizing"
+        return "judging"  # Default for unknown agents
+
     def _process_event(self, event: Any, iteration: int) -> AgentEvent | None:
         """Process workflow event into AgentEvent."""
         if isinstance(event, MagenticOrchestratorMessageEvent):
@@ -293,17 +313,9 @@ The final output should be a structured research report."""
         elif isinstance(event, MagenticAgentMessageEvent):
             agent_name = event.agent_id or "unknown"
             text = self._extract_text(event.message)
+            event_type = self._get_event_type_for_agent(agent_name)
 
-            event_type = "judging"
-            if "search" in agent_name.lower():
-                event_type = "search_complete"
-            elif "judge" in agent_name.lower():
-                event_type = "judge_complete"
-            elif "hypothes" in agent_name.lower():
-                event_type = "hypothesizing"
-            elif "report" in agent_name.lower():
-                event_type = "synthesizing"
-
+            # All returned types are valid AgentEvent.type literals
             return AgentEvent(
                 type=event_type,  # type: ignore[arg-type]
                 message=f"{agent_name}: {text[:200]}...",
@@ -339,6 +351,28 @@ The final output should be a structured research report."""
         return None
 
 
-# Backwards compatibility alias
-# TODO: Remove after all imports are updated
-MagenticOrchestrator = AdvancedOrchestrator
+def _create_deprecated_alias() -> type["AdvancedOrchestrator"]:
+    """Create a deprecated alias that warns on use."""
+    import warnings
+
+    class MagenticOrchestrator(AdvancedOrchestrator):
+        """Deprecated alias for AdvancedOrchestrator.
+
+        .. deprecated:: 0.1.0
+            Use :class:`AdvancedOrchestrator` instead.
+        """
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            warnings.warn(
+                "MagenticOrchestrator is deprecated, use AdvancedOrchestrator instead. "
+                "The name 'magentic' was confusing with the 'magentic' PyPI package.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            super().__init__(*args, **kwargs)
+
+    return MagenticOrchestrator
+
+
+# Backwards compatibility alias with deprecation warning
+MagenticOrchestrator = _create_deprecated_alias()

@@ -5,9 +5,10 @@ following the Interface Segregation Principle (ISP) and
 Dependency Inversion Principle (DIP).
 """
 
-from typing import Protocol
+from collections.abc import AsyncGenerator
+from typing import Protocol, runtime_checkable
 
-from src.utils.models import Evidence, JudgeAssessment, SearchResult
+from src.utils.models import AgentEvent, Evidence, JudgeAssessment, SearchResult
 
 
 class SearchHandlerProtocol(Protocol):
@@ -48,5 +49,25 @@ class JudgeHandlerProtocol(Protocol):
 
         Returns:
             JudgeAssessment with sufficiency determination and next steps
+        """
+        ...
+
+
+@runtime_checkable
+class OrchestratorProtocol(Protocol):
+    """Protocol for orchestrators.
+
+    All orchestrators (Simple, Advanced, Hierarchical) implement this interface,
+    allowing them to be used interchangeably by the factory and UI.
+    """
+
+    def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:
+        """Run the orchestrator workflow.
+
+        Args:
+            query: User's research question
+
+        Yields:
+            AgentEvent objects for real-time UI updates
         """
         ...

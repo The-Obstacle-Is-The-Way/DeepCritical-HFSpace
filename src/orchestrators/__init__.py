@@ -17,7 +17,7 @@ Usage:
     orchestrator = create_orchestrator(mode="advanced", api_key="sk-...")
 
 Protocols:
-    from src.orchestrators import SearchHandlerProtocol, JudgeHandlerProtocol
+    from src.orchestrators import SearchHandlerProtocol, JudgeHandlerProtocol, OrchestratorProtocol
 
 Design Patterns Applied:
 - Factory Pattern: create_orchestrator() creates appropriate orchestrator
@@ -25,8 +25,17 @@ Design Patterns Applied:
 - Facade Pattern: This __init__.py provides a clean public API
 """
 
+from __future__ import annotations
+
+import warnings
+from typing import TYPE_CHECKING
+
 # Protocols (Interface Segregation Principle)
-from src.orchestrators.base import JudgeHandlerProtocol, SearchHandlerProtocol
+from src.orchestrators.base import (
+    JudgeHandlerProtocol,
+    OrchestratorProtocol,
+    SearchHandlerProtocol,
+)
 
 # Factory (creational pattern)
 from src.orchestrators.factory import create_orchestrator
@@ -34,35 +43,66 @@ from src.orchestrators.factory import create_orchestrator
 # Orchestrators (Strategy Pattern implementations)
 from src.orchestrators.simple import Orchestrator
 
+if TYPE_CHECKING:
+    from src.orchestrators.advanced import AdvancedOrchestrator
+    from src.orchestrators.hierarchical import HierarchicalOrchestrator
+
 # Lazy imports for optional dependencies
 # These are not imported at module level to avoid breaking simple mode
 # when agent-framework-core is not installed
 
 
-def get_advanced_orchestrator() -> type:
-    """Get the AdvancedOrchestrator class (requires agent-framework-core)."""
+def get_advanced_orchestrator() -> type[AdvancedOrchestrator]:
+    """Get the AdvancedOrchestrator class (requires agent-framework-core).
+
+    Returns:
+        The AdvancedOrchestrator class
+
+    Raises:
+        ImportError: If agent-framework-core is not installed
+    """
     from src.orchestrators.advanced import AdvancedOrchestrator
 
     return AdvancedOrchestrator
 
 
-def get_hierarchical_orchestrator() -> type:
-    """Get the HierarchicalOrchestrator class (requires agent-framework-core)."""
+def get_hierarchical_orchestrator() -> type[HierarchicalOrchestrator]:
+    """Get the HierarchicalOrchestrator class (requires agent-framework-core).
+
+    Returns:
+        The HierarchicalOrchestrator class
+
+    Raises:
+        ImportError: If agent-framework-core is not installed
+    """
     from src.orchestrators.hierarchical import HierarchicalOrchestrator
 
     return HierarchicalOrchestrator
 
 
-# Backwards compatibility aliases
-# TODO: Remove after migration period
-def get_magentic_orchestrator() -> type:
-    """Deprecated: Use get_advanced_orchestrator() instead."""
+def get_magentic_orchestrator() -> type[AdvancedOrchestrator]:
+    """Get the AdvancedOrchestrator class.
+
+    .. deprecated:: 0.1.0
+        Use :func:`get_advanced_orchestrator` instead.
+        The name 'magentic' was confusing with the 'magentic' PyPI package.
+
+    Returns:
+        The AdvancedOrchestrator class
+    """
+    warnings.warn(
+        "get_magentic_orchestrator() is deprecated, use get_advanced_orchestrator() instead. "
+        "The name 'magentic' was confusing with the 'magentic' PyPI package.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return get_advanced_orchestrator()
 
 
 __all__ = [
     "JudgeHandlerProtocol",
     "Orchestrator",
+    "OrchestratorProtocol",
     "SearchHandlerProtocol",
     "create_orchestrator",
     "get_advanced_orchestrator",

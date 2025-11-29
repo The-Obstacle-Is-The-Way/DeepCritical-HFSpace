@@ -21,9 +21,12 @@ from src.agents.magentic_agents import create_search_agent
 from src.middleware.sub_iteration import SubIterationMiddleware, SubIterationTeam
 from src.services.embeddings import get_embedding_service
 from src.state import init_magentic_state
-from src.utils.models import AgentEvent
+from src.utils.models import AgentEvent, OrchestratorConfig
 
 logger = structlog.get_logger()
+
+# Default timeout for hierarchical orchestrator (5 minutes)
+DEFAULT_TIMEOUT_SECONDS = 300.0
 
 
 class ResearchTeam(SubIterationTeam):
@@ -60,13 +63,27 @@ class HierarchicalOrchestrator:
     - Sub-iteration middleware for fine-grained control
     - LLM-based judge for sub-iteration decisions
     - Event-driven architecture for UI updates
+    - Configurable iterations and timeout
     """
 
-    def __init__(self) -> None:
-        """Initialize the hierarchical orchestrator."""
+    def __init__(
+        self,
+        config: OrchestratorConfig | None = None,
+        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    ) -> None:
+        """Initialize the hierarchical orchestrator.
+
+        Args:
+            config: Optional configuration (uses defaults if not provided)
+            timeout_seconds: Maximum workflow duration (default: 5 minutes)
+        """
+        self.config = config or OrchestratorConfig()
+        self._timeout_seconds = timeout_seconds
         self.team = ResearchTeam()
         self.judge = LLMSubIterationJudge()
-        self.middleware = SubIterationMiddleware(self.team, self.judge, max_iterations=5)
+        self.middleware = SubIterationMiddleware(
+            self.team, self.judge, max_iterations=self.config.max_iterations
+        )
 
     async def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:
         """Run the hierarchical workflow.
@@ -82,10 +99,14 @@ class HierarchicalOrchestrator:
         try:
             service = get_embedding_service()
             init_magentic_state(service)
+        except ImportError:
+            logger.info("Embedding service not available (dependencies missing)")
+            init_magentic_state()
         except Exception as e:
             logger.warning(
-                "Embedding service initialization failed, using default state",
+                "Embedding service initialization failed",
                 error=str(e),
+                error_type=type(e).__name__,
             )
             init_magentic_state()
 
@@ -96,38 +117,52 @@ class HierarchicalOrchestrator:
         async def event_callback(event: AgentEvent) -> None:
             await queue.put(event)
 
-        task_future = asyncio.create_task(self.middleware.run(query, event_callback))
-
-        while not task_future.done():
-            get_event = asyncio.create_task(queue.get())
-            done, _ = await asyncio.wait(
-                {task_future, get_event}, return_when=asyncio.FIRST_COMPLETED
-            )
-
-            if get_event in done:
-                event = get_event.result()
-                if event:
-                    yield event
-            else:
-                get_event.cancel()
-
-        # Process remaining events
-        while not queue.empty():
-            ev = queue.get_nowait()
-            if ev:
-                yield ev
-
         try:
-            result, assessment = await task_future
+            async with asyncio.timeout(self._timeout_seconds):
+                task_future = asyncio.create_task(self.middleware.run(query, event_callback))
 
-            assessment_text = assessment.reasoning if assessment else "None"
+                while not task_future.done():
+                    get_event = asyncio.create_task(queue.get())
+                    done, _ = await asyncio.wait(
+                        {task_future, get_event}, return_when=asyncio.FIRST_COMPLETED
+                    )
+
+                    if get_event in done:
+                        event = get_event.result()
+                        if event:
+                            yield event
+                    else:
+                        get_event.cancel()
+
+                # Process remaining events
+                while not queue.empty():
+                    ev = queue.get_nowait()
+                    if ev:
+                        yield ev
+
+                result, assessment = await task_future
+
+                assessment_text = assessment.reasoning if assessment else "None"
+                yield AgentEvent(
+                    type="complete",
+                    message=(
+                        f"Research complete.\n\nResult:\n{result}\n\nAssessment:\n{assessment_text}"
+                    ),
+                    data={"assessment": assessment.model_dump() if assessment else None},
+                )
+
+        except TimeoutError:
+            logger.warning("Hierarchical workflow timed out", query=query)
             yield AgentEvent(
                 type="complete",
-                message=(
-                    f"Research complete.\n\nResult:\n{result}\n\nAssessment:\n{assessment_text}"
-                ),
-                data={"assessment": assessment.model_dump() if assessment else None},
+                message="Research timed out. Results may be incomplete.",
+                data={"reason": "timeout"},
             )
+
         except Exception as e:
-            logger.error("Orchestrator failed", error=str(e))
+            logger.error(
+                "Orchestrator failed",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
             yield AgentEvent(type="error", message=f"Orchestrator failed: {e}")
