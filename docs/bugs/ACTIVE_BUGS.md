@@ -2,6 +2,23 @@
 
 > Last updated: 2025-11-29
 
+## P0 - Blocker
+
+### P0 - Simple Mode Never Synthesizes
+**File:** `P0_SIMPLE_MODE_NEVER_SYNTHESIZES.md`
+
+**Symptom:** Simple mode finds 455 sources but outputs only citations (no synthesis).
+
+**Root Causes:**
+1. Judge never recommends "synthesize" (prompt too conservative)
+2. Confidence drops to 0% in late iterations (context overflow / API failure)
+3. Search derails to tangential topics (bone health instead of libido)
+4. `_generate_partial_synthesis()` outputs garbage (just citations, no analysis)
+
+**Status:** Documented, fix plan ready.
+
+---
+
 ## P3 - Edge Case
 
 *(None)*

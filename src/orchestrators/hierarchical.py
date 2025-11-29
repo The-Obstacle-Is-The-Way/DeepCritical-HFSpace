@@ -19,9 +19,10 @@ import structlog
 from src.agents.judge_agent_llm import LLMSubIterationJudge
 from src.agents.magentic_agents import create_search_agent
 from src.middleware.sub_iteration import SubIterationMiddleware, SubIterationTeam
-from src.services.embeddings import get_embedding_service
+from src.orchestrators.base import OrchestratorProtocol
 from src.state import init_magentic_state
 from src.utils.models import AgentEvent, OrchestratorConfig
+from src.utils.service_loader import get_embedding_service_if_available
 
 logger = structlog.get_logger()
 
@@ -56,7 +57,7 @@ class ResearchTeam(SubIterationTeam):
         return "No response from agent."
 
 
-class HierarchicalOrchestrator:
+class HierarchicalOrchestrator(OrchestratorProtocol):
     """Orchestrator that uses hierarchical teams and sub-iterations.
 
     This orchestrator provides:
@@ -96,19 +97,8 @@ class HierarchicalOrchestrator:
         """
         logger.info("Starting hierarchical orchestrator", query=query)
 
-        try:
-            service = get_embedding_service()
-            init_magentic_state(service)
-        except ImportError:
-            logger.info("Embedding service not available (dependencies missing)")
-            init_magentic_state()
-        except Exception as e:
-            logger.warning(
-                "Embedding service initialization failed",
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            init_magentic_state()
+        service = get_embedding_service_if_available()
+        init_magentic_state(service)
 
         yield AgentEvent(type="started", message=f"Starting research: {query}")
 

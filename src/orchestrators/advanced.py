@@ -36,9 +36,11 @@ from src.agents.magentic_agents import (
     create_search_agent,
 )
 from src.agents.state import init_magentic_state
+from src.orchestrators.base import OrchestratorProtocol
 from src.utils.config import settings
 from src.utils.llm_factory import check_magentic_requirements
 from src.utils.models import AgentEvent
+from src.utils.service_loader import get_embedding_service_if_available
 
 if TYPE_CHECKING:
     from src.services.embeddings import EmbeddingService
@@ -46,7 +48,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger()
 
 
-class AdvancedOrchestrator:
+class AdvancedOrchestrator(OrchestratorProtocol):
     """
     Advanced orchestrator using Microsoft Agent Framework ChatAgent pattern.
 
@@ -97,17 +99,7 @@ class AdvancedOrchestrator:
 
     def _init_embedding_service(self) -> "EmbeddingService | None":
         """Initialize embedding service if available."""
-        try:
-            from src.services.embeddings import get_embedding_service
-
-            service = get_embedding_service()
-            logger.info("Embedding service enabled")
-            return service
-        except ImportError:
-            logger.info("Embedding service not available (dependencies missing)")
-        except Exception as e:
-            logger.warning("Failed to initialize embedding service", error=str(e))
-        return None
+        return get_embedding_service_if_available()
 
     def _build_workflow(self) -> Any:
         """Build the workflow with ChatAgent participants."""

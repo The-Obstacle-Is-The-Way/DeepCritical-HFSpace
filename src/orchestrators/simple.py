@@ -72,47 +72,22 @@ class Orchestrator:
         self._embeddings: EmbeddingService | None = None
 
     def _get_analyzer(self) -> StatisticalAnalyzer | None:
-        """Lazy initialization of StatisticalAnalyzer.
-
-        Note: This imports from src.services, NOT src.agents,
-        so it works without the magentic optional dependency.
-
-        Returns:
-            StatisticalAnalyzer instance, or None if Modal is unavailable
-        """
+        """Lazy initialization of StatisticalAnalyzer."""
         if self._analyzer is None:
-            try:
-                from src.services.statistical_analyzer import get_statistical_analyzer
+            from src.utils.service_loader import get_analyzer_if_available
 
-                self._analyzer = get_statistical_analyzer()
-            except ImportError:
-                logger.info("StatisticalAnalyzer not available (Modal dependencies missing)")
+            self._analyzer = get_analyzer_if_available()
+            if self._analyzer is None:
                 self._enable_analysis = False
         return self._analyzer
 
     def _get_embeddings(self) -> EmbeddingService | None:
-        """Lazy initialization of EmbeddingService.
-
-        Uses local sentence-transformers - NO API key required.
-
-        Returns:
-            EmbeddingService instance, or None if unavailable
-        """
+        """Lazy initialization of EmbeddingService."""
         if self._embeddings is None and self._enable_embeddings:
-            try:
-                from src.services.embeddings import get_embedding_service
+            from src.utils.service_loader import get_embedding_service_if_available
 
-                self._embeddings = get_embedding_service()
-                logger.info("Embedding service enabled for semantic ranking")
-            except ImportError:
-                logger.info("Embedding service not available (dependencies missing)")
-                self._enable_embeddings = False
-            except Exception as e:
-                logger.warning(
-                    "Embedding service initialization failed",
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
+            self._embeddings = get_embedding_service_if_available()
+            if self._embeddings is None:
                 self._enable_embeddings = False
         return self._embeddings
 
