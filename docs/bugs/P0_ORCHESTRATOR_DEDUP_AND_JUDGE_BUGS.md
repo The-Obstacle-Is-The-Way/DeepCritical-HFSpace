@@ -4,6 +4,7 @@
 - **Date:** 2025-11-29
 - **Priority:** P0 (Blocker - Simple mode broken on HF Spaces)
 - **Component:** `src/orchestrator.py`, `src/agent_factory/judges.py`
+- **Resolution:** FIXED in commits `5e761eb`, `2588375`
 
 ---
 
