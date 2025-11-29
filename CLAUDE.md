@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DeepCritical is an AI-native drug repurposing research agent for a HuggingFace hackathon. It uses a search-and-judge loop to autonomously search biomedical databases (PubMed, ClinicalTrials.gov, bioRxiv) and synthesize evidence for queries like "What existing drugs might help treat long COVID fatigue?".
+DeepBoner is an AI-native sexual health research agent. It uses a search-and-judge loop to autonomously search biomedical databases (PubMed, ClinicalTrials.gov, Europe PMC) and synthesize evidence for queries like "What drugs improve female libido post-menopause?" or "Evidence for testosterone therapy in women with HSDD?".
 
 **Current Status:** Phases 1-13 COMPLETE (Foundation through Modal sandbox integration).
 
@@ -39,7 +39,7 @@ uv run pytest -m integration
 User Question → Orchestrator
     ↓
 Search Loop:
-  1. Query PubMed, ClinicalTrials.gov, bioRxiv
+  1. Query PubMed, ClinicalTrials.gov, Europe PMC
   2. Gather evidence
   3. Judge quality ("Do we have enough?")
   4. If NO → Refine query, search more
@@ -53,7 +53,7 @@ Research Report with Citations
 - `src/orchestrator.py` - Main agent loop
 - `src/tools/pubmed.py` - PubMed E-utilities search
 - `src/tools/clinicaltrials.py` - ClinicalTrials.gov API
-- `src/tools/biorxiv.py` - bioRxiv/medRxiv preprint search
+- `src/tools/europepmc.py` - Europe PMC search
 - `src/tools/code_execution.py` - Modal sandbox execution
 - `src/tools/search_handler.py` - Scatter-gather orchestration
 - `src/services/embeddings.py` - Semantic search & deduplication (ChromaDB)
@@ -82,7 +82,7 @@ Settings via pydantic-settings from `.env`:
 ## Exception Hierarchy
 
 ```text
-DeepCriticalError (base)
+DeepBonerError (base)
 ├── SearchError
 │   └── RateLimitError
 ├── JudgeError

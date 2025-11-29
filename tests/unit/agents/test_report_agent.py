@@ -5,8 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.agents.report_agent import ReportAgent
-from src.utils.models import (
+# Skip all tests if agent_framework not installed (optional dep)
+pytest.importorskip("agent_framework")
+
+from src.agents.report_agent import ReportAgent  # noqa: E402
+from src.utils.models import (  # noqa: E402
     Citation,
     Evidence,
     MechanismHypothesis,

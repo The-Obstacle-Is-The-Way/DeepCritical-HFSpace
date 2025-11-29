@@ -30,7 +30,7 @@ from src.tools.search_handler import SearchHandler
 async def main(query: str) -> None:
     """Run search demo with the given query."""
     print(f"\n{'=' * 60}")
-    print("DeepCritical Search Demo")
+    print("DeepBoner Search Demo")
     print(f"Query: {query}")
     print(f"{'=' * 60}\n")
 

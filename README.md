@@ -1,7 +1,7 @@
 ---
-title: DeepCritical
-emoji: 🧬
-colorFrom: blue
+title: DeepBoner
+emoji: 🍆
+colorFrom: pink
 colorTo: purple
 sdk: gradio
 sdk_version: "6.0.1"
@@ -10,25 +10,36 @@ app_file: src/app.py
 pinned: false
 license: mit
 tags:
-  - mcp-in-action-track-enterprise
+  - sexual-health
+  - reproductive-medicine
+  - hormone-therapy
+  - wellness-research
   - mcp-hackathon
-  - drug-repurposing
-  - biomedical-ai
   - pydantic-ai
   - llamaindex
   - modal
 ---
 
-# DeepCritical
+# DeepBoner 🍆
 
-AI-Powered Drug Repurposing Research Agent
+AI-Native Sexual Health Research Agent
+
+Deep research for sexual wellness, ED treatments, hormone therapy, libido, and reproductive health - for all genders.
 
 ## Features
 
-- **Multi-Source Search**: PubMed, ClinicalTrials.gov, bioRxiv/medRxiv
+- **Multi-Source Search**: PubMed, ClinicalTrials.gov, Europe PMC
 - **MCP Integration**: Use our tools from Claude Desktop or any MCP client
 - **Modal Sandbox**: Secure execution of AI-generated statistical code
 - **LlamaIndex RAG**: Semantic search and evidence synthesis
+
+## Example Queries
+
+- "What drugs improve female libido post-menopause?"
+- "Clinical trials for erectile dysfunction alternatives to PDE5 inhibitors?"
+- "Evidence for testosterone therapy in women with HSDD?"
+- "Drug interactions with sildenafil?"
+- "What's the latest research on flibanserin efficacy?"
 
 ## Quick Start
 
@@ -62,7 +73,7 @@ Add this to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "deepcritical": {
+    "deepboner": {
       "url": "http://localhost:7860/gradio_api/mcp/"
     }
   }
@@ -72,7 +83,7 @@ Add this to your `claude_desktop_config.json`:
 **Available Tools**:
 - `search_pubmed`: Search peer-reviewed biomedical literature.
 - `search_clinical_trials`: Search ClinicalTrials.gov.
-- `search_biorxiv`: Search bioRxiv/medRxiv preprints.
+- `search_europepmc`: Search Europe PMC preprints and papers.
 - `search_all`: Search all sources simultaneously.
 - `analyze_hypothesis`: Secure statistical analysis using Modal sandboxes.
 
@@ -92,16 +103,16 @@ make check
 
 ## Architecture
 
-DeepCritical uses a Vertical Slice Architecture:
+DeepBoner uses a Vertical Slice Architecture:
 
-1.  **Search Slice**: Retrieving evidence from PubMed, ClinicalTrials.gov, and bioRxiv.
+1.  **Search Slice**: Retrieving evidence from PubMed, ClinicalTrials.gov, and Europe PMC.
 2.  **Judge Slice**: Evaluating evidence quality using LLMs.
 3.  **Orchestrator Slice**: Managing the research loop and UI.
 
 Built with:
 - **PydanticAI**: For robust agent interactions.
 - **Gradio**: For the streaming user interface.
-- **PubMed, ClinicalTrials.gov, bioRxiv**: For biomedical data.
+- **PubMed, ClinicalTrials.gov, Europe PMC**: For biomedical data.
 - **MCP**: For universal tool access.
 - **Modal**: For secure code execution.
 
@@ -110,8 +121,7 @@ Built with:
 - The-Obstacle-Is-The-Way
 - MarioAderman
 - EmployeeNo427
-- Josephrp *(provided initial template)*
 
 ## Links
 
-- [GitHub Repository](https://github.com/The-Obstacle-Is-The-Way/DeepCritical-1)
+- [GitHub Repository](https://github.com/The-Obstacle-Is-The-Way/DeepBoner)

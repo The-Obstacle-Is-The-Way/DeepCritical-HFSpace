@@ -3,9 +3,13 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from agent_framework import MagenticFinalResultEvent
 
-from src.orchestrator_magentic import MagenticOrchestrator
+# Skip all tests if agent_framework not installed (optional dep)
+pytest.importorskip("agent_framework")
+
+from agent_framework import MagenticFinalResultEvent  # noqa: E402
+
+from src.orchestrator_magentic import MagenticOrchestrator  # noqa: E402
 
 
 class MockChatMessage:

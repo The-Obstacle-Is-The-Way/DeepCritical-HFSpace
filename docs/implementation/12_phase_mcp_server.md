@@ -1,6 +1,6 @@
 # Phase 12 Implementation Spec: MCP Server Integration
 
-**Goal**: Expose DeepCritical search tools as MCP servers for Track 2 compliance.
+**Goal**: Expose DeepBoner search tools as MCP servers for Track 2 compliance.
 **Philosophy**: "MCP is the bridge between tools and LLMs."
 **Prerequisite**: Phase 11 complete (all search tools working)
 **Priority**: P0 - REQUIRED FOR HACKATHON TRACK 2
@@ -121,7 +121,7 @@ https://[space-id].hf.space/gradio_api/mcp/
 ### 4.1 MCP Tool Wrappers (`src/mcp_tools.py`)
 
 ```python
-"""MCP tool wrappers for DeepCritical search tools.
+"""MCP tool wrappers for DeepBoner search tools.
 
 These functions expose our search tools via MCP protocol.
 Each function follows the MCP tool contract:
@@ -130,15 +130,15 @@ Each function follows the MCP tool contract:
 - Formatted string returns
 """
 
-from src.tools.biorxiv import BioRxivTool
 from src.tools.clinicaltrials import ClinicalTrialsTool
+from src.tools.europepmc import EuropePMCTool
 from src.tools.pubmed import PubMedTool
 
 
 # Singleton instances (avoid recreating on each call)
 _pubmed = PubMedTool()
 _trials = ClinicalTrialsTool()
-_biorxiv = BioRxivTool()
+_europepmc = EuropePMCTool()
 
 
 async def search_pubmed(query: str, max_results: int = 10) -> str:
@@ -202,10 +202,10 @@ async def search_clinical_trials(query: str, max_results: int = 10) -> str:
     return "\n".join(formatted)
 
 
-async def search_biorxiv(query: str, max_results: int = 10) -> str:
-    """Search bioRxiv/medRxiv for preprint research.
+async def search_europepmc(query: str, max_results: int = 10) -> str:
+    """Search Europe PMC for preprint and open access research.
 
-    Searches bioRxiv and medRxiv preprint servers for cutting-edge research.
+    Searches Europe PMC for preprints and open access papers.
     Note: Preprints are NOT peer-reviewed but contain the latest findings.
 
     Args:
@@ -217,10 +217,10 @@ async def search_biorxiv(query: str, max_results: int = 10) -> str:
     """
     max_results = max(1, min(50, max_results))
 
-    results = await _biorxiv.search(query, max_results)
+    results = await _europepmc.search(query, max_results)
 
     if not results:
-        return f"No bioRxiv/medRxiv preprints found for: {query}"
+        return f"No Europe PMC results found for: {query}"
 
     formatted = [f"## Preprint Results for: {query}\n"]
     for i, evidence in enumerate(results, 1):
@@ -236,7 +236,7 @@ async def search_biorxiv(query: str, max_results: int = 10) -> str:
 async def search_all_sources(query: str, max_per_source: int = 5) -> str:
     """Search all biomedical sources simultaneously.
 
-    Performs parallel search across PubMed, ClinicalTrials.gov, and bioRxiv.
+    Performs parallel search across PubMed, ClinicalTrials.gov, and Europe PMC.
     This is the most comprehensive search option for drug repurposing research.
 
     Args:
@@ -253,10 +253,10 @@ async def search_all_sources(query: str, max_per_source: int = 5) -> str:
     # Run all searches in parallel
     pubmed_task = search_pubmed(query, max_per_source)
     trials_task = search_clinical_trials(query, max_per_source)
-    biorxiv_task = search_biorxiv(query, max_per_source)
+    europepmc_task = search_europepmc(query, max_per_source)
 
-    pubmed_results, trials_results, biorxiv_results = await asyncio.gather(
-        pubmed_task, trials_task, biorxiv_task, return_exceptions=True
+    pubmed_results, trials_results, europepmc_results = await asyncio.gather(
+        pubmed_task, trials_task, europepmc_task, return_exceptions=True
     )
 
     formatted = [f"# Comprehensive Search: {query}\n"]
@@ -272,10 +272,10 @@ async def search_all_sources(query: str, max_per_source: int = 5) -> str:
     else:
         formatted.append(f"## Clinical Trials\n*Error: {trials_results}*\n")
 
-    if isinstance(biorxiv_results, str):
-        formatted.append(biorxiv_results)
+    if isinstance(europepmc_results, str):
+        formatted.append(europepmc_results)
     else:
-        formatted.append(f"## Preprints\n*Error: {biorxiv_results}*\n")
+        formatted.append(f"## Preprints\n*Error: {europepmc_results}*\n")
 
     return "\n---\n".join(formatted)
 ```
@@ -283,7 +283,7 @@ async def search_all_sources(query: str, max_per_source: int = 5) -> str:
 ### 4.2 Update Gradio App (`src/app.py`)
 
 ```python
-"""Gradio UI for DeepCritical agent with MCP server support."""
+"""Gradio UI for DeepBoner agent with MCP server support."""
 
 import os
 from collections.abc import AsyncGenerator
@@ -294,12 +294,12 @@ import gradio as gr
 from src.agent_factory.judges import JudgeHandler, MockJudgeHandler
 from src.mcp_tools import (
     search_all_sources,
-    search_biorxiv,
+    search_europepmc,
     search_clinical_trials,
     search_pubmed,
 )
 from src.orchestrator_factory import create_orchestrator
-from src.tools.biorxiv import BioRxivTool
+from src.tools.europepmc import EuropePMCTool
 from src.tools.clinicaltrials import ClinicalTrialsTool
 from src.tools.pubmed import PubMedTool
 from src.tools.search_handler import SearchHandler
@@ -317,15 +317,15 @@ def create_demo() -> Any:
         Configured Gradio Blocks interface with MCP server enabled
     """
     with gr.Blocks(
-        title="DeepCritical - Drug Repurposing Research Agent",
+        title="DeepBoner - Drug Repurposing Research Agent",
         theme=gr.themes.Soft(),
     ) as demo:
         gr.Markdown("""
-        # DeepCritical
+        # DeepBoner
         ## AI-Powered Drug Repurposing Research Agent
 
         Ask questions about potential drug repurposing opportunities.
-        The agent searches PubMed, ClinicalTrials.gov, and bioRxiv/medRxiv preprints.
+        The agent searches PubMed, ClinicalTrials.gov, and Europe PMC preprints.
 
         **Example questions:**
         - "What drugs could be repurposed for Alzheimer's disease?"
@@ -381,13 +381,13 @@ def create_demo() -> Any:
 
         with gr.Tab("Preprints"):
             gr.Interface(
-                fn=search_biorxiv,
+                fn=search_europepmc,
                 inputs=[
                     gr.Textbox(label="Query", placeholder="long covid treatment"),
                     gr.Slider(1, 50, value=10, step=1, label="Max Results"),
                 ],
                 outputs=gr.Markdown(label="Results"),
-                api_name="search_biorxiv",
+                api_name="search_europepmc",
             )
 
         with gr.Tab("Search All"):
@@ -406,7 +406,7 @@ def create_demo() -> Any:
         **Note**: This is a research tool and should not be used for medical decisions.
         Always consult healthcare professionals for medical advice.
 
-        Built with PydanticAI + PubMed, ClinicalTrials.gov & bioRxiv
+        Built with PydanticAI + PubMed, ClinicalTrials.gov & Europe PMC
 
         **MCP Server**: Available at `/gradio_api/mcp/` for Claude Desktop integration
         """)
@@ -444,7 +444,7 @@ import pytest
 
 from src.mcp_tools import (
     search_all_sources,
-    search_biorxiv,
+    search_europepmc,
     search_clinical_trials,
     search_pubmed,
 )
@@ -525,18 +525,18 @@ class TestSearchClinicalTrials:
             assert "Clinical Trials" in result
 
 
-class TestSearchBiorxiv:
-    """Tests for search_biorxiv MCP tool."""
+class TestSearchEuropePMC:
+    """Tests for search_europepmc MCP tool."""
 
     @pytest.mark.asyncio
     async def test_returns_formatted_string(self, mock_evidence: Evidence) -> None:
         """Should return formatted markdown string."""
-        mock_evidence.citation.source = "biorxiv"  # type: ignore
+        mock_evidence.citation.source = "europepmc"  # type: ignore
 
-        with patch("src.mcp_tools._biorxiv") as mock_tool:
+        with patch("src.mcp_tools._europepmc") as mock_tool:
             mock_tool.search = AsyncMock(return_value=[mock_evidence])
 
-            result = await search_biorxiv("preprint search", 10)
+            result = await search_europepmc("preprint search", 10)
 
             assert isinstance(result, str)
             assert "Preprint Results" in result
@@ -550,11 +550,11 @@ class TestSearchAllSources:
         """Should combine results from all sources."""
         with patch("src.mcp_tools.search_pubmed", new_callable=AsyncMock) as mock_pubmed, \
              patch("src.mcp_tools.search_clinical_trials", new_callable=AsyncMock) as mock_trials, \
-             patch("src.mcp_tools.search_biorxiv", new_callable=AsyncMock) as mock_biorxiv:
+             patch("src.mcp_tools.search_europepmc", new_callable=AsyncMock) as mock_europepmc:
 
             mock_pubmed.return_value = "## PubMed Results"
             mock_trials.return_value = "## Clinical Trials"
-            mock_biorxiv.return_value = "## Preprints"
+            mock_europepmc.return_value = "## Preprints"
 
             result = await search_all_sources("metformin", 5)
 
@@ -568,11 +568,11 @@ class TestSearchAllSources:
         """Should handle partial failures gracefully."""
         with patch("src.mcp_tools.search_pubmed", new_callable=AsyncMock) as mock_pubmed, \
              patch("src.mcp_tools.search_clinical_trials", new_callable=AsyncMock) as mock_trials, \
-             patch("src.mcp_tools.search_biorxiv", new_callable=AsyncMock) as mock_biorxiv:
+             patch("src.mcp_tools.search_europepmc", new_callable=AsyncMock) as mock_europepmc:
 
             mock_pubmed.return_value = "## PubMed Results"
             mock_trials.side_effect = Exception("API Error")
-            mock_biorxiv.return_value = "## Preprints"
+            mock_europepmc.return_value = "## Preprints"
 
             result = await search_all_sources("metformin", 5)
 
@@ -599,10 +599,10 @@ class TestMCPDocstrings:
         assert search_clinical_trials.__doc__ is not None
         assert "Args:" in search_clinical_trials.__doc__
 
-    def test_search_biorxiv_has_args_section(self) -> None:
+    def test_search_europepmc_has_args_section(self) -> None:
         """Docstring must have Args section for MCP schema generation."""
-        assert search_biorxiv.__doc__ is not None
-        assert "Args:" in search_biorxiv.__doc__
+        assert search_europepmc.__doc__ is not None
+        assert "Args:" in search_europepmc.__doc__
 
     def test_search_all_sources_has_args_section(self) -> None:
         """Docstring must have Args section for MCP schema generation."""
@@ -672,7 +672,7 @@ class TestMCPServerIntegration:
 // %APPDATA%\Claude\claude_desktop_config.json (Windows)
 {
   "mcpServers": {
-    "deepcritical": {
+    "deepboner": {
       "url": "http://localhost:7860/gradio_api/mcp/"
     }
   }
@@ -684,8 +684,8 @@ class TestMCPServerIntegration:
 ```json
 {
   "mcpServers": {
-    "deepcritical": {
-      "url": "https://MCP-1st-Birthday-deepcritical.hf.space/gradio_api/mcp/"
+    "deepboner": {
+      "url": "https://your-space.hf.space/gradio_api/mcp/"
     }
   }
 }
@@ -696,7 +696,7 @@ class TestMCPServerIntegration:
 ```json
 {
   "mcpServers": {
-    "deepcritical": {
+    "deepboner": {
       "url": "https://your-space.hf.space/gradio_api/mcp/",
       "headers": {
         "Authorization": "Bearer hf_xxxxxxxxxxxxx"
@@ -761,7 +761,7 @@ Phase 12 is **COMPLETE** when:
    ```
 
 2. **Show Claude Desktop using our tools**:
-   - Open Claude Desktop with DeepCritical MCP configured
+   - Open Claude Desktop with DeepBoner MCP configured
    - Ask: "Search PubMed for metformin Alzheimer's"
    - Show real results appearing
    - Ask: "Now search clinical trials for the same"
@@ -817,14 +817,14 @@ Phase 12 is **COMPLETE** when:
 │                        Gradio MCP Server                        │
 │                  /gradio_api/mcp/                               │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌─────────┐ │
-│  │search_pubmed │ │search_trials │ │search_biorxiv│ │search_  │ │
+│  │search_pubmed │ │search_trials │ │search_epmc   │ │search_  │ │
 │  │              │ │              │ │              │ │all      │ │
 │  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └────┬────┘ │
 └─────────┼────────────────┼────────────────┼──────────────┼──────┘
           │                │                │              │
           ▼                ▼                ▼              ▼
    ┌──────────┐     ┌──────────┐     ┌──────────┐    (calls all)
-   │PubMedTool│     │Trials    │     │BioRxiv   │
+   │PubMedTool│     │Trials    │     │EuropePMC │
    │          │     │Tool      │     │Tool      │
    └──────────┘     └──────────┘     └──────────┘
 ```

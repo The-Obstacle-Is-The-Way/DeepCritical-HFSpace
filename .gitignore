@@ -49,6 +49,7 @@ reference_repos/claude-agent-sdk/
 reference_repos/pydanticai-research-agent/
 reference_repos/pubmed-mcp-server/
 reference_repos/DeepCritical/
+reference_repos/GradioDemo/
 
 # Keep the README in reference_repos
 !reference_repos/README.md

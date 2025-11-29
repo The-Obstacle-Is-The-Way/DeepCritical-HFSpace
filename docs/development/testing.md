@@ -1,5 +1,5 @@
 # Testing Strategy
-## ensuring DeepCritical is Ironclad
+## ensuring DeepBoner is Ironclad
 
 ---
 

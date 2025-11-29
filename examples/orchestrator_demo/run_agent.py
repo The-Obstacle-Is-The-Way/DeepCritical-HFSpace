@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Demo: DeepCritical Agent Loop (Search + Judge + Orchestrator).
+Demo: DeepBoner Agent Loop (Search + Judge + Orchestrator).
 
 This script demonstrates the REAL Phase 4 orchestration:
 - REAL Iterative Search (PubMed + ClinicalTrials + Europe PMC)
@@ -36,7 +36,7 @@ MAX_ITERATIONS = 10
 async def main() -> None:
     """Run the REAL agent demo."""
     parser = argparse.ArgumentParser(
-        description="DeepCritical Agent Demo - REAL, No Mocks",
+        description="DeepBoner Agent Demo - REAL, No Mocks",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 This demo runs the REAL search-judge-synthesize loop:
@@ -72,7 +72,7 @@ Examples:
         sys.exit(1)
 
     print(f"\n{'=' * 60}")
-    print("DeepCritical Agent Demo (REAL)")
+    print("DeepBoner Agent Demo (REAL)")
     print(f"Query: {args.query}")
     print(f"Max Iterations: {args.iterations}")
     print("Mode: REAL (All live API calls)")

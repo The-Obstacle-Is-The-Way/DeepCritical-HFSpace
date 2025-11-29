@@ -1,9 +1,9 @@
-# DeepCritical Context
+# DeepBoner Context
 
 ## Project Overview
 
-**DeepCritical** is an AI-native Medical Drug Repurposing Research Agent.
-**Goal:** To accelerate the discovery of new uses for existing drugs by intelligently searching biomedical literature (PubMed, ClinicalTrials.gov, bioRxiv), evaluating evidence, and hypothesizing potential applications.
+**DeepBoner** is an AI-native Sexual Health Research Agent.
+**Goal:** To accelerate research into sexual health, wellness, and reproductive medicine by intelligently searching biomedical literature (PubMed, ClinicalTrials.gov, Europe PMC), evaluating evidence, and synthesizing findings.
 
 **Architecture:**
 The project follows a **Vertical Slice Architecture** (Search -> Judge -> Orchestrator) and adheres to **Strict TDD** (Test-Driven Development).
@@ -11,7 +11,7 @@ The project follows a **Vertical Slice Architecture** (Search -> Judge -> Orches
 **Current Status:**
 
 - **Phases 1-9:** COMPLETE. Foundation, Search, Judge, UI, Orchestrator, Embeddings, Hypothesis, Report, Cleanup.
-- **Phases 10-11:** COMPLETE. ClinicalTrials.gov and bioRxiv integration.
+- **Phases 10-11:** COMPLETE. ClinicalTrials.gov and Europe PMC integration.
 - **Phase 12:** COMPLETE. MCP Server integration (Gradio MCP at `/gradio_api/mcp/`).
 - **Phase 13:** COMPLETE. Modal sandbox for statistical analysis.
 
@@ -41,7 +41,7 @@ The project follows a **Vertical Slice Architecture** (Search -> Judge -> Orches
 
 - `src/`: Source code
   - `utils/`: Shared utilities (`config.py`, `exceptions.py`, `models.py`)
-  - `tools/`: Search tools (`pubmed.py`, `clinicaltrials.py`, `biorxiv.py`, `code_execution.py`)
+  - `tools/`: Search tools (`pubmed.py`, `clinicaltrials.py`, `europepmc.py`, `code_execution.py`)
   - `services/`: Services (`embeddings.py`, `statistical_analyzer.py`)
   - `agents/`: Magentic multi-agent mode agents
   - `agent_factory/`: Agent definitions (judges, prompts)
@@ -58,7 +58,7 @@ The project follows a **Vertical Slice Architecture** (Search -> Judge -> Orches
 - `src/orchestrator.py` - Main agent loop
 - `src/tools/pubmed.py` - PubMed E-utilities search
 - `src/tools/clinicaltrials.py` - ClinicalTrials.gov API
-- `src/tools/biorxiv.py` - bioRxiv/medRxiv preprint search
+- `src/tools/europepmc.py` - Europe PMC search
 - `src/tools/code_execution.py` - Modal sandbox execution
 - `src/services/statistical_analyzer.py` - Statistical analysis via Modal
 - `src/mcp_tools.py` - MCP tool wrappers

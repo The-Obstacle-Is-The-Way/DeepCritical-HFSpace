@@ -55,7 +55,7 @@ def create_demo():
 def create_demo():
     return gr.ChatInterface(   # <--- FIX: Top-level component
         ...,
-        title="🧬 DeepCritical",
+        title="🧬 DeepBoner",
         description="*AI-Powered Drug Repurposing Agent...*\n\n---\n**MCP Server Active**...",
         additional_inputs_accordion=gr.Accordion(label="⚙️ Settings", open=False)
     )
@@ -69,7 +69,7 @@ def create_demo():
 2.  **Check**: Open `http://localhost:7860`
 3.  **Verify**:
     *   Settings accordion starts **COLLAPSED**.
-    *   Header title ("DeepCritical") is visible.
+    *   Header title ("DeepBoner") is visible.
     *   Footer text ("MCP Server Active") is visible in the description area.
     *   Chat functionality works (Magentic/Simple modes).
 

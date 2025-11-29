@@ -1,11 +1,11 @@
-# DeepCritical: Medical Drug Repurposing Research Agent
+# DeepBoner: Medical Drug Repurposing Research Agent
 ## Project Overview
 
 ---
 
 ## Executive Summary
 
-**DeepCritical** is a deep research agent designed to accelerate medical drug repurposing research by autonomously searching, analyzing, and synthesizing evidence from multiple biomedical databases.
+**DeepBoner** is a deep research agent designed to accelerate medical drug repurposing research by autonomously searching, analyzing, and synthesizing evidence from multiple biomedical databases.
 
 ### The Problem We Solve
 
@@ -16,7 +16,7 @@ Drug repurposing - finding new therapeutic uses for existing FDA-approved drugs 
 - Assess safety profiles
 - Synthesize evidence into actionable insights
 
-**DeepCritical automates this process from hours to minutes.**
+**DeepBoner automates this process from hours to minutes.**
 
 ### What Is Drug Repurposing?
 

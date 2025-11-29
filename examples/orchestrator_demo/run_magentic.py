@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Demo: Magentic-One Orchestrator for DeepCritical.
+Demo: Magentic-One Orchestrator for DeepBoner.
 
 This script demonstrates Phase 5 functionality:
 - Multi-Agent Coordination (Searcher + Judge + Manager)
@@ -27,7 +27,7 @@ from src.utils.models import OrchestratorConfig
 
 async def main() -> None:
     """Run the magentic agent demo."""
-    parser = argparse.ArgumentParser(description="Run DeepCritical Magentic Agent")
+    parser = argparse.ArgumentParser(description="Run DeepBoner Magentic Agent")
     parser.add_argument("query", help="Research query (e.g., 'metformin cancer')")
     parser.add_argument("--iterations", type=int, default=10, help="Max rounds")
     args = parser.parse_args()
@@ -40,7 +40,7 @@ async def main() -> None:
         sys.exit(1)
 
     print(f"\n{'=' * 60}")
-    print("DeepCritical Magentic Agent Demo")
+    print("DeepBoner Magentic Agent Demo")
     print(f"Query: {args.query}")
     print("Mode: MAGENTIC (Multi-Agent)")
     print(f"{'=' * 60}\n")

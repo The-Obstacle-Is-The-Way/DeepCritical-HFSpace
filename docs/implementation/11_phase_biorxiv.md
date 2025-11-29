@@ -531,7 +531,7 @@ source .env && uv run python examples/search_demo/run_search.py "metformin diabe
 | Miss cutting-edge | Catch breakthroughs early |
 
 **Demo pitch (final)**:
-> "DeepCritical searches PubMed for peer-reviewed evidence, ClinicalTrials.gov for 400,000+ clinical trials, and bioRxiv/medRxiv for cutting-edge preprints - then uses LLMs to generate mechanistic hypotheses and synthesize findings into publication-quality reports."
+> "DeepBoner searches PubMed for peer-reviewed evidence, ClinicalTrials.gov for 400,000+ clinical trials, and bioRxiv/medRxiv for cutting-edge preprints - then uses LLMs to generate mechanistic hypotheses and synthesize findings into publication-quality reports."
 
 ---
 

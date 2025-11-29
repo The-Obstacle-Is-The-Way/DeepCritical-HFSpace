@@ -1,4 +1,4 @@
-# DeepCritical Workflow - Simplified Magentic Architecture
+# DeepBoner Workflow - Simplified Magentic Architecture
 
 > **Architecture Pattern**: Microsoft Magentic Orchestration
 > **Design Philosophy**: Simple, dynamic, manager-driven coordination
@@ -475,7 +475,7 @@ stateDiagram-v2
 
 ```mermaid
 graph TD
-    App[Gradio App<br/>DeepCritical Research Agent]
+    App[Gradio App<br/>DeepBoner Research Agent]
 
     App --> Input[Input Section]
     App --> Status[Status Section]
@@ -514,7 +514,7 @@ graph TD
 
 ```mermaid
 graph LR
-    User[👤 Researcher<br/>Asks research questions] -->|Submits query| DC[DeepCritical<br/>Magentic Workflow]
+    User[👤 Researcher<br/>Asks research questions] -->|Submits query| DC[DeepBoner<br/>Magentic Workflow]
 
     DC -->|Literature search| PubMed[PubMed API<br/>Medical papers]
     DC -->|Preprint search| ArXiv[arXiv API<br/>Scientific preprints]
@@ -549,7 +549,7 @@ graph LR
 
 ```mermaid
 gantt
-    title DeepCritical Magentic Workflow - Typical Execution
+    title DeepBoner Magentic Workflow - Typical Execution
     dateFormat mm:ss
     axisFormat %M:%S
 

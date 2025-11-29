@@ -401,7 +401,7 @@ Found {len(evidence)} sources. Consider refining your query for more specific re
 Using Gradio 5 generator pattern for real-time streaming.
 
 ```python
-"""Gradio UI for DeepCritical agent."""
+"""Gradio UI for DeepBoner agent."""
 import asyncio
 import gradio as gr
 from typing import AsyncGenerator
@@ -557,11 +557,11 @@ def create_demo() -> gr.Blocks:
         Configured Gradio Blocks interface
     """
     with gr.Blocks(
-        title="DeepCritical - Drug Repurposing Research Agent",
+        title="DeepBoner - Drug Repurposing Research Agent",
         theme=gr.themes.Soft(),
     ) as demo:
         gr.Markdown("""
-        # 🧬 DeepCritical
+        # 🧬 DeepBoner
         ## AI-Powered Drug Repurposing Research Agent
 
         Ask questions about potential drug repurposing opportunities.
@@ -935,7 +935,7 @@ class TestAgentEvent:
 ## 6. Dockerfile
 
 ```dockerfile
-# Dockerfile for DeepCritical
+# Dockerfile for DeepBoner
 FROM python:3.11-slim
 
 # Set working directory
@@ -975,7 +975,7 @@ Create `README.md` header for HuggingFace Spaces:
 
 ```markdown
 ---
-title: DeepCritical
+title: DeepBoner
 emoji: 🧬
 colorFrom: blue
 colorTo: purple
@@ -986,7 +986,7 @@ pinned: false
 license: mit
 ---
 
-# DeepCritical
+# DeepBoner
 
 AI-Powered Drug Repurposing Research Agent
 ```
@@ -1088,7 +1088,7 @@ After deployment to HuggingFace Spaces:
 
 ## Project Complete! 🎉
 
-When Phase 4 is done, the DeepCritical MVP is complete:
+When Phase 4 is done, the DeepBoner MVP is complete:
 
 - **Phase 1**: Foundation (uv, pytest, config) ✅
 - **Phase 2**: Search Slice (PubMed, DuckDuckGo) ✅

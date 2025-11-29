@@ -109,10 +109,10 @@ class ModalCodeExecutor:
 
         try:
             # Create or lookup Modal app
-            app = modal.App.lookup("deepcritical-code-execution", create_if_missing=True)
+            app = modal.App.lookup("deepboner-code-execution", create_if_missing=True)
 
             # Define scientific computing image with common libraries
-            scientific_image = modal.Image.debian_slim(python_version="3.11").uv_pip_install(
+            scientific_image = modal.Image.debian_slim(python_version="3.11").pip_install(
                 *get_sandbox_library_list()
             )
 

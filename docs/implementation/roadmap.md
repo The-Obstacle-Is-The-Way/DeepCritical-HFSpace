@@ -1,8 +1,8 @@
-# Implementation Roadmap: DeepCritical (Vertical Slices)
+# Implementation Roadmap: DeepBoner (Vertical Slices)
 
 **Philosophy:** AI-Native Engineering, Vertical Slice Architecture, TDD, Modern Tooling (2025).
 
-This roadmap defines the execution strategy to deliver **DeepCritical** effectively. We reject "overplanning" in favor of **ironclad, testable vertical slices**. Each phase delivers a fully functional slice of end-to-end value.
+This roadmap defines the execution strategy to deliver **DeepBoner** effectively. We reject "overplanning" in favor of **ironclad, testable vertical slices**. Each phase delivers a fully functional slice of end-to-end value.
 
 ---
 
@@ -114,7 +114,7 @@ tests/
 
 - [ ] Implement `src/orchestrator.py` (Connects Search + Judge loops).
 - [ ] Build `src/app.py` (Gradio with Streaming).
-- **Deliverable**: Working DeepCritical Agent on HuggingFace.
+- **Deliverable**: Working DeepBoner Agent on HuggingFace.
 
 ---
 

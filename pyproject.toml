@@ -1,7 +1,7 @@
 [project]
-name = "deepcritical"
+name = "deepboner"
 version = "0.1.0"
-description = "AI-Native Drug Repurposing Research Agent"
+description = "AI-Native Sexual Health Research Agent"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -125,6 +125,18 @@ markers = [
     "unit: Unit tests (mocked)",
     "integration: Integration tests (real APIs)",
     "slow: Slow tests",
+]
+# Filter warnings from unittest.mock introspecting Pydantic models.
+# This is a known upstream issue: https://github.com/pydantic/pydantic/issues/9927
+# When autospec=True, mock.py accesses deprecated Pydantic attributes during introspection.
+# We filter these specifically because it's NOT our code triggering deprecations.
+filterwarnings = [
+    # Pydantic 2.0 deprecations triggered by mock introspection
+    "ignore:The `__fields__` attribute is deprecated:pydantic.warnings.PydanticDeprecatedSince20",
+    "ignore:The `__fields_set__` attribute is deprecated:pydantic.warnings.PydanticDeprecatedSince20",
+    # Pydantic 2.11 deprecations triggered by mock introspection
+    "ignore:Accessing the 'model_computed_fields' attribute on the instance is deprecated:pydantic.warnings.PydanticDeprecatedSince211",
+    "ignore:Accessing the 'model_fields' attribute on the instance is deprecated:pydantic.warnings.PydanticDeprecatedSince211",
 ]
 
 # ============== COVERAGE CONFIG ==============

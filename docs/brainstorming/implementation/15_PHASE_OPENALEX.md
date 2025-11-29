@@ -305,7 +305,7 @@ class OpenAlexTool:
         Args:
             email: Optional email for polite pool (faster responses)
         """
-        self.email = email or "deepcritical@example.com"
+        self.email = email or "deepboner@example.com"
 
     @property
     def name(self) -> str:

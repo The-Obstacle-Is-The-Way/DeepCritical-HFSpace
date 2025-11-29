@@ -23,7 +23,7 @@ uv --version  # Should be >= 0.4.0
 
 ```bash
 # From project root
-uv init --name deepcritical
+uv init --name deepboner
 uv python install 3.11  # Pin Python version
 ```
 
@@ -35,9 +35,9 @@ uv python install 3.11  # Pin Python version
 
 ```toml
 [project]
-name = "deepcritical"
+name = "deepboner"
 version = "0.1.0"
-description = "AI-Native Drug Repurposing Research Agent"
+description = "AI-Native Sexual Health Research Agent"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -401,25 +401,25 @@ settings = get_settings()
 ### `src/utils/exceptions.py`
 
 ```python
-"""Custom exceptions for DeepCritical."""
+"""Custom exceptions for DeepBoner."""
 
 
-class DeepCriticalError(Exception):
-    """Base exception for all DeepCritical errors."""
+class DeepBonerError(Exception):
+    """Base exception for all DeepBoner errors."""
     pass
 
 
-class SearchError(DeepCriticalError):
+class SearchError(DeepBonerError):
     """Raised when a search operation fails."""
     pass
 
 
-class JudgeError(DeepCriticalError):
+class JudgeError(DeepBonerError):
     """Raised when the judge fails to assess evidence."""
     pass
 
 
-class ConfigurationError(DeepCriticalError):
+class ConfigurationError(DeepBonerError):
     """Raised when configuration is invalid."""
     pass
 
@@ -558,7 +558,7 @@ uv run pre-commit install
 ## 10. Implementation Checklist
 
 - [ ] Install `uv` and verify version
-- [ ] Run `uv init --name deepcritical`
+- [ ] Run `uv init --name deepboner`
 - [ ] Create `pyproject.toml` (copy from above)
 - [ ] Create directory structure (run mkdir commands)
 - [ ] Create `.env.example` and `.env`

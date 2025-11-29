@@ -1,4 +1,4 @@
-# DeepCritical Documentation
+# DeepBoner Documentation
 
 ## Medical Drug Repurposing Research Agent
 

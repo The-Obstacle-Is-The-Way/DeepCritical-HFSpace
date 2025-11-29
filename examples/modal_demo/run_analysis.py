@@ -32,7 +32,7 @@ async def main() -> None:
         sys.exit(1)
 
     print(f"\n{'=' * 60}")
-    print("DeepCritical Modal Analysis Demo")
+    print("DeepBoner Modal Analysis Demo")
     print(f"Query: {args.query}")
     print(f"{'=' * 60}\n")
 

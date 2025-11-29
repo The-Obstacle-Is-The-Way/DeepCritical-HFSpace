@@ -6,7 +6,7 @@ Copy and paste everything below this line to a fresh Claude/AI session:
 
 ## Context
 
-I am a junior developer working on a HuggingFace hackathon project called DeepCritical. We made a significant architectural mistake and are now trying to course-correct. I need you to act as a **senior staff engineer** and critically review our proposed solution.
+I am a junior developer working on a HuggingFace hackathon project called DeepBoner. We made a significant architectural mistake and are now trying to course-correct. I need you to act as a **senior staff engineer** and critically review our proposed solution.
 
 ## The Situation
 
@@ -62,28 +62,28 @@ Please perform a **deep, critical review** of:
 
 Please read these files in order:
 
-1. `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepCritical-1/docs/brainstorming/magentic-pydantic/00_SITUATION_AND_PLAN.md`
-2. `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepCritical-1/docs/brainstorming/magentic-pydantic/01_ARCHITECTURE_SPEC.md`
-3. `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepCritical-1/docs/brainstorming/magentic-pydantic/02_IMPLEMENTATION_PHASES.md`
-4. `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepCritical-1/docs/brainstorming/magentic-pydantic/03_IMMEDIATE_ACTIONS.md`
+1. `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepBoner-1/docs/brainstorming/magentic-pydantic/00_SITUATION_AND_PLAN.md`
+2. `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepBoner-1/docs/brainstorming/magentic-pydantic/01_ARCHITECTURE_SPEC.md`
+3. `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepBoner-1/docs/brainstorming/magentic-pydantic/02_IMPLEMENTATION_PHASES.md`
+4. `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepBoner-1/docs/brainstorming/magentic-pydantic/03_IMMEDIATE_ACTIONS.md`
 
 And the architecture diagram:
-5. `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepCritical-1/assets/magentic-pydantic.png`
+5. `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepBoner-1/assets/magentic-pydantic.png`
 
 ## Reference Repositories to Consult
 
 We have local clones of the source-of-truth repositories:
 
-- **Original DeepCritical:** `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepCritical-1/reference_repos/DeepCritical/`
-- **Microsoft Agent Framework:** `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepCritical-1/reference_repos/agent-framework/`
-- **Microsoft AutoGen:** `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepCritical-1/reference_repos/autogen-microsoft/`
+- **Original DeepBoner:** `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepBoner-1/reference_repos/DeepBoner/`
+- **Microsoft Agent Framework:** `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepBoner-1/reference_repos/agent-framework/`
+- **Microsoft AutoGen:** `/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepBoner-1/reference_repos/autogen-microsoft/`
 
 Please cross-reference our hackathon fork against these to verify architectural alignment.
 
 ## Codebase to Analyze
 
 Our hackathon fork is at:
-`/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepCritical-1/`
+`/Users/ray/Desktop/CLARITY-DIGITAL-TWIN/DeepBoner-1/`
 
 Key files to examine:
 - `src/agents/` - Agent framework integration

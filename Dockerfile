@@ -1,4 +1,4 @@
-# Dockerfile for DeepCritical
+# Dockerfile for DeepBoner
 FROM python:3.11-slim
 
 # Set working directory

@@ -71,7 +71,7 @@ tags:
 
 [Show Gradio UI]
 
-"DeepCritical is an AI-powered drug repurposing research agent.
+"DeepBoner is an AI-powered drug repurposing research agent.
 It searches peer-reviewed literature, clinical trials, and cutting-edge preprints
 to find new uses for existing drugs."
 
@@ -83,7 +83,7 @@ to find new uses for existing drugs."
 
 [Type query: "Can metformin treat Alzheimer's disease?"]
 
-"When I ask about metformin for Alzheimer's, DeepCritical:
+"When I ask about metformin for Alzheimer's, DeepBoner:
 1. Searches PubMed for peer-reviewed papers
 2. Queries ClinicalTrials.gov for active trials
 3. Scans bioRxiv for the latest preprints"
@@ -101,10 +101,10 @@ synthesize findings into a structured research report."
 
 [Switch to Claude Desktop]
 
-"What makes DeepCritical unique is full MCP integration.
+"What makes DeepBoner unique is full MCP integration.
 These same tools are available to any MCP client."
 
-[Show Claude Desktop with DeepCritical tools]
+[Show Claude Desktop with DeepBoner tools]
 
 "I can ask Claude: 'Search PubMed for aspirin cancer prevention'"
 
@@ -140,7 +140,7 @@ returning verdicts like SUPPORTED, REFUTED, or INCONCLUSIVE."
 
 [Return to Gradio UI]
 
-"DeepCritical brings together:
+"DeepBoner brings together:
 - Three biomedical data sources
 - MCP protocol for universal tool access
 - Modal sandboxes for safe code execution
@@ -164,7 +164,7 @@ and let us know what you think."
 
 ```markdown
 ---
-title: DeepCritical
+title: DeepBoner
 emoji: 🧬
 colorFrom: blue
 colorTo: purple
@@ -183,7 +183,7 @@ tags:
   - modal
 ---
 
-# DeepCritical
+# DeepBoner
 
 AI-Powered Drug Repurposing Research Agent
 
@@ -198,7 +198,7 @@ AI-Powered Drug Repurposing Research Agent
 
 Connect to our MCP server at:
 ```
-https://MCP-1st-Birthday-deepcritical.hf.space/gradio_api/mcp/
+https://your-space.hf.space/gradio_api/mcp/
 ```
 
 Available tools:
@@ -214,7 +214,7 @@ Available tools:
 
 ## Links
 
-- [GitHub Repository](https://github.com/The-Obstacle-Is-The-Way/DeepCritical-1)
+- [GitHub Repository](https://github.com/The-Obstacle-Is-The-Way/DeepBoner-1)
 - [Demo Video](link-to-video)
 ```
 
@@ -237,7 +237,7 @@ MODAL_TOKEN_SECRET=...
 ### Twitter/X Template
 
 ```
-🧬 Excited to submit DeepCritical to MCP's 1st Birthday Hackathon!
+🧬 Excited to submit DeepBoner to MCP's 1st Birthday Hackathon!
 
 An AI agent that:
 ✅ Searches PubMed, ClinicalTrials.gov & bioRxiv
@@ -254,10 +254,10 @@ Demo: [Video link]
 ### LinkedIn Template
 
 ```
-Thrilled to share DeepCritical - our submission to MCP's 1st Birthday Hackathon!
+Thrilled to share DeepBoner - our submission to MCP's 1st Birthday Hackathon!
 
 🔬 What it does:
-DeepCritical is an AI-powered drug repurposing research agent that searches
+DeepBoner is an AI-powered drug repurposing research agent that searches
 peer-reviewed literature, clinical trials, and preprints to find new uses
 for existing drugs.
 

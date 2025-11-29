@@ -35,7 +35,7 @@ def create_fresh_service(name_suffix: str = "") -> EmbeddingService:
 async def demo_real_pipeline() -> None:
     """Run the demo using REAL PubMed data."""
     print("\n" + "=" * 60)
-    print("DeepCritical Embeddings Demo (REAL DATA)")
+    print("DeepBoner Embeddings Demo (REAL DATA)")
     print("=" * 60)
 
     # 1. Fetch Real Data

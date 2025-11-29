@@ -1,4 +1,4 @@
-# DeepCritical Data Sources: Roadmap Summary
+# DeepBoner Data Sources: Roadmap Summary
 
 **Created**: 2024-11-27
 **Purpose**: Future maintainability and hackathon continuation
@@ -131,7 +131,7 @@ Keep current architecture working, add OpenAlex incrementally.
    ```
 
 2. **Copy OpenAlex tool from reference repo**
-   - File: `reference_repos/DeepCritical/DeepResearch/src/tools/openalex_tools.py`
+   - File: `reference_repos/DeepBoner/DeepResearch/src/tools/openalex_tools.py`
    - Adapt to our `SearchTool` base class
 
 3. **Enable NCBI API Key**
@@ -189,6 +189,6 @@ If you're picking this up after the hackathon:
 1. **Start with OpenAlex** - biggest bang for buck
 2. **Add rate limiting** - prevents API blocks
 3. **Don't bother with bioRxiv** - use Europe PMC instead
-4. **Reference repo is gold** - `reference_repos/DeepCritical/` has working implementations
+4. **Reference repo is gold** - `reference_repos/DeepBoner/` has working implementations
 
 Good luck! 🚀

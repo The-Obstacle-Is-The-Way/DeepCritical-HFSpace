@@ -24,9 +24,9 @@
 
 ---
 
-## Reference Implementation (DeepCritical Reference Repo)
+## Reference Implementation (DeepBoner Reference Repo)
 
-The reference repo at `reference_repos/DeepCritical/DeepResearch/src/tools/bioinformatics_tools.py` has a more sophisticated implementation:
+The reference repo at `reference_repos/DeepBoner/DeepResearch/src/tools/bioinformatics_tools.py` has a more sophisticated implementation:
 
 ### Features We're Missing
 

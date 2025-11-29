@@ -1,1 +1,1 @@
-"""Services for DeepCritical."""
+"""Services for DeepBoner."""

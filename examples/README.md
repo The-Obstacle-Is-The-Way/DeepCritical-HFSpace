@@ -1,4 +1,4 @@
-# DeepCritical Examples
+# DeepBoner Examples
 
 **NO MOCKS. NO FAKE DATA. REAL SCIENCE.**
 
@@ -181,4 +181,4 @@ Mocks belong in `tests/unit/`, not in demos. When you run these examples, you se
 - Real scientific hypotheses
 - Real research reports
 
-This is what DeepCritical actually does. No fake data. No canned responses.
+This is what DeepBoner actually does. No fake data. No canned responses.

@@ -10,7 +10,7 @@ from pydantic_ai.models.anthropic import AnthropicModel
 # We expect this import to exist after we implement it, or we mock it if it's not there yet
 # For TDD, we assume we will use the library class
 from pydantic_ai.models.huggingface import HuggingFaceModel
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
 
 from src.agent_factory.judges import get_model
 
@@ -28,7 +28,7 @@ def test_get_model_openai(mock_settings):
     mock_settings.openai_model = "gpt-5.1"
 
     model = get_model()
-    assert isinstance(model, OpenAIModel)
+    assert isinstance(model, OpenAIChatModel)
     assert model.model_name == "gpt-5.1"
 
 
@@ -61,4 +61,4 @@ def test_get_model_default_fallback(mock_settings):
     mock_settings.openai_model = "gpt-5.1"
 
     model = get_model()
-    assert isinstance(model, OpenAIModel)
+    assert isinstance(model, OpenAIChatModel)

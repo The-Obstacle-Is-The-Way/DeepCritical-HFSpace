@@ -185,7 +185,7 @@ class ClinicalTrialsTool:
                 requests.get,
                 self.BASE_URL,
                 params=params,
-                headers={"User-Agent": "DeepCritical-Research-Agent/1.0"},
+                headers={"User-Agent": "DeepBoner-Research-Agent/1.0"},
                 timeout=30,
             )
             response.raise_for_status()
@@ -434,4 +434,4 @@ source .env && uv run python examples/search_demo/run_search.py "metformin alzhe
 | No phase info | Phase I/II/III evidence strength |
 
 **Demo pitch addition**:
-> "DeepCritical searches PubMed for peer-reviewed evidence AND ClinicalTrials.gov for 400,000+ clinical trials."
+> "DeepBoner searches PubMed for peer-reviewed evidence AND ClinicalTrials.gov for 400,000+ clinical trials."

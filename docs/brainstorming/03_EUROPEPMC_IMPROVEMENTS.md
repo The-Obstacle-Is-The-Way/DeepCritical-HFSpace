@@ -182,7 +182,7 @@ Europe PMC is more generous than NCBI:
 # Recommend: 10-20 requests/second max
 # Use email in User-Agent for polite pool
 headers = {
-    "User-Agent": "DeepCritical/1.0 (mailto:your@email.com)"
+    "User-Agent": "DeepBoner/1.0 (mailto:your@email.com)"
 }
 ```
 

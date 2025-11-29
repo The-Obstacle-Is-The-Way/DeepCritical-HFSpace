@@ -9,7 +9,7 @@ from huggingface_hub import InferenceClient
 from pydantic_ai import Agent
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.huggingface import HuggingFaceModel
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.huggingface import HuggingFaceProvider
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -48,7 +48,7 @@ def get_model() -> Any:
         logger.warning("Unknown LLM provider, defaulting to OpenAI", provider=llm_provider)
 
     openai_provider = OpenAIProvider(api_key=settings.openai_api_key)
-    return OpenAIModel(settings.openai_model, provider=openai_provider)
+    return OpenAIChatModel(settings.openai_model, provider=openai_provider)
 
 
 class JudgeHandler:

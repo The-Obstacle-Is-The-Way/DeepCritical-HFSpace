@@ -1,4 +1,4 @@
-"""Gradio UI for DeepCritical agent with MCP server support."""
+"""Gradio UI for DeepBoner agent with MCP server support."""
 
 import os
 from collections.abc import AsyncGenerator
@@ -197,29 +197,31 @@ def create_demo() -> gr.ChatInterface:
     # 1. Unwrapped ChatInterface (Fixes Accordion Bug)
     demo = gr.ChatInterface(
         fn=research_agent,
-        title="🧬 DeepCritical",
+        title="🍆 DeepBoner",
         description=(
-            "*AI-Powered Drug Repurposing Agent — searches PubMed, "
+            "*AI-Powered Sexual Health Research Agent — searches PubMed, "
             "ClinicalTrials.gov & Europe PMC*\n\n"
+            "Deep research for sexual wellness, ED treatments, hormone therapy, "
+            "libido, and reproductive health - for all genders.\n\n"
             "---\n"
             "*Research tool only — not for medical advice.*  \n"
             "**MCP Server Active**: Connect Claude Desktop to `/gradio_api/mcp/`"
         ),
         examples=[
             [
-                "What drugs could be repurposed for Alzheimer's disease?",
+                "What drugs improve female libido post-menopause?",
                 "simple",
                 "",
                 "openai",
             ],
             [
-                "Is metformin effective for treating cancer?",
+                "Clinical trials for erectile dysfunction alternatives to PDE5 inhibitors?",
                 "simple",
                 "",
                 "openai",
             ],
             [
-                "What medications show promise for Long COVID treatment?",
+                "Evidence for testosterone therapy in women with HSDD?",
                 "simple",
                 "",
                 "openai",

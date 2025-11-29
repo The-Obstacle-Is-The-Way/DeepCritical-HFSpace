@@ -3,10 +3,19 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from agent_framework import AgentRunResponse
 
-from src.agents.hypothesis_agent import HypothesisAgent
-from src.utils.models import Citation, Evidence, HypothesisAssessment, MechanismHypothesis
+# Skip all tests if agent_framework not installed (optional dep)
+pytest.importorskip("agent_framework")
+
+from agent_framework import AgentRunResponse  # noqa: E402
+
+from src.agents.hypothesis_agent import HypothesisAgent  # noqa: E402
+from src.utils.models import (  # noqa: E402
+    Citation,
+    Evidence,
+    HypothesisAssessment,
+    MechanismHypothesis,
+)
 
 
 @pytest.fixture

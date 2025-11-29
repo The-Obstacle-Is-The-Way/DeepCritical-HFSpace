@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Demo: Full Stack DeepCritical Agent (Phases 1-8).
+Demo: Full Stack DeepBoner Agent (Phases 1-8).
 
 This script demonstrates the COMPLETE REAL drug repurposing research pipeline:
 - Phase 2: REAL Search (PubMed + ClinicalTrials + Europe PMC)
@@ -104,7 +104,7 @@ async def _handle_judge_step(
 
 async def run_full_demo(query: str, max_iterations: int) -> None:
     """Run the REAL full stack pipeline."""
-    print_header("DeepCritical Full Stack Demo (REAL)")
+    print_header("DeepBoner Full Stack Demo (REAL)")
     print(f"Query: {query}")
     print(f"Max iterations: {max_iterations}")
     print("Mode: REAL (All live API calls - no mocks)\n")
@@ -172,7 +172,7 @@ async def run_full_demo(query: str, max_iterations: int) -> None:
 async def main() -> None:
     """Entry point."""
     parser = argparse.ArgumentParser(
-        description="DeepCritical Full Stack Demo - REAL, No Mocks",
+        description="DeepBoner Full Stack Demo - REAL, No Mocks",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 This demo runs the COMPLETE pipeline with REAL API calls:
@@ -222,7 +222,7 @@ Examples:
     await run_full_demo(args.query, args.iterations)
 
     print("\n" + "=" * 70)
-    print("  DeepCritical Full Stack Demo Complete!")
+    print("  DeepBoner Full Stack Demo Complete!")
     print("  ")
     print("  Everything you just saw was REAL:")
     print("    - Real PubMed + ClinicalTrials + Europe PMC searches")

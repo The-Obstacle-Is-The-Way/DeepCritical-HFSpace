@@ -726,7 +726,7 @@ If evidence is weak, say so clearly."""
 **Architecture**:
 ```
 ┌─────────────────────────────────────────────────┐
-│  DeepCritical Agent                             │
+│  DeepBoner Agent                             │
 │  (uses tools directly OR via MCP)               │
 └─────────────────────────────────────────────────┘
                       │
@@ -811,7 +811,7 @@ uvx fastmcp run src/mcp_servers/pubmed_server.py
     "pubmed": {
       "command": "python",
       "args": ["-m", "src.mcp_servers.pubmed_server"],
-      "cwd": "/path/to/deepcritical"
+      "cwd": "/path/to/deepboner"
     }
   }
 }
@@ -865,7 +865,7 @@ def research_with_streaming(question: str) -> Generator[str, None, None]:
 
 # Gradio 5 UI
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
-    gr.Markdown("# 🔬 DeepCritical: Drug Repurposing Research Agent")
+    gr.Markdown("# 🔬 DeepBoner: Drug Repurposing Research Agent")
     gr.Markdown("Ask a question about potential drug repurposing opportunities.")
 
     with gr.Row():

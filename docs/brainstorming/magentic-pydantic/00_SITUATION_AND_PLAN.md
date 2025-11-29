@@ -167,7 +167,7 @@ The refactor branch (`feat/pubmed-fulltext`) has some valuable improvements:
 ## 9. Questions to Answer Before Proceeding
 
 1. **For the hackathon**: Do we need full multi-agent orchestration, or is single-agent sufficient?
-2. **For DeepCritical mainline**: Is the plan to use Microsoft Agent Framework for orchestration?
+2. **For DeepBoner mainline**: Is the plan to use Microsoft Agent Framework for orchestration?
 3. **Timeline**: How much time do we have to get this right?
 
 ---

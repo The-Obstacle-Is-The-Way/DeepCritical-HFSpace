@@ -1,4 +1,4 @@
-"""MCP tool wrappers for DeepCritical search tools.
+"""MCP tool wrappers for DeepBoner search tools.
 
 These functions expose our search tools via MCP protocol.
 Each function follows the MCP tool contract:
