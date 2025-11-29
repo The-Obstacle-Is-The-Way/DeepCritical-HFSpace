@@ -40,11 +40,9 @@ jobs:
 
       - name: Security scan with bandit
         run: uv run bandit -r src -ll -q
-        continue-on-error: true  # Don't fail CI, just report
 
       - name: Dependency vulnerability audit
         run: uv run pip-audit
-        continue-on-error: true  # Informational - deps may have known issues
 
       - name: Run tests with coverage
         run: uv run pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=term-missing
