@@ -120,26 +120,30 @@ Based on [comprehensive framework comparison](https://kanerika.com/blogs/langcha
 from typing import Annotated, TypedDict, Literal
 import operator
 from langchain_core.messages import BaseMessage
+from pydantic import BaseModel, Field
 
 
-class Hypothesis(TypedDict):
+class Hypothesis(BaseModel):
     """A research hypothesis with evidence tracking."""
-    id: str
-    statement: str
-    status: Literal["proposed", "validating", "confirmed", "refuted"]
-    confidence: float  # 0.0 - 1.0
-    supporting_evidence_ids: list[str]
-    contradicting_evidence_ids: list[str]
+    id: str = Field(description="Unique identifier for the hypothesis")
+    statement: str = Field(description="The hypothesis statement")
+    status: Literal["proposed", "validating", "confirmed", "refuted"] = Field(
+        default="proposed", description="Current validation status"
+    )
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Confidence score (0.0-1.0)")
+    supporting_evidence_ids: list[str] = Field(default_factory=list)
+    contradicting_evidence_ids: list[str] = Field(default_factory=list)
+    reasoning: str | None = Field(default=None, description="Reasoning for current status")
 
 
-class Conflict(TypedDict):
+class Conflict(BaseModel):
     """A detected contradiction between sources."""
-    id: str
-    description: str
-    source_a_id: str
-    source_b_id: str
-    status: Literal["open", "resolved"]
-    resolution: str | None
+    id: str = Field(description="Unique identifier for the conflict")
+    description: str = Field(description="Description of the contradiction")
+    source_a_id: str = Field(description="ID of the first conflicting source")
+    source_b_id: str = Field(description="ID of the second conflicting source")
+    status: Literal["open", "resolved"] = Field(default="open")
+    resolution: str | None = Field(default=None, description="Resolution explanation if resolved")
 
 
 class ResearchState(TypedDict):
@@ -151,11 +155,12 @@ class ResearchState(TypedDict):
     # Immutable context
     query: str
 
-    # Cognitive state (the "blackboard")
+    # Cognitive state (The "Blackboard")
+    # Note: We store these as lists of Pydantic models.
     hypotheses: Annotated[list[Hypothesis], operator.add]
     conflicts: Annotated[list[Conflict], operator.add]
 
-    # Evidence links (actual content in ChromaDB)
+    # Evidence links (actual content stored in ChromaDB)
     evidence_ids: Annotated[list[str], operator.add]
 
     # Chat history (for LLM context)
@@ -169,90 +174,78 @@ class ResearchState(TypedDict):
 
 ### 4.2 Graph Nodes
 
-Each node is a pure function: `(state: ResearchState) -> dict`
+Each node is an async function that receives the state and injected dependencies.
 
 **File:** `src/agents/graph/nodes.py`
 
 ```python
 """Graph node implementations."""
-from langchain_core.messages import HumanMessage, AIMessage
-from src.tools.pubmed import search_pubmed
-from src.tools.clinicaltrials import search_clinicaltrials
-from src.tools.europepmc import search_europepmc
+from typing import Any
+from langchain_core.messages import AIMessage
+from src.services.embeddings import EmbeddingService
+from src.tools.search_handler import SearchHandler
 
 
-async def search_node(state: ResearchState) -> dict:
+async def search_node(
+    state: ResearchState, embedding_service: EmbeddingService | None = None
+) -> dict[str, Any]:
     """Execute search across all sources.
 
-    Returns partial state update (additive via operator.add).
+    Uses SearchHandler to query PubMed, ClinicalTrials, and EuropePMC.
+    Deduplicates evidence using EmbeddingService.
     """
-    query = state["query"]
-    # Reuse existing tools
-    results = await asyncio.gather(
-        search_pubmed(query),
-        search_clinicaltrials(query),
-        search_europepmc(query),
-    )
-    new_evidence_ids = [...]  # Store in ChromaDB, return IDs
+    # ... implementation ...
     return {
-        "evidence_ids": new_evidence_ids,
-        "messages": [AIMessage(content=f"Found {len(new_evidence_ids)} papers")],
+        "evidence_ids": new_ids,
+        "messages": [AIMessage(content=message)],
     }
 
 
-async def judge_node(state: ResearchState) -> dict:
+async def judge_node(
+    state: ResearchState, embedding_service: EmbeddingService | None = None
+) -> dict[str, Any]:
     """Evaluate evidence and update hypothesis confidence.
 
-    Key responsibility: Detect conflicts and flag them.
+    Uses pydantic_ai Agent to generate structured HypothesisAssessment.
     """
-    # LLM call to evaluate hypotheses against evidence
-    # If contradiction found: add to conflicts list
+    # ... implementation ...
     return {
-        "hypotheses": updated_hypotheses,  # With new confidence scores
-        "conflicts": new_conflicts,  # Any detected contradictions
-        "messages": [...],
+        "hypotheses": new_hypotheses,
+        "messages": [AIMessage(content=f"Judge: Generated {len(new_hypotheses)} hypotheses.")],
+        "next_step": "resolve",
     }
 
 
-async def resolve_node(state: ResearchState) -> dict:
-    """Handle open conflicts via tie-breaker logic.
-
-    Triggers targeted search or reasoning to resolve.
-    """
-    open_conflicts = [c for c in state["conflicts"] if c["status"] == "open"]
-    # For each conflict: search for decisive evidence or make judgment call
-    return {
-        "conflicts": resolved_conflicts,
-        "messages": [...],
-    }
+async def resolve_node(
+    state: ResearchState, embedding_service: EmbeddingService | None = None
+) -> dict[str, Any]:
+    """Handle open conflicts."""
+    # ... implementation ...
+    return {"messages": messages}
 
 
-async def synthesize_node(state: ResearchState) -> dict:
-    """Generate final research report.
-
-    Only uses confirmed hypotheses and resolved conflicts.
-    """
-    confirmed = [h for h in state["hypotheses"] if h["status"] == "confirmed"]
-    # Generate structured report
-    return {
-        "messages": [AIMessage(content=report_markdown)],
-        "next_step": "finish",
-    }
+async def synthesize_node(
+    state: ResearchState, embedding_service: EmbeddingService | None = None
+) -> dict[str, Any]:
+    """Generate final research report."""
+    # ... implementation ...
+    return {"messages": [AIMessage(content=report_markdown)], "next_step": "finish"}
 
 
-def supervisor_node(state: ResearchState) -> dict:
-    """Route to next node based on state.
+async def supervisor_node(
+    state: ResearchState, llm: BaseChatModel | None = None
+) -> dict[str, Any]:
+    """Route to next node based on state using robust Pydantic parsing.
 
     This is the "brain" - uses LLM to decide next action
-    based on STRUCTURED STATE (not just chat).
+    based on STRUCTURED STATE.
     """
-    # Decision logic:
-    # 1. If open conflicts exist -> "resolve"
-    # 2. If hypotheses need more evidence -> "search"
-    # 3. If evidence is sufficient -> "judge"
-    # 4. If all hypotheses confirmed -> "synthesize"
-    # 5. If max iterations -> "synthesize" (forced)
-    return {"next_step": decided_step, "iteration_count": state["iteration_count"] + 1}
+    # ... implementation ...
+    return {
+        "next_step": decision.next_step,
+        "iteration_count": state["iteration_count"] + 1,
+        "messages": [AIMessage(content=f"Supervisor: {decision.reasoning}")],
+    }
 ```
 
 ### 4.3 Graph Definition
@@ -261,57 +254,40 @@ def supervisor_node(state: ResearchState) -> dict:
 
 ```python
 """LangGraph workflow definition."""
+from functools import partial
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.graph.state import CompiledStateGraph
 
 from src.agents.graph.state import ResearchState
-from src.agents.graph.nodes import (
-    search_node,
-    judge_node,
-    resolve_node,
-    synthesize_node,
-    supervisor_node,
-)
+from src.services.embeddings import EmbeddingService
+# ... imports ...
 
 
-def create_research_graph(checkpointer=None):
+def create_research_graph(
+    llm=None,
+    checkpointer=None,
+    embedding_service: EmbeddingService | None = None,
+) -> CompiledStateGraph:
     """Build the research state graph.
 
     Args:
-        checkpointer: Optional SqliteSaver/MongoDBSaver for persistence
+        llm: Supervisor LLM
+        checkpointer: Optional persistence layer
+        embedding_service: Service for evidence storage
     """
     graph = StateGraph(ResearchState)
 
+    # Bind dependencies using partial
+    bound_supervisor = partial(supervisor_node, llm=llm) if llm else supervisor_node
+    bound_search = partial(search_node, embedding_service=embedding_service)
+    # ... binding other nodes ...
+
     # Add nodes
-    graph.add_node("supervisor", supervisor_node)
-    graph.add_node("search", search_node)
-    graph.add_node("judge", judge_node)
-    graph.add_node("resolve", resolve_node)
-    graph.add_node("synthesize", synthesize_node)
+    graph.add_node("supervisor", bound_supervisor)
+    graph.add_node("search", bound_search)
+    # ...
 
-    # Define edges (supervisor routes based on state.next_step)
-    graph.add_edge("search", "supervisor")
-    graph.add_edge("judge", "supervisor")
-    graph.add_edge("resolve", "supervisor")
-    graph.add_edge("synthesize", END)
-
-    # Conditional routing from supervisor
-    graph.add_conditional_edges(
-        "supervisor",
-        lambda state: state["next_step"],
-        {
-            "search": "search",
-            "judge": "judge",
-            "resolve": "resolve",
-            "synthesize": "synthesize",
-            "finish": END,
-        },
-    )
-
-    # Entry point
-    graph.set_entry_point("supervisor")
-
-    return graph.compile(checkpointer=checkpointer)
+    # ... edges ...
 ```
 
 ### 4.4 Orchestrator Integration

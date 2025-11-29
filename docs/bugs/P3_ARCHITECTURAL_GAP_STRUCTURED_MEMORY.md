@@ -69,11 +69,13 @@ Based on [comprehensive analysis](https://latenode.com/blog/langgraph-multi-agen
 ### Target Architecture
 
 ```python
-# src/agents/graph/state.py (PROPOSED)
+# src/agents/graph/state.py (IMPLEMENTED)
 from typing import Annotated, TypedDict, Literal
 import operator
+from pydantic import BaseModel, Field
+from langchain_core.messages import BaseMessage
 
-class Hypothesis(TypedDict):
+class Hypothesis(BaseModel):
     id: str
     statement: str
     status: Literal["proposed", "validating", "confirmed", "refuted"]
@@ -81,7 +83,7 @@ class Hypothesis(TypedDict):
     supporting_evidence_ids: list[str]
     contradicting_evidence_ids: list[str]
 
-class Conflict(TypedDict):
+class Conflict(BaseModel):
     id: str
     description: str
     source_a_id: str
