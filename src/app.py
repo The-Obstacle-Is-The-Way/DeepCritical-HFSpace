@@ -181,13 +181,16 @@ async def research_agent(
         yield f"❌ **Error**: {e!s}"
 
 
-def create_demo() -> gr.ChatInterface:
+def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
     """
     Create the Gradio demo interface with MCP support.
 
     Returns:
         Configured Gradio Blocks interface with MCP server enabled
     """
+    additional_inputs_accordion = gr.Accordion(
+        label="⚙️ Mode & API Key (Free tier works!)", open=False
+    )
     # 1. Unwrapped ChatInterface (Fixes Accordion Bug)
     demo = gr.ChatInterface(
         fn=research_agent,
@@ -202,19 +205,29 @@ def create_demo() -> gr.ChatInterface:
             "**MCP Server Active**: Connect Claude Desktop to `/gradio_api/mcp/`"
         ),
         examples=[
-            ["What drugs improve female libido post-menopause?", "simple"],
-            ["Clinical trials for erectile dysfunction alternatives to PDE5 inhibitors?", "simple"],
-            ["Evidence for testosterone therapy in women with HSDD?", "simple"],
+            [
+                "What drugs improve female libido post-menopause?",
+                "simple",
+            ],
+            [
+                "Clinical trials for erectile dysfunction alternatives to PDE5 inhibitors?",
+                "advanced",
+            ],
+            [
+                "Evidence for testosterone therapy in women with HSDD?",
+                "simple",
+            ],
         ],
-        additional_inputs_accordion=gr.Accordion(
-            label="⚙️ Settings (Free tier works without API key)", open=False
-        ),
+        additional_inputs_accordion=additional_inputs_accordion,
         additional_inputs=[
             gr.Radio(
                 choices=["simple", "advanced"],
                 value="simple",
                 label="Orchestrator Mode",
-                info=("Simple: Works with any key or free tier | " "Advanced: Requires OpenAI key"),
+                info=(
+                    "⚡ Simple: Fast (Free/Any Key) | "
+                    "🔬 Advanced: Deep Multi-Agent (OpenAI Key Only)"
+                ),
             ),
             gr.Textbox(
                 label="🔑 API Key (Optional)",
@@ -225,12 +238,12 @@ def create_demo() -> gr.ChatInterface:
         ],
     )
 
-    return demo
+    return demo, additional_inputs_accordion
 
 
 def main() -> None:
     """Run the Gradio app with MCP server enabled."""
-    demo = create_demo()
+    demo, _ = create_demo()
     demo.launch(
         server_name="0.0.0.0",
         server_port=7860,
