@@ -194,13 +194,6 @@ def create_demo() -> gr.ChatInterface:
     Returns:
         Configured Gradio Blocks interface with MCP server enabled
     """
-    # Custom CSS to center header
-    custom_css = """
-    .title-container { text-align: center !important; }
-    h1 { text-align: center !important; }
-    .description { text-align: center !important; }
-    """
-
     # 1. Unwrapped ChatInterface (Fixes Accordion Bug)
     demo = gr.ChatInterface(
         fn=research_agent,
@@ -214,7 +207,6 @@ def create_demo() -> gr.ChatInterface:
             "*Research tool only — not for medical advice.*  \n"
             "**MCP Server Active**: Connect Claude Desktop to `/gradio_api/mcp/`"
         ),
-        css=custom_css,
         examples=[
             [
                 "What drugs improve female libido post-menopause?",
