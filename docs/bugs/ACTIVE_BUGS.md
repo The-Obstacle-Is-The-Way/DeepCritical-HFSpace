@@ -11,7 +11,7 @@
 ## Resolved Bugs
 
 ### ~~P3 - Magentic Mode Missing Termination Guarantee~~ FIXED
-**Commit**: `(Pending)` (2025-11-29)
+**Commit**: `d36ce3c` (2025-11-29)
 
 - Added `final_event_received` tracking in `orchestrator_magentic.py`
 - Added fallback yield for "max iterations reached" scenario
@@ -40,7 +40,6 @@
 - Users now see feedback during 2-5 minute initial processing
 
 ### ~~P1 - Gradio Settings Accordion~~ WONTFIX
-**File**: [P1_GRADIO_SETTINGS_CLEANUP.md](./P1_GRADIO_SETTINGS_CLEANUP.md)
 
 Decision: Removed nested Blocks, using ChatInterface directly.
 Accordion behavior is default Gradio - acceptable for demo.
