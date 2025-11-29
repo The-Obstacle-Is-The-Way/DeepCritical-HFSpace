@@ -175,6 +175,12 @@ async def research_agent(
 
         yield f"🧠 **Backend**: {backend_name}\n\n"
 
+        # Immediate loading feedback so user knows something is happening
+        yield (
+            f"🧠 **Backend**: {backend_name}\n\n"
+            "⏳ **Processing...** Searching PubMed, ClinicalTrials.gov, Europe PMC...\n"
+        )
+
         async for event in orchestrator.run(message):
             # BUG FIX: Handle streaming events separately to avoid token-by-token spam
             if event.type == "streaming":
@@ -248,7 +254,7 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
                 "advanced",
             ],
             [
-                "Evidence for testosterone therapy in women with HSDD?",
+                "Testosterone therapy for HSDD (Hypoactive Sexual Desire Disorder)?",
                 "simple",
             ],
         ],
