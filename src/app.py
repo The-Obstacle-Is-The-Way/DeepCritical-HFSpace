@@ -24,7 +24,6 @@ def configure_orchestrator(
     use_mock: bool = False,
     mode: str = "simple",
     user_api_key: str | None = None,
-    api_provider: str = "openai",
 ) -> tuple[Any, str]:
     """
     Create an orchestrator instance.
@@ -32,8 +31,7 @@ def configure_orchestrator(
     Args:
         use_mock: If True, use MockJudgeHandler (no API key needed)
         mode: Orchestrator mode ("simple" or "advanced")
-        user_api_key: Optional user-provided API key (BYOK)
-        api_provider: API provider ("openai" or "anthropic")
+        user_api_key: Optional user-provided API key (BYOK) - auto-detects provider
 
     Returns:
         Tuple of (Orchestrator instance, backend_name)
@@ -60,34 +58,35 @@ def configure_orchestrator(
         backend_info = "Mock (Testing)"
 
     # 2. Paid API Key (User provided or Env)
-    elif (
-        user_api_key
-        or (api_provider == "openai" and os.getenv("OPENAI_API_KEY"))
-        or (api_provider == "anthropic" and os.getenv("ANTHROPIC_API_KEY"))
-    ):
-        model: AnthropicModel | OpenAIModel | None = None
-        if user_api_key:
-            # Validate key/provider match to prevent silent auth failures
-            if api_provider == "openai" and user_api_key.startswith("sk-ant-"):
-                raise ValueError("Anthropic key provided but OpenAI provider selected")
-            is_openai_key = user_api_key.startswith("sk-") and not user_api_key.startswith(
-                "sk-ant-"
-            )
-            if api_provider == "anthropic" and is_openai_key:
-                raise ValueError("OpenAI key provided but Anthropic provider selected")
-            if api_provider == "anthropic":
-                anthropic_provider = AnthropicProvider(api_key=user_api_key)
-                model = AnthropicModel(settings.anthropic_model, provider=anthropic_provider)
-            elif api_provider == "openai":
-                openai_provider = OpenAIProvider(api_key=user_api_key)
-                model = OpenAIModel(settings.openai_model, provider=openai_provider)
-            backend_info = f"Paid API ({api_provider.upper()})"
+    elif user_api_key and user_api_key.strip():
+        # Auto-detect provider from key prefix
+        model: AnthropicModel | OpenAIModel
+        if user_api_key.startswith("sk-ant-"):
+            # Anthropic key
+            anthropic_provider = AnthropicProvider(api_key=user_api_key)
+            model = AnthropicModel(settings.anthropic_model, provider=anthropic_provider)
+            backend_info = "Paid API (Anthropic)"
+        elif user_api_key.startswith("sk-"):
+            # OpenAI key
+            openai_provider = OpenAIProvider(api_key=user_api_key)
+            model = OpenAIModel(settings.openai_model, provider=openai_provider)
+            backend_info = "Paid API (OpenAI)"
         else:
-            backend_info = "Paid API (Env Config)"
-
+            raise ValueError(
+                "Invalid API key format. Expected sk-... (OpenAI) or sk-ant-... (Anthropic)"
+            )
         judge_handler = JudgeHandler(model=model)
 
-    # 3. Free Tier (HuggingFace Inference)
+    # 3. Environment API Keys (fallback)
+    elif os.getenv("OPENAI_API_KEY"):
+        judge_handler = JudgeHandler(model=None)  # Uses env key
+        backend_info = "Paid API (OpenAI from env)"
+
+    elif os.getenv("ANTHROPIC_API_KEY"):
+        judge_handler = JudgeHandler(model=None)  # Uses env key
+        backend_info = "Paid API (Anthropic from env)"
+
+    # 4. Free Tier (HuggingFace Inference)
     else:
         judge_handler = HFInferenceJudgeHandler()
         backend_info = "Free Tier (Llama 3.1 / Mistral)"
@@ -107,7 +106,6 @@ async def research_agent(
     history: list[dict[str, Any]],
     mode: str = "simple",
     api_key: str = "",
-    api_provider: str = "openai",
 ) -> AsyncGenerator[str, None]:
     """
     Gradio chat function that runs the research agent.
@@ -116,8 +114,7 @@ async def research_agent(
         message: User's research question
         history: Chat history (Gradio format)
         mode: Orchestrator mode ("simple" or "advanced")
-        api_key: Optional user-provided API key (BYOK - Bring Your Own Key)
-        api_provider: API provider ("openai" or "anthropic")
+        api_key: Optional user-provided API key (BYOK - auto-detects provider)
 
     Yields:
         Markdown-formatted responses for streaming
@@ -132,24 +129,22 @@ async def research_agent(
     # Check available keys
     has_openai = bool(os.getenv("OPENAI_API_KEY"))
     has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
-    has_user_key = bool(user_api_key)
-    has_paid_key = has_openai or has_anthropic or has_user_key
+    # Check for OpenAI user key
+    is_openai_user_key = (
+        user_api_key and user_api_key.startswith("sk-") and not user_api_key.startswith("sk-ant-")
+    )
+    has_paid_key = has_openai or has_anthropic or bool(user_api_key)
 
     # Advanced mode requires OpenAI specifically (due to agent-framework binding)
-    if mode == "advanced" and not (has_openai or (has_user_key and api_provider == "openai")):
+    if mode == "advanced" and not (has_openai or is_openai_user_key):
         yield (
             "⚠️ **Warning**: Advanced mode currently requires OpenAI API key. "
-            "Falling back to simple mode.\n\n"
+            "Anthropic keys only work in Simple mode. Falling back to Simple.\n\n"
         )
         mode = "simple"
 
-    # Inform user about their key being used
-    if has_user_key:
-        yield (
-            f"🔑 **Using your {api_provider.upper()} API key** - "
-            "Your key is used only for this session and is never stored.\n\n"
-        )
-    elif not has_paid_key:
+    # Inform user about fallback if no keys
+    if not has_paid_key:
         # No paid keys - will use FREE HuggingFace Inference
         yield (
             "🤗 **Free Tier**: Using HuggingFace Inference (Llama 3.1 / Mistral) for AI analysis.\n"
@@ -166,7 +161,6 @@ async def research_agent(
             use_mock=False,  # Never use mock in production - HF Inference is the free fallback
             mode=mode,
             user_api_key=user_api_key,
-            api_provider=api_provider,
         )
 
         yield f"🧠 **Backend**: {backend_name}\n\n"
@@ -212,42 +206,33 @@ def create_demo() -> gr.ChatInterface:
                 "What drugs improve female libido post-menopause?",
                 "simple",
                 "",
-                "openai",
             ],
             [
                 "Clinical trials for erectile dysfunction alternatives to PDE5 inhibitors?",
                 "simple",
                 "",
-                "openai",
             ],
             [
                 "Evidence for testosterone therapy in women with HSDD?",
                 "simple",
                 "",
-                "openai",
             ],
         ],
-        additional_inputs_accordion=gr.Accordion(label="⚙️ Settings", open=False),
+        additional_inputs_accordion=gr.Accordion(
+            label="⚙️ Settings (Free tier works without API key)", open=False
+        ),
         additional_inputs=[
             gr.Radio(
                 choices=["simple", "advanced"],
                 value="simple",
                 label="Orchestrator Mode",
-                info=(
-                    "Simple: Linear (Free Tier Friendly) | Advanced: Multi-Agent (Requires OpenAI)"
-                ),
+                info=("Simple: Works with any key or free tier | " "Advanced: Requires OpenAI key"),
             ),
             gr.Textbox(
-                label="🔑 API Key (Optional - BYOK)",
-                placeholder="sk-... or sk-ant-...",
+                label="🔑 API Key (Optional)",
+                placeholder="sk-... (OpenAI) or sk-ant-... (Anthropic)",
                 type="password",
-                info="Enter your own API key. Never stored.",
-            ),
-            gr.Radio(
-                choices=["openai", "anthropic"],
-                value="openai",
-                label="API Provider",
-                info="Select the provider for your API key",
+                info="Leave empty for free tier. Auto-detects provider from key prefix.",
             ),
         ],
     )
