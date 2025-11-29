@@ -19,6 +19,7 @@ from src.prompts.judge import (
     SYSTEM_PROMPT,
     format_empty_evidence_prompt,
     format_user_prompt,
+    select_evidence_for_judge,
 )
 from src.utils.config import settings
 from src.utils.models import AssessmentDetails, Evidence, JudgeAssessment
@@ -102,6 +103,8 @@ class JudgeHandler:
         self,
         question: str,
         evidence: list[Evidence],
+        iteration: int = 0,
+        max_iterations: int = 10,
     ) -> JudgeAssessment:
         """
         Assess evidence and determine if it's sufficient.
@@ -109,6 +112,8 @@ class JudgeHandler:
         Args:
             question: The user's research question
             evidence: List of Evidence objects from search
+            iteration: Current iteration number
+            max_iterations: Maximum allowed iterations
 
         Returns:
             JudgeAssessment with evaluation results
@@ -120,11 +125,20 @@ class JudgeHandler:
             "Starting evidence assessment",
             question=question[:100],
             evidence_count=len(evidence),
+            iteration=iteration,
         )
 
         # Format the prompt based on whether we have evidence
         if evidence:
-            user_prompt = format_user_prompt(question, evidence)
+            # Select diverse evidence using embeddings (if available)
+            selected_evidence = await select_evidence_for_judge(evidence, question)
+            user_prompt = format_user_prompt(
+                question,
+                selected_evidence,
+                iteration,
+                max_iterations,
+                total_evidence_count=len(evidence),
+            )
         else:
             user_prompt = format_empty_evidence_prompt(question)
 
@@ -218,6 +232,8 @@ class HFInferenceJudgeHandler:
         self,
         question: str,
         evidence: list[Evidence],
+        iteration: int = 0,
+        max_iterations: int = 10,
     ) -> JudgeAssessment:
         """
         Assess evidence using HuggingFace Inference API.
@@ -246,7 +262,14 @@ class HFInferenceJudgeHandler:
 
         # Format the user prompt
         if evidence:
-            user_prompt = format_user_prompt(question, evidence)
+            selected_evidence = await select_evidence_for_judge(evidence, question)
+            user_prompt = format_user_prompt(
+                question,
+                selected_evidence,
+                iteration,
+                max_iterations,
+                total_evidence_count=len(evidence),
+            )
         else:
             user_prompt = format_empty_evidence_prompt(question)
 
@@ -535,6 +558,8 @@ class MockJudgeHandler:
         self,
         question: str,
         evidence: list[Evidence],
+        iteration: int = 0,
+        max_iterations: int = 10,
     ) -> JudgeAssessment:
         """Return assessment based on actual evidence (demo mode)."""
         self.call_count += 1
