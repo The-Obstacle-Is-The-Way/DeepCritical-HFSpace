@@ -40,12 +40,20 @@ class JudgeHandlerProtocol(Protocol):
     and MockJudgeHandler.
     """
 
-    async def assess(self, question: str, evidence: list[Evidence]) -> JudgeAssessment:
+    async def assess(
+        self,
+        question: str,
+        evidence: list[Evidence],
+        iteration: int = 0,
+        max_iterations: int = 10,
+    ) -> JudgeAssessment:
         """Assess whether collected evidence is sufficient.
 
         Args:
             question: The original research question
             evidence: List of evidence items to assess
+            iteration: Current iteration number
+            max_iterations: Maximum allowed iterations
 
         Returns:
             JudgeAssessment with sufficiency determination and next steps

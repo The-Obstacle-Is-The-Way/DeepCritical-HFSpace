@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import structlog
 
@@ -41,6 +41,16 @@ class Orchestrator:
     Uses pydantic-ai for structured LLM outputs without requiring the full
     Microsoft Agent Framework.
     """
+
+    # Termination thresholds (code-enforced, not LLM-decided)
+    TERMINATION_CRITERIA: ClassVar[dict[str, float]] = {
+        "min_combined_score": 12.0,  # mechanism + clinical >= 12
+        "min_score_with_volume": 10.0,  # >= 10 if 50+ sources
+        "late_iteration_threshold": 8.0,  # >= 8 in iterations 8+
+        "max_evidence_threshold": 100.0,  # Force synthesis with 100+ sources
+        "emergency_iteration": 8.0,  # Last 2 iterations = emergency mode
+        "min_confidence": 0.5,  # Minimum confidence for emergency synthesis
+    }
 
     def __init__(
         self,
@@ -100,6 +110,7 @@ class Orchestrator:
         try:
             # Deduplicate using semantic similarity
             unique_evidence: list[Evidence] = await embeddings.deduplicate(evidence, threshold=0.85)
+
             logger.info(
                 "Deduplicated evidence",
                 before=len(evidence),
@@ -152,6 +163,65 @@ class Orchestrator:
                 data={"error": str(e)},
                 iteration=iteration,
             )
+
+    def _should_synthesize(
+        self,
+        assessment: JudgeAssessment,
+        iteration: int,
+        max_iterations: int,
+        evidence_count: int,
+    ) -> tuple[bool, str]:
+        """
+        Code-enforced synthesis decision.
+
+        Returns (should_synthesize, reason).
+        """
+        combined_score = (
+            assessment.details.mechanism_score + assessment.details.clinical_evidence_score
+        )
+        has_drug_candidates = len(assessment.details.drug_candidates) > 0
+        confidence = assessment.confidence
+
+        # Priority 1: LLM explicitly says sufficient with good scores
+        if assessment.sufficient and assessment.recommendation == "synthesize":
+            if combined_score >= 10:
+                return True, "judge_approved"
+
+        # Priority 2: High scores with drug candidates
+        if (
+            combined_score >= self.TERMINATION_CRITERIA["min_combined_score"]
+            and has_drug_candidates
+        ):
+            return True, "high_scores_with_candidates"
+
+        # Priority 3: Good scores with high evidence volume
+        if (
+            combined_score >= self.TERMINATION_CRITERIA["min_score_with_volume"]
+            and evidence_count >= 50
+        ):
+            return True, "good_scores_high_volume"
+
+        # Priority 4: Late iteration with acceptable scores (diminishing returns)
+        is_late_iteration = iteration >= max_iterations - 2
+        if (
+            is_late_iteration
+            and combined_score >= self.TERMINATION_CRITERIA["late_iteration_threshold"]
+        ):
+            return True, "late_iteration_acceptable"
+
+        # Priority 5: Very high evidence count (enough to synthesize something)
+        if evidence_count >= self.TERMINATION_CRITERIA["max_evidence_threshold"]:
+            return True, "max_evidence_reached"
+
+        # Priority 6: Emergency synthesis (avoid garbage output)
+        if (
+            is_late_iteration
+            and evidence_count >= 30
+            and confidence >= self.TERMINATION_CRITERIA["min_confidence"]
+        ):
+            return True, "emergency_synthesis"
+
+        return False, "continue_searching"
 
     async def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:  # noqa: PLR0915
         """
@@ -252,7 +322,9 @@ class Orchestrator:
             )
 
             try:
-                assessment = await self.judge.assess(query, all_evidence)
+                assessment = await self.judge.assess(
+                    query, all_evidence, iteration, self.config.max_iterations
+                )
 
                 yield AgentEvent(
                     type="judge_complete",
@@ -279,15 +351,37 @@ class Orchestrator:
                     }
                 )
 
-                # === DECISION PHASE ===
-                if assessment.sufficient and assessment.recommendation == "synthesize":
+                # === DECISION PHASE (Code-Enforced) ===
+                should_synth, reason = self._should_synthesize(
+                    assessment=assessment,
+                    iteration=iteration,
+                    max_iterations=self.config.max_iterations,
+                    evidence_count=len(all_evidence),
+                )
+
+                logger.info(
+                    "Synthesis decision",
+                    should_synthesize=should_synth,
+                    reason=reason,
+                    iteration=iteration,
+                    combined_score=assessment.details.mechanism_score
+                    + assessment.details.clinical_evidence_score,
+                    evidence_count=len(all_evidence),
+                    confidence=assessment.confidence,
+                )
+
+                if should_synth:
+                    # Log synthesis trigger reason for debugging
+                    if reason != "judge_approved":
+                        logger.info(f"Code-enforced synthesis triggered: {reason}")
+
                     # Optional Analysis Phase
                     async for event in self._run_analysis_phase(query, all_evidence, iteration):
                         yield event
 
                     yield AgentEvent(
                         type="synthesizing",
-                        message="Evidence sufficient! Preparing synthesis...",
+                        message=f"Evidence sufficient ({reason})! Preparing synthesis...",
                         iteration=iteration,
                     )
 
@@ -300,6 +394,7 @@ class Orchestrator:
                         data={
                             "evidence_count": len(all_evidence),
                             "iterations": iteration,
+                            "synthesis_reason": reason,
                             "drug_candidates": assessment.details.drug_candidates,
                             "key_findings": assessment.details.key_findings,
                         },
@@ -317,10 +412,11 @@ class Orchestrator:
                     yield AgentEvent(
                         type="looping",
                         message=(
-                            f"Need more evidence. "
-                            f"Next searches: {', '.join(current_queries[:2])}..."
+                            f"Gathering more evidence (scores: {assessment.details.mechanism_score}"
+                            f"+{assessment.details.clinical_evidence_score}). "
+                            f"Next: {', '.join(current_queries[:2])}..."
                         ),
-                        data={"next_queries": current_queries},
+                        data={"next_queries": current_queries, "reason": reason},
                         iteration=iteration,
                     )
 
@@ -410,36 +506,93 @@ class Orchestrator:
         evidence: list[Evidence],
     ) -> str:
         """
-        Generate a partial synthesis when max iterations reached.
+        Generate a REAL synthesis when max iterations reached.
 
-        Args:
-            query: The original question
-            evidence: All collected evidence
+        Even when forced to stop, we should provide:
+        - Drug candidates (if any were found)
+        - Key findings
+        - Assessment scores
+        - Actionable citations
 
-        Returns:
-            Formatted partial synthesis as markdown
+        This is still better than a citation dump.
         """
+        # Extract data from last assessment if available
+        last_assessment = self.history[-1]["assessment"] if self.history else {}
+        details = last_assessment.get("details", {})
+
+        drug_candidates = details.get("drug_candidates", [])
+        key_findings = details.get("key_findings", [])
+        mechanism_score = details.get("mechanism_score", 0)
+        clinical_score = details.get("clinical_evidence_score", 0)
+        reasoning = last_assessment.get("reasoning", "Analysis incomplete due to iteration limit.")
+
+        # Format drug candidates
+        if drug_candidates:
+            drug_list = "\n".join([f"- **{d}**" for d in drug_candidates[:5]])
+        else:
+            drug_list = (
+                "- *No specific drug candidates identified in evidence*\n"
+                "- *Try a more specific query or add an API key for better analysis*"
+            )
+
+        # Format key findings
+        if key_findings:
+            findings_list = "\n".join([f"- {f}" for f in key_findings[:5]])
+        else:
+            findings_list = (
+                "- *Key findings require further analysis*\n"
+                "- *See citations below for relevant sources*"
+            )
+
+        # Format citations (top 10)
         citations = "\n".join(
             [
-                f"{i + 1}. [{e.citation.title}]({e.citation.url}) ({e.citation.source.upper()})"
+                f"{i + 1}. [{e.citation.title}]({e.citation.url}) "
+                f"({e.citation.source.upper()}, {e.citation.date})"
                 for i, e in enumerate(evidence[:10])
             ]
         )
 
-        return f"""## Partial Analysis (Max Iterations Reached)
+        combined_score = mechanism_score + clinical_score
+        mech_strength = (
+            "Strong" if mechanism_score >= 7 else "Moderate" if mechanism_score >= 4 else "Limited"
+        )
+        clin_strength = (
+            "Strong" if clinical_score >= 7 else "Moderate" if clinical_score >= 4 else "Limited"
+        )
+        comb_strength = "Sufficient" if combined_score >= 12 else "Partial"
 
-### Question
+        return f"""## Drug Repurposing Analysis
+
+### Research Question
 {query}
 
 ### Status
-Maximum search iterations reached. The evidence gathered may be incomplete.
+Analysis based on {len(evidence)} sources across {len(self.history)} iterations.
+Maximum iterations reached - results may be incomplete.
 
-### Evidence Collected
-Found {len(evidence)} sources. Consider refining your query for more specific results.
+### Drug Candidates Identified
+{drug_list}
 
-### Citations
+### Key Findings
+{findings_list}
+
+### Evidence Quality Scores
+| Criterion | Score | Interpretation |
+|-----------|-------|----------------|
+| Mechanism | {mechanism_score}/10 | {mech_strength} mechanistic evidence |
+| Clinical | {clinical_score}/10 | {clin_strength} clinical support |
+| Combined | {combined_score}/20 | {comb_strength} for synthesis |
+
+### Analysis Summary
+{reasoning}
+
+### Top Citations ({len(evidence)} sources total)
 {citations}
 
 ---
-*Consider searching with more specific terms or drug names.*
+*For more complete analysis:*
+- *Add an OpenAI or Anthropic API key for enhanced LLM analysis*
+- *Try a more specific query (e.g., include drug names)*
+- *Use Advanced mode for multi-agent research*
 """
