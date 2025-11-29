@@ -213,10 +213,14 @@ class Orchestrator:
                 # Deduplicate evidence by URL (fast, basic)
                 seen_urls = {e.citation.url for e in all_evidence}
                 unique_new = [e for e in new_evidence if e.citation.url not in seen_urls]
-                all_evidence.extend(unique_new)
 
-                # Semantic deduplication and ranking (if embeddings available)
-                all_evidence = await self._deduplicate_and_rank(all_evidence, query)
+                # BUG FIX: Only dedup NEW evidence, not all_evidence
+                # Old evidence is already in the vector store - re-checking it
+                # would mark items as duplicates of themselves (distance ≈ 0)
+                if unique_new:
+                    unique_new = await self._deduplicate_and_rank(unique_new, query)
+
+                all_evidence.extend(unique_new)
 
                 yield AgentEvent(
                     type="search_complete",

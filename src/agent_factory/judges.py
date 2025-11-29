@@ -195,6 +195,8 @@ class HFInferenceJudgeHandler:
         "HuggingFaceH4/zephyr-7b-beta",  # Fallback (Ungated)
     ]
 
+    MAX_CONSECUTIVE_FAILURES: ClassVar[int] = 3  # Force synthesis after N failures
+
     def __init__(self, model_id: str | None = None) -> None:
         """
         Initialize with HF Inference client.
@@ -206,6 +208,7 @@ class HFInferenceJudgeHandler:
         # Will automatically use HF_TOKEN from env if available
         self.client = InferenceClient()
         self.call_count = 0
+        self.consecutive_failures = 0  # Track failures to prevent infinite loops
         self.last_question: str | None = None
         self.last_evidence: list[Evidence] | None = None
 
@@ -217,10 +220,21 @@ class HFInferenceJudgeHandler:
         """
         Assess evidence using HuggingFace Inference API.
         Attempts models in order until one succeeds.
+
+        After MAX_CONSECUTIVE_FAILURES, forces synthesis to prevent infinite loops.
         """
         self.call_count += 1
         self.last_question = question
         self.last_evidence = evidence
+
+        # BUG FIX: After N consecutive failures, force synthesis to break infinite loop
+        if self.consecutive_failures >= self.MAX_CONSECUTIVE_FAILURES:
+            logger.warning(
+                "Max consecutive failures reached, forcing synthesis",
+                failures=self.consecutive_failures,
+                evidence_count=len(evidence),
+            )
+            return self._create_forced_synthesis_assessment(question, evidence)
 
         # Format the user prompt
         if evidence:
@@ -233,7 +247,9 @@ class HFInferenceJudgeHandler:
 
         for model in models_to_try:
             try:
-                return await self._call_with_retry(model, user_prompt, question)
+                result = await self._call_with_retry(model, user_prompt, question)
+                self.consecutive_failures = 0  # Reset on success
+                return result
             except Exception as e:
                 # Check for 402/Quota errors to fail fast
                 error_str = str(e)
@@ -249,8 +265,13 @@ class HFInferenceJudgeHandler:
                 last_error = e
                 continue
 
-        # All models failed
-        logger.error("All HF models failed", error=str(last_error))
+        # All models failed - increment failure counter
+        self.consecutive_failures += 1
+        logger.error(
+            "All HF models failed",
+            error=str(last_error),
+            consecutive_failures=self.consecutive_failures,
+        )
         return self._create_fallback_assessment(question, str(last_error))
 
     @retry(
@@ -399,6 +420,41 @@ IMPORTANT: Respond with ONLY valid JSON matching this schema:
                 "analyzed by the AI. "
                 "Please try again later, or add an OpenAI/Anthropic API key above "
                 "for unlimited access."
+            ),
+        )
+
+    def _create_forced_synthesis_assessment(
+        self, question: str, evidence: list[Evidence]
+    ) -> JudgeAssessment:
+        """Force synthesis after repeated failures to prevent infinite loops."""
+        findings = _extract_titles_from_evidence(
+            evidence,
+            max_items=5,
+            fallback_message="No findings available (API failures prevented analysis).",
+        )
+
+        return JudgeAssessment(
+            details=AssessmentDetails(
+                mechanism_score=0,
+                mechanism_reasoning="AI analysis unavailable after repeated API failures.",
+                clinical_evidence_score=0,
+                clinical_reasoning="AI analysis unavailable after repeated API failures.",
+                drug_candidates=["AI analysis required for drug identification."],
+                key_findings=findings,
+            ),
+            sufficient=True,  # FORCE STOP
+            confidence=0.1,
+            recommendation="synthesize",
+            next_search_queries=[],
+            reasoning=(
+                f"⚠️ **HF Inference Unavailable** ⚠️\n\n"
+                f"The free tier AI service failed {self.MAX_CONSECUTIVE_FAILURES} times. "
+                f"Search found {len(evidence)} sources (listed below) but they could not "
+                "be analyzed by AI.\n\n"
+                "**Options:**\n"
+                "- Add an OpenAI or Anthropic API key for reliable analysis\n"
+                "- Try again later when HF Inference is available\n"
+                "- Review the raw search results below"
             ),
         )
 
