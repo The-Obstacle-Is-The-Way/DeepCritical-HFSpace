@@ -4,28 +4,39 @@
 
 ## P0 - Blocker
 
-### P0 - Simple Mode Never Synthesizes
-**File:** `P0_SIMPLE_MODE_NEVER_SYNTHESIZES.md`
-
-**Symptom:** Simple mode finds 455 sources but outputs only citations (no synthesis).
-
-**Root Causes:**
-1. Judge never recommends "synthesize" (prompt too conservative)
-2. Confidence drops to 0% in late iterations (context overflow / API failure)
-3. Search derails to tangential topics (bone health instead of libido)
-4. `_generate_partial_synthesis()` outputs garbage (just citations, no analysis)
-
-**Status:** Documented, fix plan ready.
+*(None - P0 bugs resolved)*
 
 ---
 
-## P3 - Edge Case
+## P3 - Architecture/Enhancement
 
-*(None)*
+### P3 - Missing Structured Cognitive Memory
+**File:** `P3_ARCHITECTURAL_GAP_STRUCTURED_MEMORY.md`
+**Spec:** [SPEC_07_LANGGRAPH_MEMORY_ARCH.md](../specs/SPEC_07_LANGGRAPH_MEMORY_ARCH.md)
+
+**Problem:** AdvancedOrchestrator uses chat-based state (context drift on long runs).
+**Solution:** Implement LangGraph StateGraph with explicit hypothesis/conflict tracking.
+**Status:** Spec complete, implementation pending.
+
+### P3 - Ephemeral Memory (No Persistence)
+**File:** `P3_ARCHITECTURAL_GAP_EPHEMERAL_MEMORY.md`
+
+**Problem:** ChromaDB uses in-memory client despite `settings.chroma_db_path` existing.
+**Solution:** Switch to `PersistentClient(path=settings.chroma_db_path)`.
+**Status:** Quick fix identified, not yet implemented.
 
 ---
 
 ## Resolved Bugs
+
+### ~~P0 - Simple Mode Never Synthesizes~~ FIXED
+**PR:** [#71](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/pull/71) (SPEC_06)
+**Commit**: `5cac97d` (2025-11-29)
+
+- Root cause: LLM-as-Judge recommendations were being IGNORED
+- Fix: Code-enforced termination criteria (`_should_synthesize()`)
+- Added combined score thresholds, late-iteration logic, emergency fallback
+- Simple mode now synthesizes instead of spinning forever
 
 ### ~~P3 - Magentic Mode Missing Termination Guarantee~~ FIXED
 **Commit**: `d36ce3c` (2025-11-29)

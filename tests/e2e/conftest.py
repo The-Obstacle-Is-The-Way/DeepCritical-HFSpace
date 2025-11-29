@@ -39,7 +39,7 @@ def mock_judge_handler():
     """Return a mock judge that always says 'synthesize'."""
     mock = MagicMock()
 
-    async def mock_assess(question, evidence):
+    async def mock_assess(question, evidence, iteration=1, max_iterations=10):
         return JudgeAssessment(
             sufficient=True,
             confidence=0.9,
