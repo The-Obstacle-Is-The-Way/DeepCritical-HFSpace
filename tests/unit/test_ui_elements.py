@@ -24,9 +24,7 @@ def test_orchestrator_mode_info_text_updated():
     demo, _ = create_demo()
     # Assuming additional_inputs is a list and the Radio is the first element
     orchestrator_radio = demo.additional_inputs[0]
-    expected_info = (
-        "⚡ Simple: Fast (Free/Any Key) | " "🔬 Advanced: Deep Multi-Agent " "(OpenAI Key Only)"
-    )
+    expected_info = "⚡ Simple: Free/OpenAI/Anthropic | 🔬 Advanced: OpenAI only"
     assert isinstance(
         orchestrator_radio, gr.Radio
     ), "Expected first additional input to be gr.Radio"
