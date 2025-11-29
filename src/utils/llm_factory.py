@@ -56,7 +56,7 @@ def get_pydantic_ai_model() -> Any:
         Configured pydantic-ai model
     """
     from pydantic_ai.models.anthropic import AnthropicModel
-    from pydantic_ai.models.openai import OpenAIModel
+    from pydantic_ai.models.openai import OpenAIChatModel
     from pydantic_ai.providers.anthropic import AnthropicProvider
     from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -64,7 +64,7 @@ def get_pydantic_ai_model() -> Any:
         if not settings.openai_api_key:
             raise ConfigurationError("OPENAI_API_KEY not set for pydantic-ai")
         provider = OpenAIProvider(api_key=settings.openai_api_key)
-        return OpenAIModel(settings.openai_model, provider=provider)
+        return OpenAIChatModel(settings.openai_model, provider=provider)
 
     if settings.llm_provider == "anthropic":
         if not settings.anthropic_api_key:

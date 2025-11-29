@@ -1,10 +1,10 @@
-# Bug Report: Magentic Mode Streaming Spam + API Key Persistence
+# Bug Report: Magentic Mode Integration Issues
 
 ## Status
 - **Date:** 2025-11-29
 - **Reporter:** CLI User
-- **Priority:** P1 (UX Degradation)
-- **Component:** `src/app.py`, `src/orchestrator_magentic.py`
+- **Priority:** P1 (UX Degradation + Deprecation Warnings)
+- **Component:** `src/app.py`, `src/orchestrator_magentic.py`, `src/utils/llm_factory.py`
 
 ---
 
@@ -151,14 +151,82 @@ Leverage HF's built-in auth and secrets management.
 
 ---
 
+## Bug 3: Deprecated `OpenAIModel` Import
+
+### Symptoms
+HuggingFace Spaces logs show deprecation warning:
+```
+DeprecationWarning: OpenAIModel is deprecated, use OpenAIChatModel instead
+```
+
+### Root Cause
+**Files using deprecated API:**
+- `src/app.py:9` - `from pydantic_ai.models.openai import OpenAIModel`
+- `src/utils/llm_factory.py:59` - `from pydantic_ai.models.openai import OpenAIModel`
+
+**File already using correct API:**
+- `src/agent_factory/judges.py:12` - `from pydantic_ai.models.openai import OpenAIChatModel`
+
+### Fix
+Replace all `OpenAIModel` imports with `OpenAIChatModel`:
+
+```python
+# Before (deprecated)
+from pydantic_ai.models.openai import OpenAIModel
+model = OpenAIModel(settings.openai_model, provider=provider)
+
+# After (correct)
+from pydantic_ai.models.openai import OpenAIChatModel
+model = OpenAIChatModel(settings.openai_model, provider=provider)
+```
+
+**Files to update:**
+1. `src/app.py` - lines 9, 64, 73
+2. `src/utils/llm_factory.py` - lines 59, 67
+
+---
+
+## Bug 4: Asyncio Event Loop Garbage Collection Error
+
+### Symptoms
+HuggingFace Spaces logs show intermittent errors:
+```
+ValueError: Invalid file descriptor: -1
+Exception ignored in: <function BaseSelector.__del__ at 0x...>
+```
+
+### Root Cause
+This occurs during garbage collection of asyncio event loops. Likely causes:
+1. Event loop cleanup timing issues in Gradio's threaded model
+2. Selector objects being garbage-collected before proper cleanup
+3. Concurrent access to event loop resources during shutdown
+
+### Analysis
+The codebase uses `asyncio.get_running_loop()` correctly (not the deprecated `get_event_loop()`).
+This error appears to be a Gradio/HuggingFace Spaces environment issue rather than a code bug.
+
+### Potential Mitigations
+1. **Add explicit cleanup**: Use `asyncio.get_event_loop().close()` in appropriate places
+2. **Ignore in logs**: This is a known Python issue and can be safely ignored if it doesn't affect functionality
+3. **File issue with Gradio**: If reproducible, report to Gradio GitHub
+
+### Impact
+- **Severity**: Low - appears to be a cosmetic log issue
+- **User-visible**: No - errors occur during garbage collection, not during request handling
+
+---
+
 ## Recommended Priority
 
-1. **Bug 1 (Streaming Spam)**: Fix first - it makes Advanced mode unusable for reading output
-2. **Bug 2 (Key Persistence)**: Fix second - annoying but users can re-paste
+1. **Bug 1 (Streaming Spam)**: HIGH - makes Advanced mode unusable for reading output
+2. **Bug 3 (OpenAIModel deprecation)**: MEDIUM - fix to avoid future breakage
+3. **Bug 2 (Key Persistence)**: LOW - annoying but users can re-paste
+4. **Bug 4 (Asyncio GC)**: LOW - cosmetic log noise, monitor but likely no action needed
 
 ## Testing Plan
 
 1. Run Advanced mode query, verify no token-by-token spam
-2. Paste API key, click example, verify key persists
-3. Refresh page, verify key persists (if using localStorage)
-4. Run `make check` - all tests pass
+2. Verify no deprecation warnings in logs after OpenAIChatModel fix
+3. Paste API key, click example, verify key persists
+4. Refresh page, verify key persists (if using localStorage)
+5. Run `make check` - all tests pass

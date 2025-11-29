@@ -6,7 +6,7 @@ from typing import Any
 
 import gradio as gr
 from pydantic_ai.models.anthropic import AnthropicModel
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -61,7 +61,7 @@ def configure_orchestrator(
     # 2. Paid API Key (User provided or Env)
     elif user_api_key and user_api_key.strip():
         # Auto-detect provider from key prefix
-        model: AnthropicModel | OpenAIModel
+        model: AnthropicModel | OpenAIChatModel
         if user_api_key.startswith("sk-ant-"):
             # Anthropic key
             anthropic_provider = AnthropicProvider(api_key=user_api_key)
@@ -70,7 +70,7 @@ def configure_orchestrator(
         elif user_api_key.startswith("sk-"):
             # OpenAI key
             openai_provider = OpenAIProvider(api_key=user_api_key)
-            model = OpenAIModel(settings.openai_model, provider=openai_provider)
+            model = OpenAIChatModel(settings.openai_model, provider=openai_provider)
             backend_info = "Paid API (OpenAI)"
         else:
             raise ConfigurationError(
