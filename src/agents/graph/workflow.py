@@ -1,5 +1,7 @@
 """DeepBoner research workflow definition using LangGraph."""
 
+from __future__ import annotations
+
 from functools import partial
 from typing import Any
 
@@ -21,9 +23,9 @@ from src.services.embeddings import EmbeddingService
 
 def create_research_graph(
     llm: BaseChatModel | None = None,
-    checkpointer: "BaseCheckpointSaver[Any]" | None = None,  # Generic type from langgraph
+    checkpointer: BaseCheckpointSaver[Any] | None = None,
     embedding_service: EmbeddingService | None = None,
-) -> "CompiledStateGraph[Any]":  # type: ignore[type-arg]
+) -> CompiledStateGraph[Any]:
     """Build the research state graph.
 
     Args:
