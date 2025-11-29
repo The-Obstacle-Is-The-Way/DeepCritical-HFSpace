@@ -5,6 +5,7 @@ The sentence-transformers model is CPU-bound, so we use run_in_executor().
 """
 
 import asyncio
+import uuid
 from typing import Any
 
 import chromadb
@@ -13,6 +14,16 @@ from sentence_transformers import SentenceTransformer
 
 from src.utils.config import settings
 from src.utils.models import Evidence
+
+_shared_model: SentenceTransformer | None = None
+
+
+def _get_shared_model(model_name: str) -> SentenceTransformer:
+    """Get or create shared SentenceTransformer model instance."""
+    global _shared_model  # noqa: PLW0603
+    if _shared_model is None:
+        _shared_model = SentenceTransformer(model_name)
+    return _shared_model
 
 
 class EmbeddingService:
@@ -28,10 +39,11 @@ class EmbeddingService:
 
     def __init__(self, model_name: str | None = None):
         self._model_name = model_name or settings.local_embedding_model
-        self._model = SentenceTransformer(self._model_name)
+        # Use shared model instance to save memory/time
+        self._model = _get_shared_model(self._model_name)
         self._client = chromadb.Client()  # In-memory for hackathon
         self._collection = self._client.create_collection(
-            name="evidence", metadata={"hnsw:space": "cosine"}
+            name=f"evidence_{uuid.uuid4().hex}", metadata={"hnsw:space": "cosine"}
         )
 
     # ─────────────────────────────────────────────────────────────────
@@ -161,12 +173,7 @@ class EmbeddingService:
         return unique
 
 
-_embedding_service: EmbeddingService | None = None
-
-
 def get_embedding_service() -> EmbeddingService:
-    """Get singleton instance of EmbeddingService."""
-    global _embedding_service  # noqa: PLW0603
-    if _embedding_service is None:
-        _embedding_service = EmbeddingService()
-    return _embedding_service
+    """Get a new instance of EmbeddingService."""
+    # Always return a new instance to ensure clean ChromaDB state per session
+    return EmbeddingService()

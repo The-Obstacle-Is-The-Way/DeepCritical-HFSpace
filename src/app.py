@@ -97,6 +97,7 @@ def configure_orchestrator(
         judge_handler=judge_handler,
         config=config,
         mode=mode,  # type: ignore
+        api_key=user_api_key,
     )
 
     return orchestrator, backend_info

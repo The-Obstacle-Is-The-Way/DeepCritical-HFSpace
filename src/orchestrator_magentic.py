@@ -43,18 +43,33 @@ class MagenticOrchestrator:
         self,
         max_rounds: int = 10,
         chat_client: OpenAIChatClient | None = None,
+        api_key: str | None = None,
     ) -> None:
         """Initialize orchestrator.
 
         Args:
             max_rounds: Maximum coordination rounds
             chat_client: Optional shared chat client for agents
+            api_key: Optional OpenAI API key (for BYOK)
         """
-        # Validate requirements via centralized factory
-        check_magentic_requirements()
+        # Validate requirements only if no key provided
+        if not chat_client and not api_key:
+            check_magentic_requirements()
 
         self._max_rounds = max_rounds
-        self._chat_client = chat_client
+        self._chat_client: OpenAIChatClient | None
+
+        if chat_client:
+            self._chat_client = chat_client
+        elif api_key:
+            # Create client with user provided key
+            self._chat_client = OpenAIChatClient(
+                model_id=settings.openai_model,
+                api_key=api_key,
+            )
+        else:
+            # Fallback to env vars (will fail later if requirements check wasn't run/passed)
+            self._chat_client = None
 
     def _init_embedding_service(self) -> "EmbeddingService | None":
         """Initialize embedding service if available."""
@@ -79,7 +94,7 @@ class MagenticOrchestrator:
         report_agent = create_report_agent(self._chat_client)
 
         # Manager chat client (orchestrates the agents)
-        manager_client = OpenAIChatClient(
+        manager_client = self._chat_client or OpenAIChatClient(
             model_id=settings.openai_model,  # Use configured model
             api_key=settings.openai_api_key,
         )

@@ -210,6 +210,16 @@ class HFInferenceJudgeHandler:
             try:
                 return await self._call_with_retry(model, user_prompt, question)
             except Exception as e:
+                # Check for 402/Quota errors to fail fast
+                error_str = str(e)
+                if (
+                    "402" in error_str
+                    or "quota" in error_str.lower()
+                    or "payment required" in error_str.lower()
+                ):
+                    logger.error("HF Quota Exhausted", error=error_str)
+                    return self._create_quota_exhausted_assessment(question)
+
                 logger.warning("Model failed", model=model, error=str(e))
                 last_error = e
                 continue
@@ -331,6 +341,29 @@ IMPORTANT: Respond with ONLY valid JSON matching this schema:
                         return None
 
         return None
+
+    def _create_quota_exhausted_assessment(self, question: str) -> JudgeAssessment:
+        """Create an assessment that stops the loop when quota is exhausted."""
+        return JudgeAssessment(
+            details=AssessmentDetails(
+                mechanism_score=0,
+                mechanism_reasoning="Free tier quota exhausted.",
+                clinical_evidence_score=0,
+                clinical_reasoning="Free tier quota exhausted.",
+                drug_candidates=[],
+                key_findings=[],
+            ),
+            sufficient=True,  # STOP THE LOOP
+            confidence=0.0,
+            recommendation="synthesize",
+            next_search_queries=[],
+            reasoning=(
+                "⚠️ **Free Tier Quota Exceeded** ⚠️\n\n"
+                "The HuggingFace Inference API free tier limit has been reached. "
+                "Please try again later, or add an OpenAI/Anthropic API key above "
+                "for unlimited access."
+            ),
+        )
 
     def _create_fallback_assessment(
         self,

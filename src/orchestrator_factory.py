@@ -29,6 +29,7 @@ def create_orchestrator(
     judge_handler: JudgeHandlerProtocol | None = None,
     config: OrchestratorConfig | None = None,
     mode: Literal["simple", "magentic", "advanced"] | None = None,
+    api_key: str | None = None,
 ) -> Any:
     """
     Create an orchestrator instance.
@@ -38,17 +39,19 @@ def create_orchestrator(
         judge_handler: The judge handler (required for simple mode)
         config: Optional configuration
         mode: "simple", "magentic", "advanced" or None (auto-detect)
+        api_key: Optional API key for advanced mode (OpenAI)
 
     Returns:
         Orchestrator instance
     """
-    effective_mode = _determine_mode(mode)
+    effective_mode = _determine_mode(mode, api_key)
     logger.info("Creating orchestrator", mode=effective_mode)
 
     if effective_mode == "advanced":
         orchestrator_cls = _get_magentic_orchestrator_class()
         return orchestrator_cls(
             max_rounds=config.max_iterations if config else 10,
+            api_key=api_key,
         )
 
     # Simple mode requires handlers
@@ -62,7 +65,7 @@ def create_orchestrator(
     )
 
 
-def _determine_mode(explicit_mode: str | None) -> str:
+def _determine_mode(explicit_mode: str | None, api_key: str | None) -> str:
     """Determine which mode to use."""
     if explicit_mode:
         if explicit_mode in ("magentic", "advanced"):
@@ -70,7 +73,7 @@ def _determine_mode(explicit_mode: str | None) -> str:
         return "simple"
 
     # Auto-detect: advanced if paid API key available
-    if settings.has_openai_key:
+    if settings.has_openai_key or (api_key and api_key.startswith("sk-")):
         return "advanced"
 
     return "simple"
