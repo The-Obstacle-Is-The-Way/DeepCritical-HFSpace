@@ -451,12 +451,12 @@ class MockJudgeHandler:
 
     def _extract_key_findings(self, evidence: list[Evidence], max_findings: int = 5) -> list[str]:
         """Extract key findings from evidence titles."""
-        findings = _extract_titles_from_evidence(
+        # Helper guarantees non-empty list when fallback_message is provided
+        return _extract_titles_from_evidence(
             evidence,
             max_items=max_findings,
             fallback_message="No specific findings extracted (demo mode)",
         )
-        return findings if findings else ["No specific findings extracted (demo mode)"]
 
     def _extract_drug_candidates(self, question: str, evidence: list[Evidence]) -> list[str]:
         """Extract drug candidates - demo mode returns honest message."""

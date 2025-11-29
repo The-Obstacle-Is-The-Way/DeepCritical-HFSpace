@@ -127,10 +127,8 @@ async def research_agent(
         yield "Please enter a research question."
         return
 
-    # BUG FIX: Use state for persistence, fallback to textbox
-    # If user just entered a key (api_key is not empty), use it and update state
-    # Otherwise, use the persisted state value
-    user_api_key = api_key.strip() if api_key else api_key_state.strip() if api_key_state else None
+    # BUG FIX: Prefer freshly-entered key, then persisted state
+    user_api_key = (api_key.strip() or api_key_state.strip()) or None
 
     # Check available keys
     has_openai = bool(os.getenv("OPENAI_API_KEY"))
@@ -267,14 +265,8 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
         ],
     )
 
-    # Wire up API key change to update state
-    # This ensures that when user types, state is updated.
-    # When examples are clicked (and only modify first 2 args), state remains.
-    # Note: This requires a Blocks context, which ChatInterface doesn't expose easily here.
-    # However, by removing the empty strings from the examples list above,
-    # we prevent the API key from being overwritten in the first place,
-    # so the api_key textbox retains its value, and research_agent receives it directly.
-    # api_key_input.change(lambda x: x, inputs=api_key_input, outputs=api_key_state)
+    # API key persists because examples only include [message, mode] columns,
+    # so Gradio doesn't overwrite the api_key textbox when examples are clicked.
 
     return demo, additional_inputs_accordion
 

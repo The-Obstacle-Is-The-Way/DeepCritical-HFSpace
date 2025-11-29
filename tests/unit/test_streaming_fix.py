@@ -7,6 +7,7 @@ import pytest
 from src.utils.models import AgentEvent
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_streaming_events_are_buffered_not_spammed():
     """
@@ -92,6 +93,7 @@ async def test_streaming_events_are_buffered_not_spammed():
         app_module.configure_orchestrator = original_configure
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_api_key_state_parameter_exists():
     """

@@ -14,7 +14,7 @@
 
 ### Symptoms
 When running Magentic (Advanced) mode, the UI shows hundreds of individual lines like:
-```
+```text
 📡 STREAMING: Below
 📡 STREAMING: is
 📡 STREAMING: a
@@ -157,7 +157,7 @@ Gradio's `ChatInterface` with `additional_inputs` has known issues:
 - Replaced all `OpenAIModel` imports with `OpenAIChatModel` in `src/app.py` and `src/utils/llm_factory.py`.
 
 ### Test Results
-```
+```bash
 uv run pytest tests/ -q
 ============================= 138 passed in 20.60s =============================
 ```
