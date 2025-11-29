@@ -129,6 +129,7 @@ markers = [
     "unit: Unit tests (mocked)",
     "integration: Integration tests (real APIs)",
     "slow: Slow tests",
+    "e2e: End-to-End tests (full pipeline)",
 ]
 # Filter warnings from unittest.mock introspecting Pydantic models.
 # This is a known upstream issue: https://github.com/pydantic/pydantic/issues/9927

@@ -119,6 +119,7 @@ class AgentEvent(BaseModel):
         "hypothesizing",
         "analyzing",  # NEW for Phase 13
         "analysis_complete",  # NEW for Phase 13
+        "progress",  # NEW for SPEC_01
     ]
     message: str
     data: Any = None
@@ -142,6 +143,7 @@ class AgentEvent(BaseModel):
             "hypothesizing": "🔬",  # NEW
             "analyzing": "📊",  # NEW
             "analysis_complete": "📈",  # NEW
+            "progress": "⏱️",  # NEW
         }
         icon = icons.get(self.type, "•")
         return f"{icon} **{self.type.upper()}**: {self.message}"

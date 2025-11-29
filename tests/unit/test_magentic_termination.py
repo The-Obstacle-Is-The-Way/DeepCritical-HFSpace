@@ -109,3 +109,38 @@ async def test_no_double_termination_event(mock_magentic_requirements):
             # Verify we didn't get a SECOND "Max iterations reached" event
             fallback_events = [e for e in events if "Max iterations reached" in e.message]
             assert len(fallback_events) == 0
+
+
+@pytest.mark.asyncio
+async def test_termination_on_timeout(mock_magentic_requirements):
+    """
+    Verify that a termination event is emitted when the workflow times out.
+    """
+    orchestrator = MagenticOrchestrator()
+
+    mock_workflow = MagicMock()
+
+    # Simulate a stream that times out (raises TimeoutError)
+    async def mock_stream_raises(task):
+        # Yield one event before timing out
+        yield MagenticAgentMessageEvent(
+            agent_id="SearchAgent", message=MockChatMessage("Working...")
+        )
+        raise TimeoutError()
+
+    mock_workflow.run_stream = mock_stream_raises
+
+    with patch.object(orchestrator, "_build_workflow", return_value=mock_workflow):
+        events = []
+        async for event in orchestrator.run("Research query"):
+            events.append(event)
+
+        # Check for progress/normal events
+        assert any("Working..." in e.message for e in events)
+
+        # Check for timeout completion
+        completion_events = [e for e in events if e.type == "complete"]
+        assert len(completion_events) > 0
+        last_event = completion_events[-1]
+        assert "timed out" in last_event.message
+        assert last_event.data.get("reason") == "timeout"

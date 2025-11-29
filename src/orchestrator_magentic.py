@@ -1,5 +1,6 @@
 """Magentic-based orchestrator using ChatAgent pattern."""
 
+import asyncio
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 
@@ -44,6 +45,7 @@ class MagenticOrchestrator:
         max_rounds: int = 10,
         chat_client: OpenAIChatClient | None = None,
         api_key: str | None = None,
+        timeout_seconds: float = 300.0,
     ) -> None:
         """Initialize orchestrator.
 
@@ -51,12 +53,14 @@ class MagenticOrchestrator:
             max_rounds: Maximum coordination rounds
             chat_client: Optional shared chat client for agents
             api_key: Optional OpenAI API key (for BYOK)
+            timeout_seconds: Maximum workflow duration (default: 5 minutes)
         """
         # Validate requirements only if no key provided
         if not chat_client and not api_key:
             check_magentic_requirements()
 
         self._max_rounds = max_rounds
+        self._timeout_seconds = timeout_seconds
         self._chat_client: OpenAIChatClient | None
 
         if chat_client:
@@ -171,16 +175,23 @@ The final output should be a structured research report."""
         final_event_received = False
 
         try:
-            async for event in workflow.run_stream(task):
-                agent_event = self._process_event(event, iteration)
-                if agent_event:
-                    if isinstance(event, MagenticAgentMessageEvent):
-                        iteration += 1
+            async with asyncio.timeout(self._timeout_seconds):
+                async for event in workflow.run_stream(task):
+                    agent_event = self._process_event(event, iteration)
+                    if agent_event:
+                        if isinstance(event, MagenticAgentMessageEvent):
+                            iteration += 1
+                            # Yield progress update before the agent action
+                            yield AgentEvent(
+                                type="progress",
+                                message=f"Round {iteration}/{self._max_rounds}...",
+                                iteration=iteration,
+                            )
 
-                    if agent_event.type == "complete":
-                        final_event_received = True
+                        if agent_event.type == "complete":
+                            final_event_received = True
 
-                    yield agent_event
+                        yield agent_event
 
             # GUARANTEE: Always emit termination event if stream ends without one
             # (e.g., max rounds reached)
@@ -199,6 +210,15 @@ The final output should be a structured research report."""
                     data={"iterations": iteration, "reason": "max_rounds_reached"},
                     iteration=iteration,
                 )
+
+        except TimeoutError:
+            logger.warning("Workflow timed out", iterations=iteration)
+            yield AgentEvent(
+                type="complete",
+                message="Research timed out. Synthesizing available evidence...",
+                data={"reason": "timeout", "iterations": iteration},
+                iteration=iteration,
+            )
 
         except Exception as e:
             logger.error("Magentic workflow failed", error=str(e))
