@@ -4,15 +4,16 @@
 
 ## Problem Statement
 
-We search 3 sources (PubMed, Europe PMC, ClinicalTrials.gov) but have **no citation metrics**. We can't distinguish a highly-cited landmark paper from an obscure one. OpenAlex provides:
+We currently search 3 sources (PubMed, Europe PMC, ClinicalTrials.gov) but lack **citation metrics**. We cannot distinguish a highly-cited landmark paper from an obscure one. OpenAlex provides:
 
 1. **Citation counts** - Prioritize authoritative papers
 2. **Citation networks** - "Who cites whom"
 3. **Concept tagging** - Hierarchical categorization
-4. **Related works** - ML-powered similarity
-5. **Open access links** - Direct PDF URLs
+4. **Open access links** - Direct PDF URLs
 
 **FREE API. No key required. 209M+ works indexed.**
+
+> **Note:** This spec supersedes `docs/future-roadmap/phases/15_PHASE_OPENALEX.md`.
 
 ## Groundwork Already Done
 
@@ -42,7 +43,7 @@ GET https://api.openalex.org/works
 | Parameter | Description |
 |-----------|-------------|
 | `search` | Full-text search across title, abstract, fulltext |
-| `filter` | Constrain results (e.g., `type:article`) |
+| `filter` | Constrain results (e.g., `type:article`, `has_abstract:true`) |
 | `sort` | Order results (e.g., `cited_by_count:desc`) |
 | `per_page` | Results per page (max 200) |
 | `mailto` | Email for polite pool (higher rate limits) |
@@ -50,7 +51,7 @@ GET https://api.openalex.org/works
 ### Example Request
 
 ```bash
-GET https://api.openalex.org/works?search=metformin%20cancer&filter=type:article&sort=cited_by_count:desc&per_page=10&mailto=deepboner@example.com
+GET https://api.openalex.org/works?search=metformin%20cancer&filter=type:article,has_abstract:true&sort=cited_by_count:desc&per_page=10&mailto=deepboner-research@proton.me
 ```
 
 ### Response Structure
@@ -86,28 +87,6 @@ GET https://api.openalex.org/works?search=metformin%20cancer&filter=type:article
 }
 ```
 
-### Abstract Reconstruction
-
-OpenAlex stores abstracts as inverted index for compression. Must reconstruct:
-
-```python
-def _reconstruct_abstract(self, inverted_index: dict[str, list[int]] | None) -> str:
-    """Rebuild abstract from {"word": [positions]} format."""
-    if not inverted_index:
-        return ""
-
-    position_word: dict[int, str] = {}
-    for word, positions in inverted_index.items():
-        for pos in positions:
-            position_word[pos] = word
-
-    if not position_word:
-        return ""
-
-    max_pos = max(position_word.keys())
-    return " ".join(position_word.get(i, "") for i in range(max_pos + 1))
-```
-
 ## Architecture
 
 ### Class Diagram
@@ -124,7 +103,7 @@ def _reconstruct_abstract(self, inverted_index: dict[str, list[int]] | None) -> 
 │           OpenAlexTool               │
 │  ─────────────────────────────────  │
 │  - BASE_URL: str                     │
-│  - _polite_email: str                │
+│  - POLITE_EMAIL: str                 │
 │  ─────────────────────────────────  │
 │  + name → "openalex"                 │
 │  + search(query, max_results) → list[Evidence]  │
@@ -133,29 +112,6 @@ def _reconstruct_abstract(self, inverted_index: dict[str, list[int]] | None) -> 
 │  - _extract_authors(authorships) → list[str]    │
 │  - _extract_concepts(concepts) → list[str]      │
 └─────────────────────────────────────┘
-```
-
-### Integration Flow
-
-```
-SearchHandler
-    │
-    ├── PubMedTool
-    ├── EuropePMCTool
-    ├── ClinicalTrialsTool
-    └── OpenAlexTool  ◄── NEW
-            │
-            ▼
-    Evidence(
-        content=abstract[:2000],
-        citation=Citation(source="openalex", ...),
-        metadata={
-            "cited_by_count": 150,
-            "concepts": ["Metformin", "Cancer"],
-            "is_open_access": True,
-            "pdf_url": "https://..."
-        }
-    )
 ```
 
 ## TDD Implementation Plan
@@ -167,7 +123,7 @@ SearchHandler
 ```python
 """Unit tests for OpenAlex tool - TDD RED phase."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -215,77 +171,61 @@ class TestOpenAlexTool:
     def tool(self) -> OpenAlexTool:
         return OpenAlexTool()
 
+    @pytest.fixture
+    def mock_client(self, mocker):
+        """Create a standardized mock client with context manager support."""
+        client = AsyncMock()
+        client.__aenter__.return_value = client
+        client.__aexit__.return_value = None
+        
+        # Standard response mock
+        resp = MagicMock()
+        resp.json.return_value = SAMPLE_OPENALEX_RESPONSE
+        resp.raise_for_status.return_value = None
+        client.get.return_value = resp
+        
+        mocker.patch("httpx.AsyncClient", return_value=client)
+        return client
+
     def test_tool_name(self, tool: OpenAlexTool) -> None:
         """Tool name should be 'openalex'."""
         assert tool.name == "openalex"
 
     @pytest.mark.asyncio
-    async def test_search_returns_evidence(self, tool: OpenAlexTool) -> None:
+    async def test_search_returns_evidence(self, tool: OpenAlexTool, mock_client) -> None:
         """Search should return Evidence objects."""
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
+        results = await tool.search("metformin cancer", max_results=5)
 
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = SAMPLE_OPENALEX_RESPONSE
-            mock_resp.raise_for_status.return_value = None
-            mock_instance.get.return_value = mock_resp
-
-            results = await tool.search("metformin cancer", max_results=5)
-
-            assert len(results) == 1
-            assert isinstance(results[0], Evidence)
-            assert results[0].citation.source == "openalex"
+        assert len(results) == 1
+        assert isinstance(results[0], Evidence)
+        assert results[0].citation.source == "openalex"
 
     @pytest.mark.asyncio
-    async def test_search_includes_citation_count(self, tool: OpenAlexTool) -> None:
+    async def test_search_includes_citation_count(self, tool: OpenAlexTool, mock_client) -> None:
         """Evidence metadata should include cited_by_count."""
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = SAMPLE_OPENALEX_RESPONSE
-            mock_resp.raise_for_status.return_value = None
-            mock_instance.get.return_value = mock_resp
-
-            results = await tool.search("metformin cancer", max_results=5)
-
-            assert results[0].metadata["cited_by_count"] == 150
+        results = await tool.search("metformin cancer", max_results=5)
+        assert results[0].metadata["cited_by_count"] == 150
 
     @pytest.mark.asyncio
-    async def test_search_includes_concepts(self, tool: OpenAlexTool) -> None:
+    async def test_search_calculates_relevance(self, tool: OpenAlexTool, mock_client) -> None:
+        """Evidence relevance should be based on citations (capped at 1.0)."""
+        results = await tool.search("metformin cancer", max_results=5)
+        # 150 citations / 100 = 1.5 -> capped at 1.0
+        assert results[0].relevance == 1.0 
+
+    @pytest.mark.asyncio
+    async def test_search_includes_concepts(self, tool: OpenAlexTool, mock_client) -> None:
         """Evidence metadata should include concepts."""
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = SAMPLE_OPENALEX_RESPONSE
-            mock_resp.raise_for_status.return_value = None
-            mock_instance.get.return_value = mock_resp
-
-            results = await tool.search("metformin cancer", max_results=5)
-
-            assert "Metformin" in results[0].metadata["concepts"]
-            assert "Cancer" in results[0].metadata["concepts"]
-
+        results = await tool.search("metformin cancer", max_results=5)
+        assert "Metformin" in results[0].metadata["concepts"]
+        assert "Cancer" in results[0].metadata["concepts"]
+    
     @pytest.mark.asyncio
-    async def test_search_includes_open_access_info(self, tool: OpenAlexTool) -> None:
+    async def test_search_includes_open_access_info(self, tool: OpenAlexTool, mock_client) -> None:
         """Evidence metadata should include open access info."""
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = SAMPLE_OPENALEX_RESPONSE
-            mock_resp.raise_for_status.return_value = None
-            mock_instance.get.return_value = mock_resp
-
-            results = await tool.search("metformin cancer", max_results=5)
-
-            assert results[0].metadata["is_open_access"] is True
-            assert results[0].metadata["pdf_url"] == "https://example.com/paper.pdf"
+        results = await tool.search("metformin cancer", max_results=5)
+        assert results[0].metadata["is_open_access"] is True
+        assert results[0].metadata["pdf_url"] == "https://example.com/paper.pdf"
 
     def test_reconstruct_abstract(self, tool: OpenAlexTool) -> None:
         """Abstract reconstruction from inverted index."""
@@ -297,68 +237,37 @@ class TestOpenAlexTool:
             "a": [4],
             "test": [5],
         }
-
         result = tool._reconstruct_abstract(inverted_index)
-
         assert result == "Hello world this is a test"
 
     def test_reconstruct_abstract_empty(self, tool: OpenAlexTool) -> None:
-        """Handle None/empty inverted index."""
+        """Handle None or empty inverted index."""
         assert tool._reconstruct_abstract(None) == ""
         assert tool._reconstruct_abstract({}) == ""
 
     @pytest.mark.asyncio
-    async def test_search_empty_results(self, tool: OpenAlexTool) -> None:
+    async def test_search_empty_results(self, tool: OpenAlexTool, mock_client) -> None:
         """Handle empty results gracefully."""
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
+        mock_client.get.return_value.json.return_value = {"results": []}
 
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = {"results": []}
-            mock_resp.raise_for_status.return_value = None
-            mock_instance.get.return_value = mock_resp
+        results = await tool.search("xyznonexistent123", max_results=5)
 
-            results = await tool.search("xyznonexistent123", max_results=5)
-
-            assert results == []
+        assert results == []
 
     @pytest.mark.asyncio
-    async def test_search_sorts_by_citations(self, tool: OpenAlexTool) -> None:
-        """Verify API call requests citation-sorted results."""
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
+    async def test_search_params(self, tool: OpenAlexTool, mock_client) -> None:
+        """Verify API call requests citation-sorted results and uses polite pool."""
+        mock_client.get.return_value.json.return_value = {"results": []}
 
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = {"results": []}
-            mock_resp.raise_for_status.return_value = None
-            mock_instance.get.return_value = mock_resp
+        await tool.search("test query", max_results=5)
 
-            await tool.search("test query", max_results=5)
-
-            # Verify call params
-            call_args = mock_instance.get.call_args
-            params = call_args[1]["params"]
-            assert params["sort"] == "cited_by_count:desc"
-
-    @pytest.mark.asyncio
-    async def test_search_uses_polite_pool(self, tool: OpenAlexTool) -> None:
-        """Verify mailto parameter for polite pool."""
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = {"results": []}
-            mock_resp.raise_for_status.return_value = None
-            mock_instance.get.return_value = mock_resp
-
-            await tool.search("test query", max_results=5)
-
-            call_args = mock_instance.get.call_args
-            params = call_args[1]["params"]
-            assert "mailto" in params
+        # Verify call params
+        call_args = mock_client.get.call_args
+        params = call_args[1]["params"]
+        assert params["sort"] == "cited_by_count:desc"
+        assert params["mailto"] == tool.POLITE_EMAIL
+        assert "type:article" in params["filter"]
+        assert "has_abstract:true" in params["filter"]
 ```
 
 ### Green Phase: Implement to Pass Tests
@@ -416,7 +325,7 @@ class OpenAlexTool:
         """
         params: dict[str, str | int] = {
             "search": query,
-            "filter": "type:article",  # Only peer-reviewed articles
+            "filter": "type:article,has_abstract:true",  # Only articles with abstracts
             "sort": "cited_by_count:desc",  # Most cited first
             "per_page": min(max_results, 100),
             "mailto": self.POLITE_EMAIL,
@@ -448,6 +357,7 @@ class OpenAlexTool:
         # Reconstruct abstract from inverted index
         abstract = self._reconstruct_abstract(work.get("abstract_inverted_index"))
         if not abstract:
+            # Should be caught by filter=has_abstract:true, but defensive coding
             abstract = f"[No abstract available. Cited by {cited_by_count} works.]"
 
         # Extract authors (limit to 5)
@@ -475,6 +385,10 @@ class OpenAlexTool:
         citation_badge = f"[Cited by {cited_by_count}] " if cited_by_count > 0 else ""
         content = f"{citation_badge}{abstract[:1900]}"
 
+        # Calculate relevance: normalized citation count (capped at 1.0 for 100 citations)
+        # 100 citations is a very strong signal in most fields.
+        relevance = min(1.0, cited_by_count / 100.0)
+
         return Evidence(
             content=content[:2000],
             citation=Citation(
@@ -484,7 +398,7 @@ class OpenAlexTool:
                 date=str(year),
                 authors=authors,
             ),
-            relevance=min(1.0, cited_by_count / 1000),  # Normalize to 0-1
+            relevance=relevance,
             metadata={
                 "cited_by_count": cited_by_count,
                 "concepts": concepts,
@@ -556,13 +470,13 @@ __all__ = [
 | `test_tool_name` | Returns "openalex" | P0 |
 | `test_search_returns_evidence` | Returns `list[Evidence]` | P0 |
 | `test_search_includes_citation_count` | `metadata["cited_by_count"]` populated | P0 |
+| `test_search_calculates_relevance` | `relevance` derived from citations | P1 |
 | `test_search_includes_concepts` | `metadata["concepts"]` populated | P0 |
-| `test_search_includes_open_access_info` | `metadata["is_open_access"]`, `pdf_url` | P1 |
+| `test_search_includes_open_access_info` | `metadata["is_open_access"]` and `pdf_url` | P1 |
 | `test_reconstruct_abstract` | Inverted index → text | P0 |
-| `test_reconstruct_abstract_empty` | Handle None/empty | P0 |
+| `test_reconstruct_abstract_empty` | Handle None/empty inputs | P1 |
 | `test_search_empty_results` | Return `[]` for no matches | P0 |
-| `test_search_sorts_by_citations` | API param `sort=cited_by_count:desc` | P0 |
-| `test_search_uses_polite_pool` | API param `mailto` present | P1 |
+| `test_search_params` | API params (`sort`, `filter`, `mailto`) | P1 |
 
 ## Integration Test
 
@@ -580,59 +494,8 @@ class TestOpenAlexIntegration:
         assert len(results) > 0
         # Should have citation counts
         assert results[0].metadata["cited_by_count"] >= 0
+        # Should have abstract text
+        assert len(results[0].content) > 50
         # Should have concepts
         assert len(results[0].metadata["concepts"]) > 0
 ```
-
-## Acceptance Criteria
-
-- [ ] `OpenAlexTool` implements `SearchTool` Protocol
-- [ ] `search()` returns `list[Evidence]` sorted by citation count
-- [ ] `metadata["cited_by_count"]` populated for each result
-- [ ] `metadata["concepts"]` contains top 5 concept names
-- [ ] `metadata["is_open_access"]` and `pdf_url` populated
-- [ ] Abstract correctly reconstructed from inverted index
-- [ ] Empty results handled gracefully
-- [ ] Tool exported from `src/tools/__init__.py`
-- [ ] All unit tests pass with mocked API
-- [ ] Integration test passes with real API
-- [ ] `make check` passes (lint + type + test)
-
-## Files to Create/Modify
-
-### Create
-
-1. `src/tools/openalex.py` - Main tool class
-2. `tests/unit/tools/test_openalex.py` - Unit tests
-
-### Modify
-
-1. `src/tools/__init__.py` - Add export
-2. `src/orchestrator.py` - Add to tool list (if using default tools)
-
-## SOLID Principles Applied
-
-| Principle | Application |
-|-----------|------------|
-| **S**ingle Responsibility | `OpenAlexTool` only handles OpenAlex API |
-| **O**pen/Closed | New tool without modifying existing ones |
-| **L**iskov Substitution | Implements `SearchTool` Protocol, interchangeable |
-| **I**nterface Segregation | Uses minimal `SearchTool` interface |
-| **D**ependency Inversion | `SearchHandler` depends on Protocol, not concrete class |
-
-## DRY Applied
-
-- Reuses `Evidence`, `Citation`, `SearchError` from `src/utils/models.py`
-- Follows identical patterns as `PubMedTool`, `EuropePMCTool`
-- Same retry decorator pattern as other tools
-
-## Related Issues
-
-- #51: feat: Add OpenAlex as 4th data source
-
-## Effort Estimate
-
-- Tests (TDD Red): 30 min
-- Implementation (Green): 1 hour
-- Refactor + Integration: 30 min
-- **Total: ~2 hours**
