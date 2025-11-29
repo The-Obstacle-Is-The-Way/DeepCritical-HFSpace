@@ -17,6 +17,7 @@ from src.tools.europepmc import EuropePMCTool
 from src.tools.pubmed import PubMedTool
 from src.tools.search_handler import SearchHandler
 from src.utils.config import settings
+from src.utils.exceptions import ConfigurationError
 from src.utils.models import OrchestratorConfig
 
 
@@ -72,7 +73,7 @@ def configure_orchestrator(
             model = OpenAIModel(settings.openai_model, provider=openai_provider)
             backend_info = "Paid API (OpenAI)"
         else:
-            raise ValueError(
+            raise ConfigurationError(
                 "Invalid API key format. Expected sk-... (OpenAI) or sk-ant-... (Anthropic)"
             )
         judge_handler = JudgeHandler(model=model)
@@ -245,7 +246,7 @@ def main() -> None:
     """Run the Gradio app with MCP server enabled."""
     demo, _ = create_demo()
     demo.launch(
-        server_name="0.0.0.0",
+        server_name=os.getenv("GRADIO_SERVER_NAME", "0.0.0.0"),  # nosec B104
         server_port=7860,
         share=False,
         mcp_server=True,
