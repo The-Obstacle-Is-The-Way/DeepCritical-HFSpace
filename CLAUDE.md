@@ -100,7 +100,7 @@ DeepBonerError (base)
 
 Given the rapid advancements, as of November 29, 2025, the DeepBoner project uses the following default LLM models in its configuration (`src/utils/config.py`):
 
-- **OpenAI:** `gpt-5.1`
+- **OpenAI:** `gpt-5`
   - Current flagship model (November 2025). Requires Tier 5 access.
 - **Anthropic:** `claude-sonnet-4-5-20250929`
   - This is the mid-range Claude 4.5 model, released on September 29, 2025.
