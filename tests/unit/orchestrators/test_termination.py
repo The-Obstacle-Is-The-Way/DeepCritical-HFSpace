@@ -1,3 +1,4 @@
+from typing import Literal
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,7 +12,7 @@ def make_assessment(
     clinical: int,
     drug_candidates: list[str],
     sufficient: bool = False,
-    recommendation: str = "continue",
+    recommendation: Literal["continue", "synthesize"] = "continue",
     confidence: float = 0.8,
 ) -> JudgeAssessment:
     return JudgeAssessment(
@@ -38,6 +39,7 @@ def orchestrator():
     return Orchestrator(search, judge)
 
 
+@pytest.mark.unit
 def test_should_synthesize_high_scores(orchestrator):
     """High scores with drug candidates triggers synthesis."""
     assessment = make_assessment(mechanism=7, clinical=6, drug_candidates=["Metformin"])
@@ -52,6 +54,7 @@ def test_should_synthesize_high_scores(orchestrator):
     assert reason == "high_scores_with_candidates"
 
 
+@pytest.mark.unit
 def test_should_synthesize_late_iteration(orchestrator):
     """Late iteration with acceptable scores triggers synthesis."""
     assessment = make_assessment(mechanism=5, clinical=4, drug_candidates=[])
@@ -63,6 +66,7 @@ def test_should_synthesize_late_iteration(orchestrator):
     assert reason in ["late_iteration_acceptable", "emergency_synthesis"]
 
 
+@pytest.mark.unit
 def test_should_not_synthesize_early_low_scores(orchestrator):
     """Early iteration with low scores continues searching."""
     assessment = make_assessment(mechanism=3, clinical=2, drug_candidates=[])
@@ -74,6 +78,7 @@ def test_should_not_synthesize_early_low_scores(orchestrator):
     assert reason == "continue_searching"
 
 
+@pytest.mark.unit
 def test_judge_approved_overrides_all(orchestrator):
     """If judge explicitly says synthesize with good scores, do it."""
     assessment = make_assessment(
@@ -87,6 +92,7 @@ def test_judge_approved_overrides_all(orchestrator):
     assert reason == "judge_approved"
 
 
+@pytest.mark.unit
 def test_max_evidence_threshold(orchestrator):
     """Force synthesis if we have tons of evidence."""
     assessment = make_assessment(mechanism=2, clinical=2, drug_candidates=[])

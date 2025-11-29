@@ -46,10 +46,12 @@ class Orchestrator:
     TERMINATION_CRITERIA: ClassVar[dict[str, float]] = {
         "min_combined_score": 12.0,  # mechanism + clinical >= 12
         "min_score_with_volume": 10.0,  # >= 10 if 50+ sources
+        "min_evidence_for_volume": 50.0,  # Priority 3: evidence count threshold
         "late_iteration_threshold": 8.0,  # >= 8 in iterations 8+
         "max_evidence_threshold": 100.0,  # Force synthesis with 100+ sources
         "emergency_iteration": 8.0,  # Last 2 iterations = emergency mode
         "min_confidence": 0.5,  # Minimum confidence for emergency synthesis
+        "min_evidence_for_emergency": 30.0,  # Priority 6: min evidence for emergency
     }
 
     def __init__(
@@ -197,7 +199,7 @@ class Orchestrator:
         # Priority 3: Good scores with high evidence volume
         if (
             combined_score >= self.TERMINATION_CRITERIA["min_score_with_volume"]
-            and evidence_count >= 50
+            and evidence_count >= self.TERMINATION_CRITERIA["min_evidence_for_volume"]
         ):
             return True, "good_scores_high_volume"
 
@@ -216,7 +218,7 @@ class Orchestrator:
         # Priority 6: Emergency synthesis (avoid garbage output)
         if (
             is_late_iteration
-            and evidence_count >= 30
+            and evidence_count >= self.TERMINATION_CRITERIA["min_evidence_for_emergency"]
             and confidence >= self.TERMINATION_CRITERIA["min_confidence"]
         ):
             return True, "emergency_synthesis"

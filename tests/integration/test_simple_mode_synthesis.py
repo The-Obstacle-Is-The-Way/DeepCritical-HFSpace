@@ -20,6 +20,7 @@ def make_evidence(title: str) -> Evidence:
     )
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_simple_mode_synthesizes_before_max_iterations():
     """Verify simple mode produces useful output with mocked judge."""
@@ -96,6 +97,7 @@ async def test_simple_mode_synthesizes_before_max_iterations():
     assert complete_event.iteration == 2  # Should stop at it 2
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_partial_synthesis_generation():
     """Verify partial synthesis includes drug candidates even if max iterations reached."""
@@ -133,7 +135,11 @@ async def test_partial_synthesis_generation():
     async for event in orchestrator.run("test"):
         events.append(event)
 
-    complete_event = next(e for e in events if e.type == "complete")
+    complete_events = [e for e in events if e.type == "complete"]
+    assert (
+        len(complete_events) == 1
+    ), f"Expected exactly one complete event, got {len(complete_events)}"
+    complete_event = complete_events[0]
     assert complete_event.data.get("max_reached") is True
 
     # The output message should contain the drug candidate from the last assessment

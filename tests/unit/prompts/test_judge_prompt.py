@@ -13,6 +13,7 @@ def make_evidence(title: str, content: str = "content") -> Evidence:
     )
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_evidence_selection_diverse():
     """Verify evidence selection includes early and recent items (fallback logic)."""
@@ -28,15 +29,18 @@ async def test_evidence_selection_diverse():
     # Should include some early evidence (lost-in-the-middle mitigation)
     titles = [e.citation.title for e in selected]
 
-    # Check for start (Paper 0..9)
-    has_early = any(f"Paper {i}" in title for title in titles for i in range(10))
+    # Check for start (Paper 0..9) - using set intersection for clarity
+    early_papers = {f"Paper {i}" for i in range(10)}
+    has_early = any(title in early_papers for title in titles)
     # Check for end (Paper 90..99)
-    has_late = any(f"Paper {i}" in title for title in titles for i in range(90, 100))
+    late_papers = {f"Paper {i}" for i in range(90, 100)}
+    has_late = any(title in late_papers for title in titles)
 
     assert has_early, "Should include early evidence"
     assert has_late, "Should include recent evidence"
 
 
+@pytest.mark.unit
 def test_prompt_includes_question_at_edges():
     """Verify lost-in-the-middle mitigation in prompt formatting."""
     evidence = [make_evidence("Test Paper")]
