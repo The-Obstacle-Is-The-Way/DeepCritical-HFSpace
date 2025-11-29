@@ -12,7 +12,7 @@ We already have:
 | Multi-agent orchestration | `orchestrator_magentic.py` | Working |
 | SearchAgent, JudgeAgent, HypothesisAgent, ReportAgent | `agents/magentic_agents.py` | Working |
 | HuggingFace free tier | `agent_factory/judges.py` (HFInferenceJudgeHandler) | Working |
-| Budget constraints | MagenticBuilder (max_round_count, max_stall_count) | Built-in |
+| Budget constraints | MagenticOrchestrator (max_round_count, max_stall_count) | Built-in |
 | Simple mode (linear) | `orchestrator.py` | Working |
 
 ## What Deep Research Adds
@@ -200,8 +200,13 @@ async def test_deep_orchestrator_runs_parallel():
 
 **Goal**: Semantic search over accumulated evidence.
 
+> **Note**: We already have `src/services/embeddings.py` (EmbeddingService) which provides
+> ChromaDB + sentence-transformers with `add_evidence()` and `search_similar()` methods.
+> The code below is illustrative - in practice, extend EmbeddingService or use it directly.
+> See also: `src/services/llamaindex_rag.py` for OpenAI-based RAG (different use case).
+
 ```python
-# src/services/rag.py
+# src/services/rag.py (illustrative - use EmbeddingService instead)
 
 class RAGService:
     """

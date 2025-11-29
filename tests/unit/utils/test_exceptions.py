@@ -1,5 +1,9 @@
 """Unit tests for custom exceptions."""
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 from src.utils.exceptions import (
     ConfigurationError,
     DeepBonerError,

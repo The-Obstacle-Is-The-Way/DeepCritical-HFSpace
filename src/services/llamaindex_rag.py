@@ -1,6 +1,10 @@
 """LlamaIndex RAG service for evidence retrieval and indexing.
 
 Requires optional dependencies: uv sync --extra modal
+
+Migration Note (v1.0 rebrand):
+    Default collection_name changed from "deepcritical_evidence" to "deepboner_evidence".
+    To preserve existing data, explicitly pass collection_name="deepcritical_evidence".
 """
 
 from typing import Any
@@ -34,7 +38,8 @@ class LlamaIndexRAGService:
         Initialize LlamaIndex RAG service.
 
         Args:
-            collection_name: Name of the ChromaDB collection
+            collection_name: Name of the ChromaDB collection (default changed from
+                "deepcritical_evidence" to "deepboner_evidence" in v1.0 rebrand)
             persist_dir: Directory to persist ChromaDB data
             embedding_model: OpenAI embedding model (defaults to settings.openai_embedding_model)
             similarity_top_k: Number of top results to retrieve
