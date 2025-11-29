@@ -10,6 +10,7 @@ app_file: src/app.py
 pinned: false
 license: mit
 tags:
+  - mcp-in-action-track-enterprise
   - sexual-health
   - reproductive-medicine
   - hormone-therapy
