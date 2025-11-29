@@ -152,7 +152,7 @@ class AdvancedOrchestrator(OrchestratorProtocol):
 
         # Initialize context state
         embedding_service = self._init_embedding_service()
-        init_magentic_state(embedding_service)
+        init_magentic_state(query, embedding_service)
 
         workflow = self._build_workflow()
 
@@ -355,6 +355,7 @@ def _create_deprecated_alias() -> type["AdvancedOrchestrator"]:
         """
 
         def __init__(self, *args: Any, **kwargs: Any) -> None:
+            """Initialize deprecated MagenticOrchestrator (use AdvancedOrchestrator)."""
             warnings.warn(
                 "MagenticOrchestrator is deprecated, use AdvancedOrchestrator instead. "
                 "The name 'magentic' was confusing with the 'magentic' PyPI package.",

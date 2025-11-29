@@ -38,27 +38,29 @@ async def search_pubmed(query: str, max_results: int = 10) -> str:
     if not results:
         return f"No PubMed results found for: {query}"
 
-    # 2. Semantic Deduplication & Expansion (The "Digital Twin" Brain)
-    display_results = results
-    if state.embedding_service:
-        # Deduplicate against what we just found vs what's in the DB
-        unique_results = await state.embedding_service.deduplicate(results)
+    # 2. Store in Memory (handles dedup and persistence)
+    # ResearchMemory handles semantic deduplication and persistence
+    new_ids = await state.memory.store_evidence(results)
+    new_count = len(new_ids)
 
-        # Search for related context in the vector DB (previous searches)
-        related = await state.search_related(query, n_results=3)
+    # 3. Context Expansion (The "Digital Twin" Brain)
+    # Combine what we just found with what we already know is relevant
+    display_results = list(results)
 
-        # Combine unique new results + relevant historical results
-        display_results = unique_results + related
+    # Search for related context in the memory (previous searches)
+    related = await state.memory.get_relevant_evidence(n=3)
 
-    # 3. Update State (Persist for ReportAgent)
-    # We add *all* found results to state, not just the displayed ones
-    new_count = state.add_evidence(results)
+    # Add related items if they aren't already in the results
+    current_urls = {r.citation.url for r in display_results}
+    for item in related:
+        if item.citation.url not in current_urls:
+            display_results.append(item)
 
     # 4. Format Output for LLM
     output = [f"Found {len(results)} results ({new_count} new stored):\n"]
 
     # Limit display to avoid context window overflow, but state has everything
-    limit = min(len(display_results), max_results)
+    limit = min(len(display_results), max_results + 3)
 
     for i, r in enumerate(display_results[:limit], 1):
         title = r.citation.title
@@ -96,7 +98,8 @@ async def search_clinical_trials(query: str, max_results: int = 10) -> str:
         return f"No clinical trials found for: {query}"
 
     # Update state
-    new_count = state.add_evidence(results)
+    new_ids = await state.memory.store_evidence(results)
+    new_count = len(new_ids)
 
     output = [f"Found {len(results)} clinical trials ({new_count} new stored):\n"]
     for i, r in enumerate(results[:max_results], 1):
@@ -135,7 +138,8 @@ async def search_preprints(query: str, max_results: int = 10) -> str:
         return f"No papers found for: {query}"
 
     # Update state
-    new_count = state.add_evidence(results)
+    new_ids = await state.memory.store_evidence(results)
+    new_count = len(new_ids)
 
     output = [f"Found {len(results)} papers ({new_count} new stored):\n"]
     for i, r in enumerate(results[:max_results], 1):
@@ -164,11 +168,13 @@ async def get_bibliography() -> str:
         Formatted bibliography string.
     """
     state = get_magentic_state()
-    if not state.evidence:
+    all_evidence = state.memory.get_all_evidence()
+
+    if not all_evidence:
         return "No evidence collected."
 
     output = ["## References"]
-    for i, ev in enumerate(state.evidence, 1):
+    for i, ev in enumerate(all_evidence, 1):
         output.append(f"{i}. {ev.citation.formatted}")
         output.append(f"   URL: {ev.citation.url}")
 

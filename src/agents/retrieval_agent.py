@@ -32,20 +32,14 @@ async def search_web(query: str, max_results: int = 10) -> str:
         logger.info("Web search returned no results", query=query)
         return f"No web results found for: {query}"
 
-    # Update state
-    # We add *all* found results to state
-    new_count = state.add_evidence(results.evidence)
+    # Store evidence with deduplication and embedding (all handled by memory layer)
+    new_count = await state.add_evidence(results.evidence)
     logger.info(
         "Web search complete",
         query=query,
         results_found=len(results.evidence),
         new_evidence=new_count,
     )
-
-    # Use embedding service for deduplication/indexing if available
-    if state.embedding_service:
-        # This method also adds to vector DB as a side effect for unique items
-        await state.embedding_service.deduplicate(results.evidence)
 
     output = [f"Found {len(results.evidence)} web results ({new_count} new stored):\n"]
     for i, r in enumerate(results.evidence[:max_results], 1):

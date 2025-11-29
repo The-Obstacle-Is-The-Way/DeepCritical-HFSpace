@@ -269,7 +269,7 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
                 choices=["simple", "advanced"],
                 value="simple",
                 label="Orchestrator Mode",
-                info="⚡ Simple: Free/OpenAI/Anthropic | 🔬 Advanced: OpenAI only",
+                info="⚡ Simple: Free/Any | 🔬 Advanced: OpenAI (Deep Research)",
             ),
             gr.Textbox(
                 label="🔑 API Key (Optional)",

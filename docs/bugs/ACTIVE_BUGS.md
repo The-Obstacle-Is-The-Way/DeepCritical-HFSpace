@@ -10,13 +10,22 @@
 
 ## P3 - Architecture/Enhancement
 
-### P3 - Missing Structured Cognitive Memory
+### ~~P3 - Missing Structured Cognitive Memory~~ FIXED (Phase 1)
 **File:** `P3_ARCHITECTURAL_GAP_STRUCTURED_MEMORY.md`
 **Spec:** [SPEC_07_LANGGRAPH_MEMORY_ARCH.md](../specs/SPEC_07_LANGGRAPH_MEMORY_ARCH.md)
+**PR:** [#72](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/pull/72)
 
 **Problem:** AdvancedOrchestrator uses chat-based state (context drift on long runs).
-**Solution:** Implement LangGraph StateGraph with explicit hypothesis/conflict tracking.
-**Status:** Spec complete, implementation pending.
+**Solution:** Implemented LangGraph StateGraph with explicit hypothesis/conflict tracking (`src/agents/graph`).
+**Status:** ✅ Memory layer built. ⏳ Integration pending (SPEC_08).
+
+### P1 - Memory Layer Not Integrated (Post-Hackathon)
+**Issue:** [#73](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/issues/73)
+**Spec:** [SPEC_08_INTEGRATE_MEMORY_LAYER.md](../specs/SPEC_08_INTEGRATE_MEMORY_LAYER.md)
+
+**Problem:** Structured memory (hypotheses, conflicts) is isolated in "God Mode" only.
+**Solution:** Extract memory into shared service, integrate into Simple and Advanced modes.
+**Status:** Spec written. Blocked until post-hackathon.
 
 ### P3 - Ephemeral Memory (No Persistence)
 **File:** `P3_ARCHITECTURAL_GAP_EPHEMERAL_MEMORY.md`

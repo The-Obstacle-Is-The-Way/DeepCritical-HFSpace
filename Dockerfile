@@ -1,4 +1,5 @@
 # Dockerfile for DeepBoner
+# Build: 2025-11-29-v2 (force rebuild after orchestrator refactor)
 FROM python:3.11-slim
 
 # Set working directory

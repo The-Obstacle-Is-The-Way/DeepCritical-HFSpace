@@ -26,6 +26,14 @@ dependencies = [
     "requests>=2.32.5", # ClinicalTrials.gov (httpx blocked by WAF)
     "limits>=3.0", # Rate limiting
     "duckduckgo-search>=5.0", # Web search
+    # LangGraph deps - upper bounds prevent breaking changes from major versions
+    "langgraph>=0.2.50,<1.0",
+    "langchain>=0.3.9,<1.0",
+    "langchain-core>=0.3.21,<1.0",
+    "langchain-huggingface>=0.1.2,<1.0",
+    "langgraph-checkpoint-sqlite>=3.0.0,<4.0",  # 3.0.0 required for GHSA-wwqv-p2pp-99h5 fix
+    # Security: Pin urllib3 to fix GHSA-48p4-8xcf-vxj5 and GHSA-pq67-6m6q-mj2v
+    "urllib3>=2.5.0",
 ]
 
 [project.optional-dependencies]

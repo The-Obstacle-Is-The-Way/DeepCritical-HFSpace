@@ -70,7 +70,7 @@ def create_orchestrator(
         search_handler: The search handler (required for simple mode)
         judge_handler: The judge handler (required for simple mode)
         config: Optional configuration (max_iterations, timeouts, etc.)
-        mode: "simple", "magentic", "advanced", "hierarchical" or None (auto-detect)
+        mode: "simple", "magentic", "advanced", or "hierarchical"
               Note: "magentic" is an alias for "advanced" (kept for backwards compatibility)
         api_key: Optional API key for advanced mode (OpenAI)
 

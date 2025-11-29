@@ -98,7 +98,7 @@ class HierarchicalOrchestrator(OrchestratorProtocol):
         logger.info("Starting hierarchical orchestrator", query=query)
 
         service = get_embedding_service_if_available()
-        init_magentic_state(service)
+        init_magentic_state(query, service)
 
         yield AgentEvent(type="started", message=f"Starting research: {query}")
 
