@@ -43,15 +43,35 @@ def _convert_hypothesis_to_mechanism(h: Hypothesis) -> MechanismHypothesis:
     We parse this back into structured MechanismHypothesis fields.
     """
     # Parse statement format: "drug -> target -> pathway -> effect"
-    parts = h.statement.split(" -> ")
-    if len(parts) >= 4:
-        drug, target, pathway, effect = parts[0], parts[1], parts[2], parts[3]
+    # Handle both " -> " (standard) and "->" (compact) separators
+    separator = " -> " if " -> " in h.statement else "->"
+    parts = [p.strip() for p in h.statement.split(separator)]
+
+    # Validate: exactly 4 non-empty parts
+    if len(parts) == 4 and all(parts):
+        drug, target, pathway, effect = parts
+    elif len(parts) > 4 and all(parts[:4]):
+        # More than 4 parts: join extras into effect
+        drug, target, pathway = parts[0], parts[1], parts[2]
+        effect = f"{separator}".join(parts[3:])
+        logger.debug(
+            "Hypothesis has extra parts, joined into effect",
+            hypothesis_id=h.id,
+            parts_count=len(parts),
+        )
     else:
-        # Fallback if format is unexpected
-        drug = h.id
+        # Log parsing failure for debugging
+        logger.warning(
+            "Failed to parse hypothesis statement format",
+            hypothesis_id=h.id,
+            statement=h.statement[:100],  # Truncate for log safety
+            parts_count=len(parts),
+        )
+        # Use meaningful fallback values
+        drug = "Unknown"
         target = "Unknown"
         pathway = "Unknown"
-        effect = h.statement
+        effect = h.statement.strip() if h.statement else "Unknown effect"
 
     return MechanismHypothesis(
         drug=drug,

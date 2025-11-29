@@ -26,11 +26,12 @@ dependencies = [
     "requests>=2.32.5", # ClinicalTrials.gov (httpx blocked by WAF)
     "limits>=3.0", # Rate limiting
     "duckduckgo-search>=5.0", # Web search
-    "langgraph>=0.2.50",
-    "langchain>=0.3.9",
-    "langchain-core>=0.3.21",
-    "langchain-huggingface>=0.1.2",
-    "langgraph-checkpoint-sqlite>=2.0.0",
+    # LangGraph deps - upper bounds prevent breaking changes from major versions
+    "langgraph>=0.2.50,<1.0",
+    "langchain>=0.3.9,<1.0",
+    "langchain-core>=0.3.21,<1.0",
+    "langchain-huggingface>=0.1.2,<1.0",
+    "langgraph-checkpoint-sqlite>=2.0.0,<3.0",
 ]
 
 [project.optional-dependencies]

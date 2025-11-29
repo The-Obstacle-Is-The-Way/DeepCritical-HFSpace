@@ -252,7 +252,7 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
             ],
             [
                 "Clinical trials for erectile dysfunction alternatives to PDE5 inhibitors?",
-                "god",
+                "advanced",
                 None,
                 None,
             ],
@@ -266,10 +266,10 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
         additional_inputs_accordion=additional_inputs_accordion,
         additional_inputs=[
             gr.Radio(
-                choices=["simple", "advanced", "god"],
+                choices=["simple", "advanced"],
                 value="simple",
                 label="Orchestrator Mode",
-                info="⚡ Simple: Free/Any | 🔬 Advanced: OpenAI | 🧠 God: Graph + Llama 3.1 (Exp)",
+                info="⚡ Simple: Free/Any | 🔬 Advanced: OpenAI (Deep Research)",
             ),
             gr.Textbox(
                 label="🔑 API Key (Optional)",

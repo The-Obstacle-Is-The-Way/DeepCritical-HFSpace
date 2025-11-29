@@ -1,6 +1,12 @@
-"""LangGraph-based orchestrator implementation."""
+"""LangGraph-based orchestrator implementation.
+
+NOTE: This orchestrator is deprecated in favor of the shared memory layer
+integrated into Simple and Advanced modes (SPEC-08). It remains as a reference
+implementation for LangGraph patterns.
+"""
 
 import os
+import uuid
 from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Any, Literal
 
@@ -16,7 +22,11 @@ from src.utils.models import AgentEvent
 
 
 class LangGraphOrchestrator(OrchestratorProtocol):
-    """State-driven research orchestrator using LangGraph."""
+    """State-driven research orchestrator using LangGraph.
+
+    DEPRECATED: Memory features are now integrated into Simple and Advanced modes.
+    This class is kept for reference and potential future use.
+    """
 
     def __init__(
         self,
@@ -34,7 +44,7 @@ class LangGraphOrchestrator(OrchestratorProtocol):
         api_key = settings.hf_token
         if not api_key:
             raise ValueError(
-                "HF_TOKEN (Hugging Face API Token) is required for God Mode to use Llama 3.1."
+                "HF_TOKEN (Hugging Face API Token) is required for LangGraph orchestrator."
             )
 
         self.llm_endpoint = HuggingFaceEndpoint(  # type: ignore
@@ -53,8 +63,10 @@ class LangGraphOrchestrator(OrchestratorProtocol):
 
         # Setup checkpointer (SQLite for dev)
         if self._checkpoint_path:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(self._checkpoint_path), exist_ok=True)
+            # Ensure directory exists (handle paths without directory component)
+            dir_name = os.path.dirname(self._checkpoint_path)
+            if dir_name:
+                os.makedirs(dir_name, exist_ok=True)
             saver = AsyncSqliteSaver.from_conn_string(self._checkpoint_path)
         else:
             saver = None
@@ -91,10 +103,11 @@ class LangGraphOrchestrator(OrchestratorProtocol):
                 "max_iterations": self._max_iterations,
             }
 
-            yield AgentEvent(type="started", message=f"Starting 'God Mode' research: {query}")
+            yield AgentEvent(type="started", message=f"Starting LangGraph research: {query}")
 
-            # Config for persistence (thread_id required if checkpointer used)
-            config = {"configurable": {"thread_id": "1"}} if saver else {}
+            # Config for persistence (unique thread_id per run to avoid state conflicts)
+            thread_id = str(uuid.uuid4())
+            config = {"configurable": {"thread_id": thread_id}} if saver else {}
 
             # Stream events
             # We use astream to get updates from the graph

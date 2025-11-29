@@ -4,6 +4,7 @@ from functools import partial
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
@@ -20,9 +21,9 @@ from src.services.embeddings import EmbeddingService
 
 def create_research_graph(
     llm: BaseChatModel | None = None,
-    checkpointer: Any = None,
+    checkpointer: "BaseCheckpointSaver[Any]" | None = None,  # Generic type from langgraph
     embedding_service: EmbeddingService | None = None,
-) -> CompiledStateGraph:  # type: ignore
+) -> "CompiledStateGraph[Any]":  # type: ignore[type-arg]
     """Build the research state graph.
 
     Args:

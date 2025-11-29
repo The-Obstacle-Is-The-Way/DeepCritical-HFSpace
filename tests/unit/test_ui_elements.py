@@ -4,11 +4,11 @@ from src.app import create_demo
 
 
 def test_examples_include_advanced_mode():
-    """Verify that one example entry uses 'god' or 'advanced' mode."""
+    """Verify that one example entry uses 'advanced' mode."""
     demo, _ = create_demo()
     assert any(
-        example[1] in ["advanced", "god"] for example in demo.examples
-    ), "Expected at least one example to be 'advanced' or 'god' mode"
+        example[1] == "advanced" for example in demo.examples
+    ), "Expected at least one example to be 'advanced' mode"
 
 
 def test_accordion_label_updated():
@@ -24,7 +24,7 @@ def test_orchestrator_mode_info_text_updated():
     demo, _ = create_demo()
     # Assuming additional_inputs is a list and the Radio is the first element
     orchestrator_radio = demo.additional_inputs[0]
-    expected_info = "⚡ Simple: Free/Any | 🔬 Advanced: OpenAI | 🧠 God: Graph + Llama 3.1 (Exp)"
+    expected_info = "⚡ Simple: Free/Any | 🔬 Advanced: OpenAI (Deep Research)"
     assert isinstance(
         orchestrator_radio, gr.Radio
     ), "Expected first additional input to be gr.Radio"

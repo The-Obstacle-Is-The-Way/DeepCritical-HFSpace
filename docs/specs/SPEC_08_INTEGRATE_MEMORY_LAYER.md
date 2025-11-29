@@ -54,34 +54,29 @@ Extract the memory logic from LangGraph nodes into a standalone service.
 ```python
 """Shared research memory layer for all orchestration modes."""
 
-from dataclasses import dataclass, field
 from typing import Literal
 
 from src.agents.graph.state import Conflict, Hypothesis
 from src.services.embeddings import EmbeddingService
-from src.utils.models import Evidence
+from src.utils.models import Citation, Evidence
 
 
-@dataclass
 class ResearchMemory:
     """Shared cognitive state for research workflows.
 
     This is the memory layer that ALL modes use.
-    Built from SPEC_07, now extracted for integration.
+    It mimics the LangGraph state management but for manual orchestration.
     """
 
-    query: str
-    hypotheses: list[Hypothesis] = field(default_factory=list)
-    conflicts: list[Conflict] = field(default_factory=list)
-    evidence_ids: list[str] = field(default_factory=list)
-    iteration_count: int = 0
-
-    # Injected services
-    _embedding_service: EmbeddingService | None = None
-
-    def __post_init__(self):
-        if self._embedding_service is None:
-            self._embedding_service = EmbeddingService()
+    def __init__(self, query: str, embedding_service: EmbeddingService | None = None):
+        self.query = query
+        self.hypotheses: list[Hypothesis] = []
+        self.conflicts: list[Conflict] = []
+        self.evidence_ids: list[str] = []
+        self.iteration_count: int = 0
+        
+        # Injected service
+        self._embedding_service = embedding_service or EmbeddingService()
 
     async def store_evidence(self, evidence: list[Evidence]) -> list[str]:
         """Store evidence and return new IDs (deduped)."""
@@ -113,7 +108,34 @@ class ResearchMemory:
         """Retrieve relevant evidence for current query."""
         if not self._embedding_service:
             return []
-        return await self._embedding_service.search_similar(self.query, n_results=n)
+            
+        results = await self._embedding_service.search_similar(self.query, n_results=n)
+        evidence_list = []
+        
+        for r in results:
+            meta = r.get("metadata", {})
+            authors_str = meta.get("authors", "")
+            authors = authors_str.split(",") if authors_str else []
+            
+            # Reconstruct Evidence object
+            # Note: SourceName validation might be needed, defaulting to 'web' or similar if unknown
+            source_raw = meta.get("source", "web")
+            
+            citation = Citation(
+                source=source_raw, # type: ignore
+                title=meta.get("title", "Unknown"),
+                url=meta.get("url", r["id"]),
+                date=meta.get("date", "Unknown"),
+                authors=authors
+            )
+            
+            evidence_list.append(Evidence(
+                content=r["content"],
+                citation=citation,
+                relevance=1.0 - r.get("distance", 0.5) # Approx conversion
+            ))
+            
+        return evidence_list
 
     def add_hypothesis(self, hypothesis: Hypothesis) -> None:
         """Add a hypothesis to tracking."""

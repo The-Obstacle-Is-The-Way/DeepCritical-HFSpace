@@ -152,7 +152,7 @@ class AdvancedOrchestrator(OrchestratorProtocol):
 
         # Initialize context state
         embedding_service = self._init_embedding_service()
-        init_magentic_state(embedding_service)
+        init_magentic_state(query, embedding_service)
 
         workflow = self._build_workflow()
 

@@ -93,36 +93,6 @@ class Orchestrator:
                 self._enable_analysis = False
         return self._analyzer
 
-    def _get_embeddings(self) -> EmbeddingService | None:
-        """Lazy initialization of EmbeddingService."""
-        if self._embeddings is None and self._enable_embeddings:
-            from src.utils.service_loader import get_embedding_service_if_available
-
-            self._embeddings = get_embedding_service_if_available()
-            if self._embeddings is None:
-                self._enable_embeddings = False
-        return self._embeddings
-
-    async def _deduplicate_and_rank(self, evidence: list[Evidence], query: str) -> list[Evidence]:
-        """Use embeddings to deduplicate and rank evidence by relevance."""
-        embeddings = self._get_embeddings()
-        if not embeddings or not evidence:
-            return evidence
-
-        try:
-            # Deduplicate using semantic similarity
-            unique_evidence: list[Evidence] = await embeddings.deduplicate(evidence, threshold=0.85)
-
-            logger.info(
-                "Deduplicated evidence",
-                before=len(evidence),
-                after=len(unique_evidence),
-            )
-            return unique_evidence
-        except Exception as e:
-            logger.warning("Deduplication failed, using original", error=str(e))
-            return evidence
-
     async def _run_analysis_phase(
         self, query: str, evidence: list[Evidence], iteration: int
     ) -> AsyncGenerator[AgentEvent, None]:
@@ -237,6 +207,10 @@ class Orchestrator:
         Yields:
             AgentEvent objects for each step of the process
         """
+        # Import here to avoid circular deps if any
+        from src.agents.graph.state import Hypothesis
+        from src.services.research_memory import ResearchMemory
+
         logger.info("Starting orchestrator", query=query)
 
         yield AgentEvent(
@@ -245,6 +219,9 @@ class Orchestrator:
             iteration=0,
         )
 
+        # Initialize Shared Memory
+        # We keep 'all_evidence' for local tracking/reporting, but use Memory for intelligence
+        memory = ResearchMemory(query=query)
         all_evidence: list[Evidence] = []
         current_queries = [query]
         iteration = 0
@@ -282,15 +259,14 @@ class Orchestrator:
                         # Should not happen with return_exceptions=True but safe fallback
                         errors.append(f"Unknown result type for '{q}': {type(result)}")
 
-                # Deduplicate evidence by URL (fast, basic)
-                seen_urls = {e.citation.url for e in all_evidence}
-                unique_new = [e for e in new_evidence if e.citation.url not in seen_urls]
+                # === MEMORY INTEGRATION: Store and Deduplicate ===
+                # ResearchMemory handles semantic deduplication and persistence
+                # It returns IDs of actual NEW evidence
+                new_ids = await memory.store_evidence(new_evidence)
 
-                # BUG FIX: Only dedup NEW evidence, not all_evidence
-                # Old evidence is already in the vector store - re-checking it
-                # would mark items as duplicates of themselves (distance ≈ 0)
-                if unique_new:
-                    unique_new = await self._deduplicate_and_rank(unique_new, query)
+                # Filter new_evidence to only keep what was actually new (based on IDs)
+                # Note: This assumes IDs are URLs, which match Citation.url
+                unique_new = [e for e in new_evidence if e.citation.url in new_ids]
 
                 all_evidence.extend(unique_new)
 
@@ -319,14 +295,34 @@ class Orchestrator:
             # === JUDGE PHASE ===
             yield AgentEvent(
                 type="judging",
-                message=f"Evaluating {len(all_evidence)} sources...",
+                message=f"Evaluating evidence (Memory: {len(memory.evidence_ids)} docs)...",
                 iteration=iteration,
             )
 
             try:
+                # Retrieve RELEVANT evidence from memory for the judge
+                # This keeps the context window manageable and focused
+                judge_context = await memory.get_relevant_evidence(n=30)
+
+                # Fallback if memory is empty (shouldn't happen if search worked)
+                if not judge_context and all_evidence:
+                    judge_context = all_evidence[-30:]
+
                 assessment = await self.judge.assess(
-                    query, all_evidence, iteration, self.config.max_iterations
+                    query, judge_context, iteration, self.config.max_iterations
                 )
+
+                # === MEMORY INTEGRATION: Track Hypotheses ===
+                # Convert loose strings to structured Hypotheses
+                for candidate in assessment.details.drug_candidates:
+                    h = Hypothesis(
+                        id=candidate.replace(" ", "_").lower(),
+                        statement=f"{candidate} is a potential candidate for {query}",
+                        status="proposed",
+                        confidence=assessment.confidence,
+                        reasoning=f" identified in iteration {iteration}",
+                    )
+                    memory.add_hypothesis(h)
 
                 yield AgentEvent(
                     type="judge_complete",
@@ -388,6 +384,7 @@ class Orchestrator:
                     )
 
                     # Generate final response
+                    # Use all gathered evidence for the final report
                     final_response = self._generate_synthesis(query, all_evidence, assessment)
 
                     yield AgentEvent(

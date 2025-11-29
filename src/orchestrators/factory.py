@@ -52,33 +52,11 @@ def _get_advanced_orchestrator_class() -> type["AdvancedOrchestrator"]:
         ) from e
 
 
-def _get_langgraph_orchestrator_class() -> type["OrchestratorProtocol"]:
-    """Import LangGraphOrchestrator lazily.
-
-    Returns:
-        The LangGraphOrchestrator class
-
-    Raises:
-        ValueError: If langgraph dependencies are missing
-    """
-    try:
-        from src.orchestrators.langgraph_orchestrator import LangGraphOrchestrator
-
-        return LangGraphOrchestrator  # type: ignore
-    except ImportError as e:
-        logger.error("Failed to import LangGraphOrchestrator", error=str(e))
-        raise ValueError(
-            "LangGraph mode requires langgraph and langchain-huggingface. "
-            "Install with: uv add langgraph langchain-huggingface"
-        ) from e
-
-
 def create_orchestrator(
     search_handler: SearchHandlerProtocol | None = None,
     judge_handler: JudgeHandlerProtocol | None = None,
     config: OrchestratorConfig | None = None,
-    mode: Literal["simple", "magentic", "advanced", "hierarchical", "langgraph", "god"]
-    | None = None,
+    mode: Literal["simple", "magentic", "advanced", "hierarchical"] | None = None,
     api_key: str | None = None,
 ) -> OrchestratorProtocol:
     """
@@ -92,9 +70,8 @@ def create_orchestrator(
         search_handler: The search handler (required for simple mode)
         judge_handler: The judge handler (required for simple mode)
         config: Optional configuration (max_iterations, timeouts, etc.)
-        mode: "simple", "magentic", "advanced", "hierarchical", "langgraph" or "god"
+        mode: "simple", "magentic", "advanced", or "hierarchical"
               Note: "magentic" is an alias for "advanced" (kept for backwards compatibility)
-              Note: "god" is an alias for "langgraph"
         api_key: Optional API key for advanced mode (OpenAI)
 
     Returns:
@@ -107,15 +84,6 @@ def create_orchestrator(
     effective_config = config or OrchestratorConfig()
     effective_mode = _determine_mode(mode, api_key)
     logger.info("Creating orchestrator", mode=effective_mode)
-
-    if effective_mode == "langgraph":
-        orchestrator_cls = _get_langgraph_orchestrator_class()
-        # Checkpoint path for dev persistence
-        checkpoint_path = "checkpoints.sqlite"
-        return orchestrator_cls(  # type: ignore
-            max_iterations=effective_config.max_iterations,
-            checkpoint_path=checkpoint_path,
-        )
 
     if effective_mode == "advanced":
         orchestrator_cls = _get_advanced_orchestrator_class()
@@ -152,11 +120,9 @@ def _determine_mode(explicit_mode: str | None, api_key: str | None) -> str:
         api_key: API key provided by caller
 
     Returns:
-        Effective mode string: "simple", "advanced", "hierarchical", or "langgraph"
+        Effective mode string: "simple", "advanced", or "hierarchical"
     """
     if explicit_mode:
-        if explicit_mode in ("langgraph", "god"):
-            return "langgraph"
         if explicit_mode in ("magentic", "advanced"):
             return "advanced"
         if explicit_mode == "hierarchical":
