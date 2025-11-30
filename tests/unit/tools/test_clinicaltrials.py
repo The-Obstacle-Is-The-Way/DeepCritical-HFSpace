@@ -305,6 +305,10 @@ class TestClinicalTrialsIntegration:
             "sildenafil erectile dysfunction Phase 3 COMPLETED", max_results=3
         )
 
+        # Skip if API returns no results (external dependency)
+        if not results:
+            pytest.skip("API returned no results for this query")
+
         # At least one should have primary outcome
         has_outcome = any("Primary Outcome" in r.content for r in results)
         assert has_outcome, "No completed trials with outcome measures found"
