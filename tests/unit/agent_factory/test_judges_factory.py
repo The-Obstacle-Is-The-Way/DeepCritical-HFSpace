@@ -51,6 +51,7 @@ def test_get_model_huggingface(mock_settings):
     mock_settings.llm_provider = "huggingface"
     mock_settings.has_openai_key = False
     mock_settings.has_anthropic_key = False
+    mock_settings.has_huggingface_key = True  # CodeRabbit: explicitly set for auto-detect
     mock_settings.hf_token = "hf_test_token"
     mock_settings.huggingface_model = "meta-llama/Llama-3.1-70B-Instruct"
 
