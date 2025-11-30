@@ -34,11 +34,7 @@ class ResearchMemory:
     - EmbeddingService (free tier) as fallback
     """
 
-    def __init__(
-        self,
-        query: str,
-        embedding_service: "EmbeddingServiceProtocol | None" = None
-    ):
+    def __init__(self, query: str, embedding_service: "EmbeddingServiceProtocol | None" = None):
         """Initialize ResearchMemory with a query and optional embedding service.
 
         Args:
@@ -67,22 +63,13 @@ class ResearchMemory:
         if not self._embedding_service:
             return []
 
+        # Deduplicate and store (deduplicate() already calls add_evidence() internally)
         unique = await self._embedding_service.deduplicate(evidence)
-        new_ids = []
 
+        # Track IDs and cache (evidence already stored by deduplicate())
+        new_ids = []
         for ev in unique:
             ev_id = ev.citation.url
-            await self._embedding_service.add_evidence(
-                evidence_id=ev_id,
-                content=ev.content,
-                metadata={
-                    "source": ev.citation.source,
-                    "title": ev.citation.title,
-                    "date": ev.citation.date,
-                    "authors": ",".join(ev.citation.authors or []),
-                    "url": ev.citation.url,
-                },
-            )
             new_ids.append(ev_id)
             self._evidence_cache[ev_id] = ev
 

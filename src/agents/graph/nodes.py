@@ -115,24 +115,11 @@ async def search_node(
     new_ids = []
 
     if embedding_service and result.evidence:
-        # Deduplicate and store
+        # Deduplicate and store (deduplicate() already calls add_evidence() internally)
         unique_evidence = await embedding_service.deduplicate(result.evidence)
 
-        for ev in unique_evidence:
-            ev_id = ev.citation.url
-            await embedding_service.add_evidence(
-                evidence_id=ev_id,
-                content=ev.content,
-                metadata={
-                    "source": ev.citation.source,
-                    "title": ev.citation.title,
-                    "date": ev.citation.date,
-                    "authors": ",".join(ev.citation.authors or []),
-                    "url": ev.citation.url,
-                },
-            )
-            new_ids.append(ev_id)
-
+        # Track IDs for state (evidence already stored by deduplicate())
+        new_ids = [ev.citation.url for ev in unique_evidence]
         new_evidence_count = len(unique_evidence)
     else:
         new_evidence_count = len(result.evidence)

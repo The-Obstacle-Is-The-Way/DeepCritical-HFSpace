@@ -51,14 +51,11 @@ async def test_store_evidence(memory, mock_embedding_service):
     assert new_ids == ["u1"]
     assert memory.evidence_ids == ["u1"]
 
-    # deduplicate called with both
+    # deduplicate called with both (deduplicate() handles storage internally)
     mock_embedding_service.deduplicate.assert_called_once_with([ev1, ev2])
 
-    # add_evidence called only for ev1
-    mock_embedding_service.add_evidence.assert_called_once()
-    args = mock_embedding_service.add_evidence.call_args[1]
-    assert args["evidence_id"] == "u1"
-    assert args["content"] == "content1"
+    # add_evidence should NOT be called separately (deduplicate() handles it)
+    mock_embedding_service.add_evidence.assert_not_called()
 
 
 @pytest.mark.asyncio
