@@ -18,7 +18,7 @@ After research and first-principles analysis, the conclusion is clear:
 
 ### Why Not Internal Embeddings/Ingestion
 
-```
+```text
 DeepBoner's Core Task:
 ┌─────────────────────────────────────────────────────────┐
 │  User Query: "Evidence for testosterone in HSDD?"       │
