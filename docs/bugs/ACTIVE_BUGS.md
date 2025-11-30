@@ -1,6 +1,8 @@
 # Active Bugs
 
 > Last updated: 2025-11-30
+>
+> **Note:** Completed bug docs archived to `docs/bugs/archive/`
 
 ## P0 - Blocker
 
@@ -10,8 +12,8 @@
 
 ## P1 - Important
 
-### P1 - Narrative Synthesis Falls Back to Template (NEW)
-**File:** `P1_NARRATIVE_SYNTHESIS_FALLBACK.md`
+### P1 - Narrative Synthesis Falls Back to Template
+**File:** `archive/P1_NARRATIVE_SYNTHESIS_FALLBACK.md`
 **Related:** SPEC_12 (implemented but falling back)
 
 **Problem:** Users see bullet-point template output instead of LLM-generated narrative prose.

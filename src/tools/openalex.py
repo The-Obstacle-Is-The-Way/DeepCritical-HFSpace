@@ -1,5 +1,6 @@
 """OpenAlex search tool - citation-aware scholarly search."""
 
+import re
 from typing import Any
 
 import httpx
@@ -104,6 +105,16 @@ class OpenAlexTool:
             openalex_id = work.get("id", "")
             url = openalex_id if openalex_id else "https://openalex.org"
 
+        # NEW: Extract PMID from ids object for deduplication
+        ids_obj = work.get("ids", {})
+        pmid_url = ids_obj.get("pmid")  # "https://pubmed.ncbi.nlm.nih.gov/29456894"
+        pmid = None
+        if pmid_url and isinstance(pmid_url, str) and "pubmed.ncbi.nlm.nih.gov" in pmid_url:
+            # Extract numeric PMID from URL
+            pmid_match = re.search(r"/(\d+)/?$", pmid_url)
+            if pmid_match:
+                pmid = pmid_match.group(1)
+
         # Prepend citation badge to content
         citation_badge = f"[Cited by {cited_by_count}] " if cited_by_count > 0 else ""
         content = f"{citation_badge}{abstract[:1900]}"
@@ -127,6 +138,7 @@ class OpenAlexTool:
                 "concepts": concepts,
                 "is_open_access": is_oa,
                 "pdf_url": pdf_url,
+                "pmid": pmid,  # NEW: Store PMID for deduplication
             },
         )
 

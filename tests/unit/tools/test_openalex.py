@@ -38,6 +38,30 @@ SAMPLE_OPENALEX_RESPONSE = {
     ]
 }
 
+# Sample response WITH PMID (for deduplication testing)
+SAMPLE_OPENALEX_WITH_PMID = {
+    "results": [
+        {
+            "id": "https://openalex.org/W98765",
+            "doi": "https://doi.org/10.1038/nature12345",
+            "display_name": "Paper with PMID for deduplication",
+            "publication_year": 2023,
+            "cited_by_count": 50,
+            "abstract_inverted_index": {"Test": [0], "abstract": [1]},
+            "concepts": [],
+            "authorships": [],
+            "open_access": {"is_oa": False},
+            "best_oa_location": None,
+            # CRITICAL: ids object with PMID for cross-source deduplication
+            "ids": {
+                "openalex": "https://openalex.org/W98765",
+                "doi": "https://doi.org/10.1038/nature12345",
+                "pmid": "https://pubmed.ncbi.nlm.nih.gov/29456894",
+            },
+        }
+    ]
+}
+
 
 @pytest.mark.unit
 class TestOpenAlexTool:
@@ -143,6 +167,26 @@ class TestOpenAlexTool:
         params = call_args[1]["params"]
         assert "sildenafil" in params["search"]
         assert params["per_page"] == 3
+
+    @pytest.mark.asyncio
+    async def test_extracts_pmid_from_ids_object(self, tool: OpenAlexTool, mock_client) -> None:
+        """PMID should be extracted from ids.pmid for cross-source deduplication."""
+        mock_client.get.return_value.json.return_value = SAMPLE_OPENALEX_WITH_PMID
+
+        results = await tool.search("test", max_results=1)
+
+        assert len(results) == 1
+        # PMID should be extracted from URL and stored as numeric string
+        assert results[0].metadata["pmid"] == "29456894"
+
+    @pytest.mark.asyncio
+    async def test_pmid_is_none_when_not_present(self, tool: OpenAlexTool, mock_client) -> None:
+        """PMID should be None when ids.pmid is not in response."""
+        # SAMPLE_OPENALEX_RESPONSE has no ids.pmid field
+        results = await tool.search("sildenafil ED", max_results=1)
+
+        assert len(results) == 1
+        assert results[0].metadata["pmid"] is None
 
 
 @pytest.mark.integration
