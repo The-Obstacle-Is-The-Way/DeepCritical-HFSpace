@@ -128,6 +128,150 @@ class TestClinicalTrialsTool:
             assert results == []
 
 
+@pytest.mark.unit
+class TestClinicalTrialsOutcomes:
+    """Tests for outcome measure extraction."""
+
+    @pytest.fixture
+    def tool(self) -> ClinicalTrialsTool:
+        return ClinicalTrialsTool()
+
+    @pytest.mark.asyncio
+    async def test_extracts_primary_outcome(self, tool: ClinicalTrialsTool) -> None:
+        """Test that primary outcome is extracted from response."""
+        mock_study = {
+            "protocolSection": {
+                "identificationModule": {"nctId": "NCT12345678", "briefTitle": "Test"},
+                "statusModule": {"overallStatus": "COMPLETED", "startDateStruct": {"date": "2023"}},
+                "descriptionModule": {"briefSummary": "Summary"},
+                "designModule": {"phases": ["PHASE3"]},
+                "conditionsModule": {"conditions": ["ED"]},
+                "armsInterventionsModule": {"interventions": []},
+                "outcomesModule": {
+                    "primaryOutcomes": [
+                        {"measure": "Change in IIEF-EF score", "timeFrame": "Week 12"}
+                    ]
+                },
+            },
+            "hasResults": True,
+        }
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"studies": [mock_study]}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("requests.get", return_value=mock_response):
+            results = await tool.search("test", max_results=1)
+
+            assert len(results) == 1
+            assert "Primary Outcome" in results[0].content
+            assert "IIEF-EF" in results[0].content
+            assert "Week 12" in results[0].content
+
+    @pytest.mark.asyncio
+    async def test_includes_results_status(self, tool: ClinicalTrialsTool) -> None:
+        """Test that results availability is shown."""
+        mock_study = {
+            "protocolSection": {
+                "identificationModule": {"nctId": "NCT12345678", "briefTitle": "Test"},
+                "statusModule": {
+                    "overallStatus": "COMPLETED",
+                    "startDateStruct": {"date": "2023"},
+                    # Note: resultsFirstPostDateStruct, not resultsFirstSubmitDate
+                    "resultsFirstPostDateStruct": {"date": "2024-06-15"},
+                },
+                "descriptionModule": {"briefSummary": "Summary"},
+                "designModule": {"phases": ["PHASE3"]},
+                "conditionsModule": {"conditions": ["ED"]},
+                "armsInterventionsModule": {"interventions": []},
+                "outcomesModule": {},
+            },
+            "hasResults": True,  # Note: hasResults is TOP-LEVEL
+        }
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"studies": [mock_study]}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("requests.get", return_value=mock_response):
+            results = await tool.search("test", max_results=1)
+
+            assert "Results Available: Yes" in results[0].content
+            assert "2024-06-15" in results[0].content
+
+    @pytest.mark.asyncio
+    async def test_shows_no_results_when_missing(self, tool: ClinicalTrialsTool) -> None:
+        """Test that missing results are indicated."""
+        mock_study = {
+            "protocolSection": {
+                "identificationModule": {
+                    "nctId": "NCT99999999",
+                    "briefTitle": "Test Study",
+                },
+                "statusModule": {
+                    "overallStatus": "RECRUITING",
+                    "startDateStruct": {"date": "2024"},
+                },
+                "descriptionModule": {"briefSummary": "Summary"},
+                "designModule": {"phases": ["PHASE2"]},
+                "conditionsModule": {"conditions": ["ED"]},
+                "armsInterventionsModule": {"interventions": []},
+                "outcomesModule": {},
+            },
+            "hasResults": False,
+        }
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"studies": [mock_study]}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("requests.get", return_value=mock_response):
+            results = await tool.search("test", max_results=1)
+
+            assert "Results Available: Not yet posted" in results[0].content
+
+    @pytest.mark.asyncio
+    async def test_boosts_relevance_for_results(self, tool: ClinicalTrialsTool) -> None:
+        """Trials with results should have higher relevance score."""
+        with_results = {
+            "protocolSection": {
+                "identificationModule": {"nctId": "NCT11111111", "briefTitle": "With Results"},
+                "statusModule": {"overallStatus": "COMPLETED", "startDateStruct": {"date": "2023"}},
+                "descriptionModule": {"briefSummary": "Summary"},
+                "designModule": {"phases": []},
+                "conditionsModule": {"conditions": []},
+                "armsInterventionsModule": {"interventions": []},
+                "outcomesModule": {},
+            },
+            "hasResults": True,
+        }
+        without_results = {
+            "protocolSection": {
+                "identificationModule": {"nctId": "NCT22222222", "briefTitle": "No Results"},
+                "statusModule": {
+                    "overallStatus": "RECRUITING",
+                    "startDateStruct": {"date": "2024"},
+                },
+                "descriptionModule": {"briefSummary": "Summary"},
+                "designModule": {"phases": []},
+                "conditionsModule": {"conditions": []},
+                "armsInterventionsModule": {"interventions": []},
+                "outcomesModule": {},
+            },
+            "hasResults": False,
+        }
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"studies": [with_results, without_results]}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("requests.get", return_value=mock_response):
+            results = await tool.search("test", max_results=2)
+
+            assert results[0].relevance == 0.90  # With results
+            assert results[1].relevance == 0.85  # Without results
+
+
 @pytest.mark.integration
 class TestClinicalTrialsIntegration:
     """Integration tests with real API."""
@@ -150,3 +294,21 @@ class TestClinicalTrialsIntegration:
             or "phase" in all_content
         )
         assert has_intervention
+
+    @pytest.mark.asyncio
+    async def test_real_completed_trial_has_outcome(self) -> None:
+        """Real completed Phase 3 trials should have outcome measures."""
+        tool = ClinicalTrialsTool()
+
+        # Search for completed Phase 3 ED trials (likely to have outcomes)
+        results = await tool.search(
+            "sildenafil erectile dysfunction Phase 3 COMPLETED", max_results=3
+        )
+
+        # Skip if API returns no results (external dependency)
+        if not results:
+            pytest.skip("API returned no results for this query")
+
+        # At least one should have primary outcome
+        has_outcome = any("Primary Outcome" in r.content for r in results)
+        assert has_outcome, "No completed trials with outcome measures found"
