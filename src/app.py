@@ -183,8 +183,10 @@ async def research_agent(
         )
 
         # Immediate backend info + loading feedback so user knows something is happening
+        # Use replace to get "Sexual Health" instead of "Sexual_Health" from .title()
+        domain_display = domain_str.replace("_", " ").title()
         yield (
-            f"🧠 **Backend**: {backend_name} | **Domain**: {domain_str.title()}\n\n"
+            f"🧠 **Backend**: {backend_name} | **Domain**: {domain_display}\n\n"
             "⏳ **Processing...** Searching PubMed, ClinicalTrials.gov, Europe PMC, OpenAlex...\n"
         )
 
