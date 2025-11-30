@@ -26,8 +26,10 @@ class TestMagenticAgentsDomain:
     @patch("src.agents.magentic_agents.OpenAIChatClient")
     def test_create_judge_agent_uses_domain(self, mock_client, mock_agent_cls):
         create_judge_agent(domain=ResearchDomain.SEXUAL_HEALTH)
-        # Verify system prompt usage implicitly via ChatAgent args if possible
-        # The current implementation has hardcoded strings. We expect them to change.
+
+        # Verify domain-specific judge system prompt is passed through
+        call_kwargs = mock_agent_cls.call_args.kwargs
+        assert SEXUAL_HEALTH_CONFIG.judge_system_prompt in call_kwargs["instructions"]
 
     @patch("src.agents.magentic_agents.ChatAgent")
     @patch("src.agents.magentic_agents.OpenAIChatClient")

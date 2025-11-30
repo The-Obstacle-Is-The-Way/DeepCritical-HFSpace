@@ -145,7 +145,7 @@ async def research_agent(
 
     # Check available keys
     has_openai = bool(os.getenv("OPENAI_API_KEY"))
-    has_anthropic = (bool(os.getenv("ANTHROPIC_API_KEY")),)
+    has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
     # Check for OpenAI user key
     is_openai_user_key = (
         user_api_key and user_api_key.startswith("sk-") and not user_api_key.startswith("sk-ant-")
