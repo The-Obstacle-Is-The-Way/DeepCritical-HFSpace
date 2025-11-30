@@ -37,6 +37,10 @@ async def test_simple_mode_synthesizes_before_max_iterations():
     # Mock judge to return GOOD scores eventually
     # We can use MockJudgeHandler or a pure mock. Let's use a pure mock to control scores precisely.
     mock_judge = AsyncMock()
+    # Since mock_judge has 'synthesize' attr by default (as a Mock),
+    # simple mode uses free-tier path.
+    # We must mock the return value of synthesize to simulate a successful narrative generation.
+    mock_judge.synthesize.return_value = "This is a synthesized report for MagicDrug."
 
     # Iteration 1: Low scores
     assess_1 = JudgeAssessment(
@@ -95,7 +99,9 @@ async def test_simple_mode_synthesizes_before_max_iterations():
     # SPEC_12: LLM synthesis produces narrative prose, not template with "Drug Candidates" header
     # Check for narrative structure (LLM may omit ### prefix) OR template fallback
     assert (
-        "Executive Summary" in complete_event.message or "Drug Candidates" in complete_event.message
+        "Executive Summary" in complete_event.message
+        or "Drug Candidates" in complete_event.message
+        or "synthesized report" in complete_event.message
     )
     assert complete_event.data.get("synthesis_reason") == "high_scores_with_candidates"
     assert complete_event.iteration == 2  # Should stop at it 2

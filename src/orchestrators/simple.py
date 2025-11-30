@@ -536,23 +536,34 @@ class Orchestrator:
         system_prompt = get_synthesis_system_prompt(self.domain)
 
         try:
-            # Import here to avoid circular deps and keep optional
-            from pydantic_ai import Agent
+            # Check if judge has its own synthesize method (Free Tier uses HF Inference)
+            # This ensures Free Tier uses consistent free inference for BOTH judge AND synthesis
+            if hasattr(self.judge, "synthesize"):
+                logger.info("Using judge's free-tier synthesis method")
+                narrative = await self.judge.synthesize(system_prompt, user_prompt)
+                if narrative:
+                    logger.info("Free-tier synthesis completed", chars=len(narrative))
+                else:
+                    # Free tier synthesis failed, use template
+                    raise RuntimeError("Free tier HF synthesis returned no content")
+            else:
+                # Paid tier: use PydanticAI with get_model()
+                from pydantic_ai import Agent
 
-            from src.agent_factory.judges import get_model
+                from src.agent_factory.judges import get_model
 
-            # Create synthesis agent with retries (matching Judge agent pattern)
-            # Without retries, transient errors immediately trigger fallback
-            agent: Agent[None, str] = Agent(
-                model=get_model(),
-                output_type=str,
-                system_prompt=system_prompt,
-                retries=3,  # Match Judge agent - retry on transient errors
-            )
-            result = await agent.run(user_prompt)
-            narrative = result.output
+                # Create synthesis agent with retries (matching Judge agent pattern)
+                # Without retries, transient errors immediately trigger fallback
+                agent: Agent[None, str] = Agent(
+                    model=get_model(),
+                    output_type=str,
+                    system_prompt=system_prompt,
+                    retries=3,  # Match Judge agent - retry on transient errors
+                )
+                result = await agent.run(user_prompt)
+                narrative = result.output
 
-            logger.info("LLM narrative synthesis completed", chars=len(narrative))
+                logger.info("LLM narrative synthesis completed", chars=len(narrative))
 
         except Exception as e:
             # Fallback to template synthesis if LLM fails

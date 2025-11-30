@@ -68,9 +68,10 @@ class TestGenerateSynthesis:
         sample_evidence: list[Evidence],
         sample_assessment: JudgeAssessment,
     ) -> None:
-        """Synthesis should make an LLM call, not just use a template."""
+        """Synthesis should make an LLM call using pydantic_ai when judge is paid tier."""
         mock_search = MagicMock()
-        mock_judge = MagicMock()
+        # Paid tier JudgeHandler has 'assess' but NOT 'synthesize'
+        mock_judge = MagicMock(spec=["assess"])
 
         orchestrator = Orchestrator(
             search_handler=mock_search,
@@ -130,6 +131,40 @@ Long-term safety data is limited.
             assert "Evidence Synthesis" in result
 
     @pytest.mark.asyncio
+    async def test_uses_free_tier_synthesis_when_available(
+        self,
+        sample_evidence: list[Evidence],
+        sample_assessment: JudgeAssessment,
+    ) -> None:
+        """Synthesis should use judge's synthesize method when in Free Tier."""
+        mock_search = MagicMock()
+        # Free tier JudgeHandler has 'synthesize' method
+        mock_judge = MagicMock()
+        # Setup synthesize method
+        mock_judge.synthesize = AsyncMock(return_value="Free tier narrative content.")
+
+        orchestrator = Orchestrator(
+            search_handler=mock_search,
+            judge_handler=mock_judge,
+        )
+        orchestrator.history = [{"iteration": 1}]
+
+        # We don't need to patch Agent or get_model because they shouldn't be called
+        result = await orchestrator._generate_synthesis(
+            query="test query",
+            evidence=sample_evidence,
+            assessment=sample_assessment,
+        )
+
+        # Verify judge's synthesize was called
+        mock_judge.synthesize.assert_called_once()
+
+        # Verify result contains the free tier content
+        assert "Free tier narrative content" in result
+        # Should still include footer
+        assert "Full Citation List" in result
+
+    @pytest.mark.asyncio
     async def test_falls_back_on_llm_error_with_notice(
         self,
         sample_evidence: list[Evidence],
@@ -137,7 +172,8 @@ Long-term safety data is limited.
     ) -> None:
         """Synthesis should fall back to template if LLM fails, WITH error notice."""
         mock_search = MagicMock()
-        mock_judge = MagicMock()
+        # Paid tier simulation
+        mock_judge = MagicMock(spec=["assess"])
 
         orchestrator = Orchestrator(
             search_handler=mock_search,
@@ -171,7 +207,8 @@ Long-term safety data is limited.
     ) -> None:
         """Synthesis should include full citation list footer."""
         mock_search = MagicMock()
-        mock_judge = MagicMock()
+        # Paid tier simulation
+        mock_judge = MagicMock(spec=["assess"])
 
         orchestrator = Orchestrator(
             search_handler=mock_search,

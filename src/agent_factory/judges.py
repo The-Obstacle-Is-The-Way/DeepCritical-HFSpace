@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from functools import partial
 from typing import Any, ClassVar
 
 import structlog
@@ -554,6 +555,48 @@ IMPORTANT: Respond with ONLY valid JSON matching this schema:
             ],
             reasoning=f"HF Inference failed: {error}. Recommend configuring OpenAI/Anthropic key.",
         )
+
+    async def synthesize(self, system_prompt: str, user_prompt: str) -> str | None:
+        """
+        Synthesize a research report using free HuggingFace Inference.
+
+        Uses the same chat_completion API as judging, so Free Tier gets
+        consistent behavior across judge AND synthesis.
+
+        Returns:
+            Narrative text if successful, None if all models fail.
+        """
+        loop = asyncio.get_running_loop()
+        models_to_try = [self.model_id] if self.model_id else self.FALLBACK_MODELS
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+        for model in models_to_try:
+            try:
+                logger.info("HF synthesis attempt", model=model)
+                response = await loop.run_in_executor(
+                    None,
+                    partial(
+                        self.client.chat_completion,
+                        messages=messages,
+                        model=model,
+                        max_tokens=2048,  # Longer for synthesis
+                        temperature=0.7,  # More creative for narrative
+                    ),
+                )
+                content = response.choices[0].message.content
+                if content and len(content.strip()) > 50:
+                    logger.info("HF synthesis success", model=model, chars=len(content))
+                    return content.strip()
+            except Exception as e:
+                logger.warning("HF synthesis model failed", model=model, error=str(e))
+                continue
+
+        logger.error("All HF synthesis models failed")
+        return None
 
 
 class MockJudgeHandler:
