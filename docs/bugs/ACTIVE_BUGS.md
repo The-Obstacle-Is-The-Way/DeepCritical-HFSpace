@@ -1,10 +1,26 @@
 # Active Bugs
 
-> Last updated: 2025-11-29
+> Last updated: 2025-11-30
 
 ## P0 - Blocker
 
 *(None - P0 bugs resolved)*
+
+---
+
+## P1 - Important
+
+### P1 - Narrative Synthesis Falls Back to Template (NEW)
+**File:** `P1_NARRATIVE_SYNTHESIS_FALLBACK.md`
+**Related:** SPEC_12 (implemented but falling back)
+
+**Problem:** Users see bullet-point template output instead of LLM-generated narrative prose.
+**Root Cause:** Any exception in LLM synthesis triggers silent fallback to template.
+**Impact:** Core value proposition (synthesized reports) not delivered.
+**Fix Options:**
+1. Surface errors to user instead of silent fallback
+2. Configure HuggingFace Spaces secrets with API keys
+3. Add synthesis status indicator in UI
 
 ---
 

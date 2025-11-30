@@ -130,12 +130,12 @@ Long-term safety data is limited.
             assert "Evidence Synthesis" in result
 
     @pytest.mark.asyncio
-    async def test_falls_back_on_llm_error(
+    async def test_falls_back_on_llm_error_with_notice(
         self,
         sample_evidence: list[Evidence],
         sample_assessment: JudgeAssessment,
     ) -> None:
-        """Synthesis should fall back to template if LLM fails."""
+        """Synthesis should fall back to template if LLM fails, WITH error notice."""
         mock_search = MagicMock()
         mock_judge = MagicMock()
 
@@ -155,7 +155,11 @@ Long-term safety data is limited.
                 assessment=sample_assessment,
             )
 
-            # Should return template fallback (has Assessment section)
+            # Should surface error to user (MS Agent Framework pattern)
+            assert "AI narrative synthesis unavailable" in result
+            assert "Error" in result
+
+            # Should still include template content
             assert "Assessment" in result or "Drug Candidates" in result
             assert "Testosterone" in result  # Drug candidate should be present
 

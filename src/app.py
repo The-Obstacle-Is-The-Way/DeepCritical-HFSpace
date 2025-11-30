@@ -25,6 +25,33 @@ from src.utils.models import OrchestratorConfig
 OrchestratorMode = Literal["simple", "magentic", "advanced", "hierarchical"]
 
 
+# CSS to force dark mode on API key input
+# NOTE: Browser autofill requires -webkit-autofill selectors to override
+CUSTOM_CSS = """
+.api-key-input input {
+    background-color: #1f2937 !important;
+    color: white !important;
+    border-color: #374151 !important;
+}
+.api-key-input input:focus,
+.api-key-input input:focus-visible {
+    background-color: #1f2937 !important;
+    color: white !important;
+    border-color: #e879f9 !important;
+    outline: none !important;
+}
+/* Override aggressive browser autofill styling */
+.api-key-input input:-webkit-autofill,
+.api-key-input input:-webkit-autofill:hover,
+.api-key-input input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0px 1000px #1f2937 inset !important;
+    -webkit-text-fill-color: white !important;
+    caret-color: white !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+"""
+
+
 def configure_orchestrator(
     use_mock: bool = False,
     mode: OrchestratorMode = "simple",
@@ -247,14 +274,21 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
     api_key_state = gr.State("")
 
     # 1. Unwrapped ChatInterface (Fixes Accordion Bug)
+    # NOTE: Using inline styles on each element because HR breaks text-align inheritance
     description = (
-        "*AI-Powered Research Agent — searches PubMed, "
-        "ClinicalTrials.gov, Europe PMC & OpenAlex*\n\n"
+        "<div style='text-align: center;'>"
+        "<em>AI-Powered Research Agent — searches PubMed, "
+        "ClinicalTrials.gov, Europe PMC & OpenAlex</em><br><br>"
         "Deep research for sexual wellness, ED treatments, hormone therapy, "
-        "libido, and reproductive health - for all genders.\n\n"
-        "---\n"
-        "*Research tool only — not for medical advice.*  \n"
-        "**MCP Server Active**: Connect Claude Desktop to `/gradio_api/mcp/`"
+        "libido, and reproductive health - for all genders."
+        "</div>"
+        "<hr style='margin: 1em auto; width: 80%; border: none; "
+        "border-top: 1px solid #374151;'>"
+        "<div style='text-align: center;'>"
+        "<em>Research tool only — not for medical advice.</em><br>"
+        "<strong>MCP Server Active</strong>: Connect Claude Desktop to "
+        "<code>/gradio_api/mcp/</code>"
+        "</div>"
     )
 
     demo = gr.ChatInterface(
@@ -304,6 +338,7 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
                 placeholder="sk-... (OpenAI) or sk-ant-... (Anthropic)",
                 type="password",
                 info="Leave empty for free tier. Auto-detects provider from key prefix.",
+                elem_classes=["api-key-input"],
             ),
             api_key_state,  # Hidden state component for persistence
         ],
@@ -321,6 +356,7 @@ def main() -> None:
         share=False,
         mcp_server=True,
         ssr_mode=False,  # Fix for intermittent loading/hydration issues in HF Spaces
+        css=CUSTOM_CSS,  # Moved here for Gradio 6.0 support
     )
 
 

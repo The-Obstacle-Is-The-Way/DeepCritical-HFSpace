@@ -541,11 +541,13 @@ class Orchestrator:
 
             from src.agent_factory.judges import get_model
 
-            # Create synthesis agent (string output, not structured)
+            # Create synthesis agent with retries (matching Judge agent pattern)
+            # Without retries, transient errors immediately trigger fallback
             agent: Agent[None, str] = Agent(
                 model=get_model(),
                 output_type=str,
                 system_prompt=system_prompt,
+                retries=3,  # Match Judge agent - retry on transient errors
             )
             result = await agent.run(user_prompt)
             narrative = result.output
@@ -554,14 +556,23 @@ class Orchestrator:
 
         except Exception as e:
             # Fallback to template synthesis if LLM fails
-            # This is intentionally broad - LLM can fail many ways (API, parsing, etc.)
-            logger.warning(
+            # Log error details for debugging
+            logger.error(
                 "LLM synthesis failed, using template fallback",
                 error=str(e),
                 exc_type=type(e).__name__,
                 evidence_count=len(evidence),
+                exc_info=True,  # Capture stack trace for debugging
             )
-            return self._generate_template_synthesis(query, evidence, assessment)
+            # Surface the error to user (MS Agent Framework pattern)
+            # Don't silently fall back - let user know synthesis degraded
+            error_note = (
+                f"\n\n> ⚠️ **Note**: AI narrative synthesis unavailable. "
+                f"Showing structured summary.\n"
+                f"> _Error: {type(e).__name__}_\n"
+            )
+            template = self._generate_template_synthesis(query, evidence, assessment)
+            return f"{error_note}\n{template}"
 
         # Add full citation list footer
         citations = "\n".join(
