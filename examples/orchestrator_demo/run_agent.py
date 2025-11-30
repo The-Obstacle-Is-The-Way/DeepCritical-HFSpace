@@ -11,8 +11,9 @@ This script demonstrates the REAL Phase 4 orchestration:
 NO MOCKS. REAL API CALLS.
 
 Usage:
-    uv run python examples/orchestrator_demo/run_agent.py "metformin cancer"
-    uv run python examples/orchestrator_demo/run_agent.py "sildenafil heart failure" --iterations 5
+    uv run python examples/orchestrator_demo/run_agent.py "testosterone libido"
+    uv run python examples/orchestrator_demo/run_agent.py "sildenafil erectile dysfunction" \
+        --iterations 5
 
 Requires: OPENAI_API_KEY or ANTHROPIC_API_KEY
 """
@@ -46,11 +47,11 @@ This demo runs the REAL search-judge-synthesize loop:
   4. REAL synthesis: Actual research summary generation
 
 Examples:
-    uv run python examples/orchestrator_demo/run_agent.py "metformin cancer"
-    uv run python examples/orchestrator_demo/run_agent.py "aspirin alzheimer" --iterations 5
+    uv run python examples/orchestrator_demo/run_agent.py "testosterone libido"
+    uv run python examples/orchestrator_demo/run_agent.py "flibanserin HSDD" --iterations 5
         """,
     )
-    parser.add_argument("query", help="Research query (e.g., 'metformin cancer')")
+    parser.add_argument("query", help="Research query (e.g., 'testosterone libido')")
     parser.add_argument("--iterations", type=int, default=3, help="Max iterations (default: 3)")
     args = parser.parse_args()
 

@@ -11,36 +11,36 @@ class TestQueryPreprocessing:
 
     def test_strip_question_words(self) -> None:
         """Test removal of question words."""
-        assert strip_question_words("What drugs treat cancer") == "drugs treat cancer"
-        assert strip_question_words("Which medications help diabetes") == "medications diabetes"
-        assert strip_question_words("How can we cure alzheimer") == "we cure alzheimer"
-        assert strip_question_words("Is metformin effective") == "metformin"
+        assert strip_question_words("What drugs treat HSDD") == "drugs treat hsdd"
+        assert strip_question_words("Which medications help low libido") == "medications low libido"
+        assert strip_question_words("How can we treat ED") == "we treat ed"
+        assert strip_question_words("Is sildenafil effective") == "sildenafil"
 
     def test_strip_preserves_medical_terms(self) -> None:
         """Test that medical terms are preserved."""
-        result = strip_question_words("What is the mechanism of metformin")
-        assert "metformin" in result
+        result = strip_question_words("What is the mechanism of sildenafil")
+        assert "sildenafil" in result
         assert "mechanism" in result
 
-    def test_expand_synonyms_long_covid(self) -> None:
-        """Test Long COVID synonym expansion."""
-        result = expand_synonyms("long covid treatment")
-        assert "PASC" in result or "post-COVID" in result
+    def test_expand_synonyms_low_libido(self) -> None:
+        """Test Low Libido synonym expansion."""
+        result = expand_synonyms("low libido treatment")
+        assert "HSDD" in result or "hypoactive sexual desire" in result
 
-    def test_expand_synonyms_alzheimer(self) -> None:
-        """Test Alzheimer's synonym expansion."""
-        result = expand_synonyms("alzheimer drug")
-        assert "Alzheimer" in result
+    def test_expand_synonyms_ed(self) -> None:
+        """Test ED synonym expansion."""
+        result = expand_synonyms("erectile dysfunction drug")
+        assert "impotence" in result
 
     def test_expand_synonyms_preserves_unknown(self) -> None:
         """Test that unknown terms are preserved."""
-        result = expand_synonyms("metformin diabetes")
-        assert "metformin" in result
-        assert "diabetes" in result
+        result = expand_synonyms("sildenafil unknowncondition")
+        assert "sildenafil" in result
+        assert "unknowncondition" in result
 
     def test_preprocess_query_full_pipeline(self) -> None:
         """Test complete preprocessing pipeline."""
-        raw = "What medications show promise for Long COVID?"
+        raw = "What medications show promise for Low Libido?"
         result = preprocess_query(raw)
 
         # Should not contain question words
@@ -49,12 +49,12 @@ class TestQueryPreprocessing:
         assert "promise" not in result.lower()
 
         # Should contain expanded terms
-        assert "PASC" in result or "post-COVID" in result or "long covid" in result.lower()
+        assert "HSDD" in result or "hypoactive" in result or "low libido" in result.lower()
         assert "medications" in result.lower() or "drug" in result.lower()
 
     def test_preprocess_query_removes_punctuation(self) -> None:
         """Test that question marks are removed."""
-        result = preprocess_query("Is metformin safe?")
+        result = preprocess_query("Is sildenafil safe?")
         assert "?" not in result
 
     def test_preprocess_query_handles_empty(self) -> None:
@@ -64,8 +64,8 @@ class TestQueryPreprocessing:
 
     def test_preprocess_query_already_clean(self) -> None:
         """Test that clean queries pass through."""
-        clean = "metformin diabetes mechanism"
+        clean = "sildenafil ed mechanism"
         result = preprocess_query(clean)
-        assert "metformin" in result
-        assert "diabetes" in result
+        assert "sildenafil" in result
+        assert "ed" in result
         assert "mechanism" in result

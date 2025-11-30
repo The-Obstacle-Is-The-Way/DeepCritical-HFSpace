@@ -30,7 +30,7 @@ class TestSimpleOrchestratorDomain:
             domain=ResearchDomain.SEXUAL_HEALTH,
         )
 
-        # Test _generate_synthesis
+        # Test _generate_template_synthesis (the sync fallback method)
         mock_assessment = MagicMock()
         mock_assessment.details.drug_candidates = []
         mock_assessment.details.key_findings = []
@@ -39,7 +39,7 @@ class TestSimpleOrchestratorDomain:
         mock_assessment.details.mechanism_score = 5
         mock_assessment.details.clinical_evidence_score = 5
 
-        report = orch._generate_synthesis("query", [], mock_assessment)
+        report = orch._generate_template_synthesis("query", [], mock_assessment)
         assert "## Sexual Health Analysis" in report
 
         # Test _generate_partial_synthesis

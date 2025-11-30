@@ -49,23 +49,23 @@ class TestClinicalTrialsTool:
             "protocolSection": {
                 "identificationModule": {
                     "nctId": "NCT12345678",
-                    "briefTitle": "Metformin for Long COVID Treatment",
+                    "briefTitle": "Testosterone for HSDD Treatment",
                 },
                 "statusModule": {
                     "overallStatus": "COMPLETED",
                     "startDateStruct": {"date": "2023-01-01"},
                 },
                 "descriptionModule": {
-                    "briefSummary": "A study examining metformin for Long COVID symptoms.",
+                    "briefSummary": "A study examining testosterone for HSDD symptoms.",
                 },
                 "designModule": {
                     "phases": ["PHASE2", "PHASE3"],
                 },
                 "conditionsModule": {
-                    "conditions": ["Long COVID", "PASC"],
+                    "conditions": ["HSDD", "Hypoactive Sexual Desire"],
                 },
                 "armsInterventionsModule": {
-                    "interventions": [{"name": "Metformin"}],
+                    "interventions": [{"name": "Testosterone"}],
                 },
             }
         }
@@ -75,11 +75,11 @@ class TestClinicalTrialsTool:
         mock_response.raise_for_status = MagicMock()
 
         with patch("requests.get", return_value=mock_response):
-            results = await tool.search("long covid metformin", max_results=5)
+            results = await tool.search("testosterone hsdd", max_results=5)
 
             assert len(results) == 1
             assert isinstance(results[0], Evidence)
-            assert "Metformin" in results[0].citation.title
+            assert "Testosterone" in results[0].citation.title
             assert "PHASE2" in results[0].content or "Phase" in results[0].content
 
     @pytest.mark.asyncio
@@ -134,9 +134,9 @@ class TestClinicalTrialsIntegration:
 
     @pytest.mark.asyncio
     async def test_real_api_returns_interventional(self) -> None:
-        """Test that real API returns interventional studies."""
+        """Test that real API returns interventional studies for sexual health query."""
         tool = ClinicalTrialsTool()
-        results = await tool.search("long covid treatment", max_results=3)
+        results = await tool.search("testosterone HSDD", max_results=3)
 
         # Should get results
         assert len(results) > 0

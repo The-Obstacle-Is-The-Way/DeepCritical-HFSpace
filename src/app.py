@@ -2,7 +2,7 @@
 
 import os
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, Literal
 
 import gradio as gr
 from pydantic_ai.models.anthropic import AnthropicModel
@@ -22,10 +22,12 @@ from src.utils.config import settings
 from src.utils.exceptions import ConfigurationError
 from src.utils.models import OrchestratorConfig
 
+OrchestratorMode = Literal["simple", "magentic", "advanced", "hierarchical"]
+
 
 def configure_orchestrator(
     use_mock: bool = False,
-    mode: str = "simple",
+    mode: OrchestratorMode = "simple",
     user_api_key: str | None = None,
     domain: str | ResearchDomain | None = None,
 ) -> tuple[Any, str]:
@@ -36,7 +38,7 @@ def configure_orchestrator(
         use_mock: If True, use MockJudgeHandler (no API key needed)
         mode: Orchestrator mode ("simple" or "advanced")
         user_api_key: Optional user-provided API key (BYOK) - auto-detects provider
-        domain: Research domain (e.g., "general", "sexual_health")
+        domain: Research domain (defaults to "sexual_health")
 
     Returns:
         Tuple of (Orchestrator instance, backend_name)
@@ -100,7 +102,7 @@ def configure_orchestrator(
         search_handler=search_handler,
         judge_handler=judge_handler,
         config=config,
-        mode=mode,  # type: ignore
+        mode=mode,
         api_key=user_api_key,
         domain=domain,
     )
@@ -111,8 +113,8 @@ def configure_orchestrator(
 async def research_agent(
     message: str,
     history: list[dict[str, Any]],
-    mode: str = "simple",
-    domain: str = "general",
+    mode: str = "simple",  # Gradio passes strings; validated below
+    domain: str = "sexual_health",
     api_key: str = "",
     api_key_state: str = "",
 ) -> AsyncGenerator[str, None]:
@@ -138,7 +140,11 @@ async def research_agent(
     # Gradio passes None for missing example columns, overriding defaults
     api_key_str = api_key or ""
     api_key_state_str = api_key_state or ""
-    domain_str = domain or "general"
+    domain_str = domain or "sexual_health"
+
+    # Validate and cast mode to proper type
+    valid_modes: set[str] = {"simple", "magentic", "advanced", "hierarchical"}
+    mode_validated: OrchestratorMode = mode if mode in valid_modes else "simple"  # type: ignore[assignment]
 
     # BUG FIX: Prefer freshly-entered key, then persisted state
     user_api_key = (api_key_str.strip() or api_key_state_str.strip()) or None
@@ -153,12 +159,12 @@ async def research_agent(
     has_paid_key = has_openai or has_anthropic or bool(user_api_key)
 
     # Advanced mode requires OpenAI specifically (due to agent-framework binding)
-    if mode == "advanced" and not (has_openai or is_openai_user_key):
+    if mode_validated == "advanced" and not (has_openai or is_openai_user_key):
         yield (
             "⚠️ **Warning**: Advanced mode currently requires OpenAI API key. "
             "Anthropic keys only work in Simple mode. Falling back to Simple.\n\n"
         )
-        mode = "simple"
+        mode_validated = "simple"
 
     # Inform user about fallback if no keys
     if not has_paid_key:
@@ -177,14 +183,16 @@ async def research_agent(
         # It will use: Paid API > HF Inference (free tier)
         orchestrator, backend_name = configure_orchestrator(
             use_mock=False,  # Never use mock in production - HF Inference is the free fallback
-            mode=mode,
+            mode=mode_validated,
             user_api_key=user_api_key,
             domain=domain_str,
         )
 
         # Immediate backend info + loading feedback so user knows something is happening
+        # Use replace to get "Sexual Health" instead of "Sexual_Health" from .title()
+        domain_display = domain_str.replace("_", " ").title()
         yield (
-            f"🧠 **Backend**: {backend_name} | **Domain**: {domain_str.title()}\n\n"
+            f"🧠 **Backend**: {backend_name} | **Domain**: {domain_display}\n\n"
             "⏳ **Processing...** Searching PubMed, ClinicalTrials.gov, Europe PMC, OpenAlex...\n"
         )
 

@@ -19,7 +19,7 @@ def mock_search_handler():
                 citation=Citation(
                     title="Test Paper", url="http://test", date="2024", source="pubmed"
                 ),
-                content="Metformin increases lifespan in mice.",
+                content="Testosterone improves sexual desire in postmenopausal women.",
             )
         ]
     )

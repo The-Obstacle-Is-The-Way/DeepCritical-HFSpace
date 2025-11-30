@@ -42,7 +42,7 @@ def orchestrator():
 @pytest.mark.unit
 def test_should_synthesize_high_scores(orchestrator):
     """High scores with drug candidates triggers synthesis."""
-    assessment = make_assessment(mechanism=7, clinical=6, drug_candidates=["Metformin"])
+    assessment = make_assessment(mechanism=7, clinical=6, drug_candidates=["Testosterone"])
 
     # Access the private method via name mangling or just call it if it was public.
     # Since I made it private _should_synthesize, I access it directly.

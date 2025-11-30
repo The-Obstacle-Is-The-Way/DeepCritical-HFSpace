@@ -81,12 +81,18 @@ class SubIterationMiddleware:
                 history.append(result)
                 best_result = result  # Assume latest is best for now
             except Exception as e:
-                logger.error("Sub-iteration execution failed", error=str(e))
+                logger.error(
+                    "Sub-iteration execution failed",
+                    error=str(e),
+                    exc_type=type(e).__name__,
+                    iteration=i,
+                )
                 if event_callback:
                     await event_callback(
                         AgentEvent(
                             type="error",
                             message=f"Sub-iteration execution failed: {e}",
+                            data={"recoverable": False, "error_type": type(e).__name__},
                             iteration=i,
                         )
                     )
@@ -97,12 +103,18 @@ class SubIterationMiddleware:
                 assessment = await self.judge.assess(task, result, history)
                 final_assessment = assessment
             except Exception as e:
-                logger.error("Sub-iteration judge failed", error=str(e))
+                logger.error(
+                    "Sub-iteration judge failed",
+                    error=str(e),
+                    exc_type=type(e).__name__,
+                    iteration=i,
+                )
                 if event_callback:
                     await event_callback(
                         AgentEvent(
                             type="error",
                             message=f"Sub-iteration judge failed: {e}",
+                            data={"recoverable": False, "error_type": type(e).__name__},
                             iteration=i,
                         )
                     )

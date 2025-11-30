@@ -57,7 +57,7 @@ class TestEmbeddingService:
     async def test_embed_returns_vector(self, mock_sentence_transformer, mock_chroma_client):
         """Embedding should return a float vector (async check)."""
         service = EmbeddingService()
-        embedding = await service.embed("metformin diabetes")
+        embedding = await service.embed("testosterone libido")
 
         assert isinstance(embedding, list)
         assert len(embedding) == 3  # noqa: PLR2004
@@ -86,7 +86,7 @@ class TestEmbeddingService:
         service = EmbeddingService()
         await service.add_evidence(
             evidence_id="test1",
-            content="Metformin activates AMPK pathway",
+            content="Testosterone activates androgen receptor pathway",
             metadata={"source": "pubmed"},
         )
 

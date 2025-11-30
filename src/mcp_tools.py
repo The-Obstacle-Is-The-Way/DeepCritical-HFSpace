@@ -18,16 +18,16 @@ _trials = ClinicalTrialsTool()
 _europepmc = EuropePMCTool()
 
 
-async def search_pubmed(query: str, max_results: int = 10, domain: str = "general") -> str:
+async def search_pubmed(query: str, max_results: int = 10, domain: str = "sexual_health") -> str:
     """Search PubMed for peer-reviewed biomedical literature.
 
     Searches NCBI PubMed database for scientific papers matching your query.
     Returns titles, authors, abstracts, and citation information.
 
     Args:
-        query: Search query (e.g., "metformin alzheimer")
+        query: Search query (e.g., "testosterone libido")
         max_results: Maximum results to return (1-50, default 10)
-        domain: Research domain (general, drug_repurposing, sexual_health)
+        domain: Research domain (defaults to "sexual_health")
 
     Returns:
         Formatted search results with paper titles, authors, dates, and abstracts
@@ -58,7 +58,7 @@ async def search_clinical_trials(query: str, max_results: int = 10) -> str:
     Returns trial titles, phases, status, conditions, and interventions.
 
     Args:
-        query: Search query (e.g., "metformin alzheimer", "diabetes phase 3")
+        query: Search query (e.g., "testosterone hypoactive desire", "sildenafil phase 3")
         max_results: Maximum results to return (1-50, default 10)
 
     Returns:
@@ -88,7 +88,7 @@ async def search_europepmc(query: str, max_results: int = 10) -> str:
     Useful for finding cutting-edge preprints and open access papers.
 
     Args:
-        query: Search query (e.g., "metformin neuroprotection", "long covid treatment")
+        query: Search query (e.g., "flibanserin mechanism", "erectile dysfunction novel treatment")
         max_results: Maximum results to return (1-50, default 10)
 
     Returns:
@@ -112,16 +112,18 @@ async def search_europepmc(query: str, max_results: int = 10) -> str:
     return "\n".join(formatted)
 
 
-async def search_all_sources(query: str, max_per_source: int = 5, domain: str = "general") -> str:
+async def search_all_sources(
+    query: str, max_per_source: int = 5, domain: str = "sexual_health"
+) -> str:
     """Search all biomedical sources simultaneously.
 
     Performs parallel search across PubMed, ClinicalTrials.gov, and Europe PMC.
     This is the most comprehensive search option for biomedical research.
 
     Args:
-        query: Search query (e.g., "metformin alzheimer", "aspirin cancer prevention")
+        query: Search query (e.g., "testosterone replacement therapy", "HSDD treatment")
         max_per_source: Maximum results per source (1-20, default 5)
-        domain: Research domain (general, drug_repurposing, sexual_health)
+        domain: Research domain (defaults to "sexual_health")
 
     Returns:
         Combined results from all sources with source labels
@@ -172,8 +174,8 @@ async def analyze_hypothesis(
     the statistical evidence for a research hypothesis.
 
     Args:
-        drug: The drug being evaluated (e.g., "metformin")
-        condition: The target condition (e.g., "Alzheimer's disease")
+        drug: The drug being evaluated (e.g., "sildenafil")
+        condition: The target condition (e.g., "erectile dysfunction")
         evidence_summary: Summary of evidence to analyze
 
     Returns:

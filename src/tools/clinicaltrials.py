@@ -51,7 +51,7 @@ class ClinicalTrialsTool:
         """Search ClinicalTrials.gov for interventional studies.
 
         Args:
-            query: Search query (e.g., "metformin alzheimer")
+            query: Search query (e.g., "testosterone libido")
             max_results: Maximum results to return (max 100)
 
         Returns:

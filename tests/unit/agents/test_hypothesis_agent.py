@@ -22,10 +22,10 @@ from src.utils.models import (  # noqa: E402
 def sample_evidence():
     return [
         Evidence(
-            content="Metformin activates AMPK, which inhibits mTOR signaling...",
+            content="Testosterone activates androgen receptors...",
             citation=Citation(
                 source="pubmed",
-                title="Metformin and AMPK",
+                title="Testosterone and Libido",
                 url="https://pubmed.ncbi.nlm.nih.gov/12345/",
                 date="2023",
             ),
@@ -38,17 +38,17 @@ def mock_assessment():
     return HypothesisAssessment(
         hypotheses=[
             MechanismHypothesis(
-                drug="Metformin",
-                target="AMPK",
-                pathway="mTOR inhibition",
-                effect="Reduced cancer cell proliferation",
+                drug="Testosterone",
+                target="Androgen Receptor",
+                pathway="Dopamine modulation",
+                effect="Enhanced sexual desire in HSDD",
                 confidence=0.75,
-                search_suggestions=["metformin AMPK cancer", "mTOR cancer therapy"],
+                search_suggestions=["testosterone libido mechanism", "HSDD treatment"],
             )
         ],
         primary_hypothesis=None,
         knowledge_gaps=["Clinical trial data needed"],
-        recommended_searches=["metformin clinical trial cancer"],
+        recommended_searches=["testosterone HSDD clinical trial"],
     )
 
 
@@ -66,12 +66,12 @@ async def test_hypothesis_agent_generates_hypotheses(sample_evidence, mock_asses
             mock_agent_class.return_value.run = AsyncMock(return_value=mock_result)
 
             agent = HypothesisAgent(store)
-            response = await agent.run("metformin cancer")
+            response = await agent.run("testosterone libido")
 
             assert isinstance(response, AgentRunResponse)
-            assert "AMPK" in response.messages[0].text
+            assert "Androgen" in response.messages[0].text
             assert len(store["hypotheses"]) == 1
-            assert store["hypotheses"][0].drug == "Metformin"
+            assert store["hypotheses"][0].drug == "Testosterone"
 
 
 @pytest.mark.asyncio

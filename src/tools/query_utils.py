@@ -47,44 +47,37 @@ QUESTION_WORDS: set[str] = {
     "an",
 }
 
-# Medical synonym expansions
+# Medical synonym expansions (Sexual Health Focus)
 SYNONYMS: dict[str, list[str]] = {
-    "long covid": [
-        "long COVID",
-        "PASC",
-        "post-acute sequelae of SARS-CoV-2",
-        "post-COVID syndrome",
-        "post-COVID-19 condition",
+    "erectile dysfunction": [
+        "ED",
+        "impotence",
+        "sexual dysfunction",
     ],
-    "alzheimer": [
-        "Alzheimer's disease",
-        "Alzheimer disease",
-        "AD",
-        "Alzheimer dementia",
+    "low libido": [
+        "hypoactive sexual desire disorder",
+        "HSDD",
+        "low sexual desire",
+        "loss of libido",
     ],
-    "parkinson": [
-        "Parkinson's disease",
-        "Parkinson disease",
-        "PD",
+    "menopause": [
+        "postmenopausal",
+        "climacteric",
+        "perimenopause",
     ],
-    "diabetes": [
-        "diabetes mellitus",
-        "type 2 diabetes",
-        "T2DM",
-        "diabetic",
+    "testosterone": [
+        "androgen",
+        "testosterone therapy",
+        "TRT",
     ],
-    "cancer": [
-        "cancer",
-        "neoplasm",
-        "tumor",
-        "malignancy",
-        "carcinoma",
+    "premature ejaculation": [
+        "PE",
+        "rapid ejaculation",
+        "early ejaculation",
     ],
-    "heart disease": [
-        "cardiovascular disease",
-        "CVD",
-        "coronary artery disease",
-        "heart failure",
+    "pcos": [
+        "polycystic ovary syndrome",
+        "Stein-Leventhal syndrome",
     ],
 }
 
@@ -109,7 +102,7 @@ def expand_synonyms(query: str) -> str:
     Expand medical terms to include synonyms.
 
     Args:
-        query: Query string
+        query: Search query (e.g., "testosterone libido")
 
     Returns:
         Query with synonym expansions in OR groups

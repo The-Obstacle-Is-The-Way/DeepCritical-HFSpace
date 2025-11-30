@@ -75,7 +75,7 @@ def create_orchestrator(
         mode: "simple", "magentic", "advanced", or "hierarchical"
               Note: "magentic" is an alias for "advanced" (kept for backwards compatibility)
         api_key: Optional API key for advanced mode (OpenAI)
-        domain: Research domain for customization (default: General)
+        domain: Research domain for customization (default: sexual_health)
 
     Returns:
         Orchestrator instance implementing OrchestratorProtocol

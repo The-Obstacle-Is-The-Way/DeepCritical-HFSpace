@@ -133,7 +133,7 @@ Based on evidence:
    DRUG -> TARGET -> PATHWAY -> THERAPEUTIC EFFECT
 
    Example:
-   Metformin -> AMPK activation -> mTOR inhibition -> Reduced tau phosphorylation
+   Testosterone -> Androgen receptor -> Dopamine modulation -> Enhanced libido
 
 4. Explain the rationale for each hypothesis
 5. Suggest what additional evidence would support or refute it

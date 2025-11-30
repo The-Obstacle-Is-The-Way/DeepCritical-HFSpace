@@ -8,6 +8,7 @@ from src.agent_factory.judges import JudgeHandler, MockJudgeHandler
 from src.utils.models import AssessmentDetails, Citation, Evidence, JudgeAssessment
 
 
+@pytest.mark.unit
 class TestJudgeHandler:
     """Tests for JudgeHandler."""
 
@@ -22,8 +23,8 @@ class TestJudgeHandler:
                 mechanism_reasoning="Strong mechanistic evidence",
                 clinical_evidence_score=7,
                 clinical_reasoning="Good clinical support",
-                drug_candidates=["Metformin"],
-                key_findings=["Neuroprotective effects"],
+                drug_candidates=["Testosterone"],
+                key_findings=["Libido enhancement effects"],
             ),
             sufficient=True,
             confidence=expected_confidence,
@@ -51,22 +52,22 @@ class TestJudgeHandler:
 
             evidence = [
                 Evidence(
-                    content="Metformin shows neuroprotective properties...",
+                    content="Sildenafil shows efficacy in ED...",
                     citation=Citation(
                         source="pubmed",
-                        title="Metformin in AD",
+                        title="Sildenafil in ED",
                         url="https://pubmed.ncbi.nlm.nih.gov/12345/",
                         date="2024-01-01",
                     ),
                 )
             ]
 
-            result = await handler.assess("metformin alzheimer", evidence)
+            result = await handler.assess("sildenafil efficacy", evidence)
 
             assert result.sufficient is True
             assert result.recommendation == "synthesize"
             assert result.confidence == expected_confidence
-            assert "Metformin" in result.details.drug_candidates
+            assert "Testosterone" in result.details.drug_candidates
 
     @pytest.mark.asyncio
     async def test_assess_empty_evidence(self):
@@ -83,7 +84,7 @@ class TestJudgeHandler:
             sufficient=False,
             confidence=0.0,
             recommendation="continue",
-            next_search_queries=["metformin alzheimer mechanism"],
+            next_search_queries=["sildenafil mechanism"],
             reasoning="No evidence found, need to search more",
         )
 
@@ -102,11 +103,13 @@ class TestJudgeHandler:
             handler = JudgeHandler()
             handler.agent = mock_agent
 
-            result = await handler.assess("metformin alzheimer", [])
+            result = await handler.assess("sildenafil efficacy", [])
 
             assert result.sufficient is False
             assert result.recommendation == "continue"
             assert len(result.next_search_queries) > 0
+            # Assert specific expected query is present
+            assert "sildenafil mechanism" in result.next_search_queries
 
     @pytest.mark.asyncio
     async def test_assess_handles_llm_failure(self):
@@ -143,6 +146,7 @@ class TestJudgeHandler:
             assert "failed" in result.reasoning.lower()
 
 
+@pytest.mark.unit
 class TestMockJudgeHandler:
     """Tests for MockJudgeHandler."""
 

@@ -16,28 +16,32 @@ class TestSearchHandler:
     @pytest.mark.asyncio
     async def test_execute_aggregates_results(self):
         """SearchHandler should aggregate results from all tools."""
-        # Create properly spec'd mock tools using SearchTool Protocol
-        mock_tool_1 = create_autospec(SearchTool, instance=True)
-        mock_tool_1.name = "pubmed"
-        mock_tool_1.search = AsyncMock(
-            return_value=[
-                Evidence(
-                    content="Result 1",
-                    citation=Citation(source="pubmed", title="T1", url="u1", date="2024"),
-                )
-            ]
-        )
+        # Setup
+        mock_tool1 = AsyncMock(spec=SearchTool)
+        mock_tool1.name = "pubmed"
+        mock_tool1.search.return_value = [
+            Evidence(
+                content="C1",
+                citation=Citation(source="pubmed", title="T1", url="u1", date="2024"),
+            )
+        ]
 
-        mock_tool_2 = create_autospec(SearchTool, instance=True)
-        mock_tool_2.name = "pubmed"  # Type system currently restricts to pubmed
-        mock_tool_2.search = AsyncMock(return_value=[])
+        mock_tool2 = AsyncMock(spec=SearchTool)
+        mock_tool2.name = "clinicaltrials"
+        mock_tool2.search.return_value = [
+            Evidence(
+                content="C2",
+                citation=Citation(source="clinicaltrials", title="T2", url="u2", date="2024"),
+            )
+        ]
 
-        handler = SearchHandler(tools=[mock_tool_1, mock_tool_2])
-        result = await handler.execute("test query")
+        handler = SearchHandler(tools=[mock_tool1, mock_tool2])
 
-        assert result.total_found == 1
+        # Execute
+        result = await handler.execute("testosterone libido", max_results_per_tool=3)
+        assert result.total_found == 2
         assert "pubmed" in result.sources_searched
-        assert len(result.errors) == 0
+        assert "clinicaltrials" in result.sources_searched
 
     @pytest.mark.asyncio
     async def test_execute_handles_tool_failure(self):
@@ -77,7 +81,7 @@ class TestSearchHandler:
         mock_pubmed.search.return_value = []
 
         handler = SearchHandler(tools=[mock_pubmed], timeout=30.0)
-        result = await handler.execute("metformin diabetes", max_results_per_tool=3)
+        result = await handler.execute("testosterone libido", max_results_per_tool=3)
 
         assert result.sources_searched == ["pubmed"]
         assert "web" not in result.sources_searched

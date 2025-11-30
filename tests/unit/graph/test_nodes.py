@@ -12,12 +12,12 @@ async def test_judge_node_initialization(mocker):
     # Mock get_model to avoid needing real API keys
     mocker.patch("src.agents.graph.nodes.get_model", return_value=mocker.Mock())
 
-    # Create a mock assessment with attributes
+    # Create a mock assessment with attributes (sexual health domain)
     mock_hypothesis = mocker.Mock()
-    mock_hypothesis.drug = "Caffeine"
-    mock_hypothesis.target = "Adenosine"
-    mock_hypothesis.pathway = "CNS"
-    mock_hypothesis.effect = "Alertness"
+    mock_hypothesis.drug = "Testosterone"
+    mock_hypothesis.target = "Androgen Receptor"
+    mock_hypothesis.pathway = "HPG Axis"
+    mock_hypothesis.effect = "Libido Enhancement"
     mock_hypothesis.confidence = 0.8
 
     mock_assessment = mocker.Mock()
@@ -32,7 +32,7 @@ async def test_judge_node_initialization(mocker):
     mocker.patch("src.agents.graph.nodes.Agent", return_value=mock_agent_instance)
 
     state: ResearchState = {
-        "query": "Does coffee cause cancer?",
+        "query": "Does stress affect libido?",
         "hypotheses": [],
         "conflicts": [],
         "evidence_ids": [],
@@ -46,7 +46,7 @@ async def test_judge_node_initialization(mocker):
 
     assert "hypotheses" in update
     assert len(update["hypotheses"]) == 1
-    assert update["hypotheses"][0].id == "Caffeine"
+    assert update["hypotheses"][0].id == "Testosterone"
     assert update["hypotheses"][0].status == "proposed"
 
 

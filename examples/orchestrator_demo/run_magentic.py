@@ -8,7 +8,7 @@ This script demonstrates Phase 5 functionality:
 
 Usage:
     export OPENAI_API_KEY=...
-    uv run python examples/orchestrator_demo/run_magentic.py "metformin cancer"
+    uv run python examples/orchestrator_demo/run_magentic.py "testosterone libido"
 """
 
 import argparse
@@ -28,7 +28,7 @@ from src.utils.models import OrchestratorConfig
 async def main() -> None:
     """Run the magentic agent demo."""
     parser = argparse.ArgumentParser(description="Run DeepBoner Magentic Agent")
-    parser.add_argument("query", help="Research query (e.g., 'metformin cancer')")
+    parser.add_argument("query", help="Research query (e.g., 'testosterone libido')")
     parser.add_argument("--iterations", type=int, default=10, help="Max rounds")
     args = parser.parse_args()
 

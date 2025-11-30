@@ -22,7 +22,7 @@ def mock_assessment() -> JudgeAssessment:
             mechanism_reasoning="Strong mechanism evidence",
             clinical_evidence_score=7,
             clinical_reasoning="Good clinical data",
-            drug_candidates=["Metformin"],
+            drug_candidates=["Testosterone"],
             key_findings=["Key finding 1"],
         ),
         sufficient=True,
