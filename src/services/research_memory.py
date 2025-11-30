@@ -10,12 +10,12 @@ SOLID Principles:
 - Open/Closed: Works with any service implementing the protocol
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, get_args
 
 import structlog
 
 from src.agents.graph.state import Conflict, Hypothesis
-from src.utils.models import Citation, Evidence
+from src.utils.models import Citation, Evidence, SourceName
 
 if TYPE_CHECKING:
     from src.services.embedding_protocol import EmbeddingServiceProtocol
@@ -98,15 +98,8 @@ class ResearchMemory:
             # Reconstruct Evidence object
             source_raw = meta.get("source", "web")
 
-            # Basic validation/fallback for source
-            valid_sources = [
-                "pubmed",
-                "clinicaltrials",
-                "europepmc",
-                "preprint",
-                "openalex",
-                "web",
-            ]
+            # Validate source against canonical SourceName type (avoids drift)
+            valid_sources = get_args(SourceName)
             source_name: Any = source_raw if source_raw in valid_sources else "web"
 
             citation = Citation(

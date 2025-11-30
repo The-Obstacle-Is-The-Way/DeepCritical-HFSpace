@@ -84,6 +84,31 @@ def _convert_hypothesis_to_mechanism(h: Hypothesis) -> MechanismHypothesis:
     )
 
 
+def _results_to_evidence(results: list[dict[str, Any]]) -> list[Evidence]:
+    """Convert search_similar results to Evidence objects.
+
+    Extracted helper to avoid code duplication between judge_node and synthesize_node.
+    """
+    evidence_list = []
+    for r in results:
+        meta = r.get("metadata", {})
+        authors_str = meta.get("authors", "")
+        author_list = authors_str.split(",") if authors_str else []
+        evidence_list.append(
+            Evidence(
+                content=r.get("content", ""),
+                citation=Citation(
+                    url=r.get("id", ""),
+                    title=meta.get("title", "Unknown"),
+                    source=meta.get("source", "Unknown"),
+                    date=meta.get("date", ""),
+                    authors=author_list,
+                ),
+            )
+        )
+    return evidence_list
+
+
 # --- Supervisor Output Schema ---
 class SupervisorDecision(BaseModel):
     """The decision made by the supervisor."""
@@ -146,23 +171,7 @@ async def judge_node(
     evidence_context: list[Evidence] = []
     if embedding_service:
         scored_points = await embedding_service.search_similar(state["query"], n_results=20)
-        for p in scored_points:
-            meta = p.get("metadata", {})
-            authors = meta.get("authors", "")
-            author_list = authors.split(",") if authors else []
-
-            evidence_context.append(
-                Evidence(
-                    content=p.get("content", ""),
-                    citation=Citation(
-                        url=p.get("id", ""),
-                        title=meta.get("title", "Unknown"),
-                        source=meta.get("source", "Unknown"),
-                        date=meta.get("date", ""),
-                        authors=author_list,
-                    ),
-                )
-            )
+        evidence_context = _results_to_evidence(scored_points)
 
     agent = Agent(
         model=get_model(),
@@ -234,23 +243,7 @@ async def synthesize_node(
     evidence_context: list[Evidence] = []
     if embedding_service:
         scored_points = await embedding_service.search_similar(state["query"], n_results=50)
-        for p in scored_points:
-            meta = p.get("metadata", {})
-            authors = meta.get("authors", "")
-            author_list = authors.split(",") if authors else []
-
-            evidence_context.append(
-                Evidence(
-                    content=p.get("content", ""),
-                    citation=Citation(
-                        url=p.get("id", ""),
-                        title=meta.get("title", "Unknown"),
-                        source=meta.get("source", "Unknown"),
-                        date=meta.get("date", ""),
-                        authors=author_list,
-                    ),
-                )
-            )
+        evidence_context = _results_to_evidence(scored_points)
 
     agent = Agent(
         model=get_model(),

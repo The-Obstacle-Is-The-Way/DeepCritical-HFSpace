@@ -155,7 +155,7 @@ Should: Score each paper (study design, sample size, etc.)
 - [x] Judge assessment working
 - [x] Report generation working
 - [x] Gradio UI working
-- [x] 191 tests passing
+- [x] 202 tests passing
 - [x] Tiered embedding service (free vs premium)
 - [x] LlamaIndex integration complete
 
