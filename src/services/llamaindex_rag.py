@@ -5,15 +5,24 @@ Requires optional dependencies: uv sync --extra modal
 Migration Note (v1.0 rebrand):
     Default collection_name changed from "deepcritical_evidence" to "deepboner_evidence".
     To preserve existing data, explicitly pass collection_name="deepcritical_evidence".
+
+Protocol Compliance:
+    This service implements EmbeddingServiceProtocol via async wrapper methods:
+    - add_evidence() - async wrapper for ingest_evidence()
+    - search_similar() - async wrapper for retrieve()
+    - deduplicate() - async wrapper using search_similar() + add_evidence()
+
+    These wrappers use asyncio.run_in_executor() to avoid blocking the event loop.
 """
 
+import asyncio
 from typing import Any
 
 import structlog
 
 from src.utils.config import settings
 from src.utils.exceptions import ConfigurationError
-from src.utils.models import Evidence
+from src.utils.models import Citation, Evidence
 
 logger = structlog.get_logger()
 
@@ -250,6 +259,124 @@ class LlamaIndexRAGService:
         except Exception as e:
             logger.error("failed_to_clear_collection", error=str(e))
             raise
+
+    # ─────────────────────────────────────────────────────────────────
+    # Async Protocol Methods (EmbeddingServiceProtocol compliance)
+    # ─────────────────────────────────────────────────────────────────
+
+    async def add_evidence(
+        self, evidence_id: str, content: str, metadata: dict[str, Any]
+    ) -> None:
+        """Async wrapper for adding evidence (Protocol-compatible).
+
+        Converts the sync ingest_evidence pattern to the async protocol interface.
+        Uses run_in_executor to avoid blocking the event loop.
+
+        Args:
+            evidence_id: Unique identifier (typically URL)
+            content: Text content to embed and store
+            metadata: Additional metadata (source, title, date, authors)
+        """
+        # Reconstruct Evidence from parts
+        authors_str = metadata.get("authors", "")
+        authors = authors_str.split(",") if authors_str else []
+
+        citation = Citation(
+            source=metadata.get("source", "web"),
+            title=metadata.get("title", "Unknown"),
+            url=evidence_id,
+            date=metadata.get("date", "Unknown"),
+            authors=authors,
+        )
+        evidence = Evidence(content=content, citation=citation)
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self.ingest_evidence, [evidence])
+
+    async def search_similar(
+        self, query: str, n_results: int = 5
+    ) -> list[dict[str, Any]]:
+        """Async wrapper for retrieve (Protocol-compatible).
+
+        Returns results in the same format as EmbeddingService.search_similar()
+        for seamless interchangeability.
+
+        Args:
+            query: Search query text
+            n_results: Maximum number of results to return
+
+        Returns:
+            List of dicts with keys: id, content, metadata, distance
+        """
+        loop = asyncio.get_running_loop()
+        results = await loop.run_in_executor(None, self.retrieve, query, n_results)
+
+        # Convert LlamaIndex format to EmbeddingService format for compatibility
+        # LlamaIndex: {"text": ..., "score": ..., "metadata": ...}
+        # EmbeddingService: {"id": ..., "content": ..., "metadata": ..., "distance": ...}
+        return [
+            {
+                "id": r.get("metadata", {}).get("url", ""),
+                "content": r.get("text", ""),
+                "metadata": r.get("metadata", {}),
+                # Convert similarity score to distance (score is 0-1, distance is 0-2 for cosine)
+                # Higher score = more similar = lower distance
+                "distance": 1.0 - (r.get("score") or 0.5),
+            }
+            for r in results
+        ]
+
+    async def deduplicate(
+        self, evidence: list[Evidence], threshold: float = 0.9
+    ) -> list[Evidence]:
+        """Async wrapper for deduplication (Protocol-compatible).
+
+        Uses search_similar() to check for existing similar content.
+        Stores unique evidence and returns the deduplicated list.
+
+        Args:
+            evidence: List of evidence items to deduplicate
+            threshold: Similarity threshold (0.9 = 90% similar is duplicate)
+                ChromaDB cosine distance: 0 = identical, 2 = opposite
+                Duplicate if: distance < (1 - threshold)
+
+        Returns:
+            List of unique evidence items (duplicates removed)
+        """
+        unique = []
+
+        for ev in evidence:
+            try:
+                # Check for similar existing content
+                similar = await self.search_similar(ev.content, n_results=1)
+
+                # Check similarity threshold
+                # distance 0 = identical, higher = more different
+                is_duplicate = similar and similar[0]["distance"] < (1 - threshold)
+
+                if not is_duplicate:
+                    unique.append(ev)
+                    # Store the new evidence
+                    await self.add_evidence(
+                        evidence_id=ev.citation.url,
+                        content=ev.content,
+                        metadata={
+                            "source": ev.citation.source,
+                            "title": ev.citation.title,
+                            "date": ev.citation.date,
+                            "authors": ",".join(ev.citation.authors or []),
+                        },
+                    )
+            except Exception as e:
+                # Log but don't fail - better to have duplicates than lose data
+                logger.warning(
+                    "Failed to process evidence in deduplicate",
+                    url=ev.citation.url,
+                    error=str(e),
+                )
+                unique.append(ev)
+
+        return unique
 
 
 def get_rag_service(

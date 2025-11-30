@@ -1,12 +1,24 @@
-"""Shared research memory layer for all orchestration modes."""
+"""Shared research memory layer for all orchestration modes.
 
-from typing import Any
+Design Pattern: Dependency Injection
+- Receives embedding service via constructor
+- Uses service_loader.get_embedding_service() as default (Strategy Pattern)
+- Allows testing with mock services
+
+SOLID Principles:
+- Dependency Inversion: Depends on EmbeddingServiceProtocol, not concrete class
+- Open/Closed: Works with any service implementing the protocol
+"""
+
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
 from src.agents.graph.state import Conflict, Hypothesis
-from src.services.embeddings import EmbeddingService
 from src.utils.models import Citation, Evidence
+
+if TYPE_CHECKING:
+    from src.services.embedding_protocol import EmbeddingServiceProtocol
 
 logger = structlog.get_logger()
 
@@ -16,15 +28,24 @@ class ResearchMemory:
 
     This is the memory layer that ALL modes use.
     It mimics the LangGraph state management but for manual orchestration.
+
+    The embedding service is selected via get_embedding_service(), which returns:
+    - LlamaIndexRAGService (premium tier) if OPENAI_API_KEY is available
+    - EmbeddingService (free tier) as fallback
     """
 
-    def __init__(self, query: str, embedding_service: EmbeddingService | None = None):
+    def __init__(
+        self,
+        query: str,
+        embedding_service: "EmbeddingServiceProtocol | None" = None
+    ):
         """Initialize ResearchMemory with a query and optional embedding service.
 
         Args:
             query: The research query to track evidence for.
             embedding_service: Service for semantic search and deduplication.
-                             Creates a new instance if not provided.
+                             Uses get_embedding_service() if not provided,
+                             which selects the best available service.
         """
         self.query = query
         self.hypotheses: list[Hypothesis] = []
@@ -33,8 +54,13 @@ class ResearchMemory:
         self._evidence_cache: dict[str, Evidence] = {}
         self.iteration_count: int = 0
 
-        # Injected service
-        self._embedding_service = embedding_service or EmbeddingService()
+        # Use service loader for tiered service selection (Strategy Pattern)
+        if embedding_service is None:
+            from src.utils.service_loader import get_embedding_service
+
+            self._embedding_service: EmbeddingServiceProtocol = get_embedding_service()
+        else:
+            self._embedding_service = embedding_service
 
     async def store_evidence(self, evidence: list[Evidence]) -> list[str]:
         """Store evidence and return new IDs (deduped)."""

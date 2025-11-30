@@ -43,7 +43,7 @@ from src.utils.models import AgentEvent
 from src.utils.service_loader import get_embedding_service_if_available
 
 if TYPE_CHECKING:
-    from src.services.embeddings import EmbeddingService
+    from src.services.embedding_protocol import EmbeddingServiceProtocol
 
 logger = structlog.get_logger()
 
@@ -97,7 +97,7 @@ class AdvancedOrchestrator(OrchestratorProtocol):
             # Fallback to env vars (will fail later if requirements check wasn't run/passed)
             self._chat_client = None
 
-    def _init_embedding_service(self) -> "EmbeddingService | None":
+    def _init_embedding_service(self) -> "EmbeddingServiceProtocol | None":
         """Initialize embedding service if available."""
         return get_embedding_service_if_available()
 

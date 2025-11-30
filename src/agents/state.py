@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from src.services.research_memory import ResearchMemory
 
 if TYPE_CHECKING:
-    from src.services.embeddings import EmbeddingService
+    from src.services.embedding_protocol import EmbeddingServiceProtocol
     from src.utils.models import Evidence
 
 
@@ -49,14 +49,14 @@ class MagenticState(BaseModel):
         return len(memory.evidence_ids) - initial_count
 
     @property
-    def embedding_service(self) -> "EmbeddingService | None":
+    def embedding_service(self) -> "EmbeddingServiceProtocol | None":
         """Get the embedding service from memory."""
         if self.memory is None:
             return None
         # Cast needed because memory is typed as Any to avoid Pydantic issues
-        from src.services.embeddings import EmbeddingService as EmbeddingSvc
+        from src.services.embedding_protocol import EmbeddingServiceProtocol
 
-        return cast(EmbeddingSvc | None, self.memory._embedding_service)
+        return cast(EmbeddingServiceProtocol | None, self.memory._embedding_service)
 
 
 # The ContextVar holds the MagenticState for the current execution context
@@ -64,7 +64,7 @@ _magentic_state_var: ContextVar[MagenticState | None] = ContextVar("magentic_sta
 
 
 def init_magentic_state(
-    query: str, embedding_service: "EmbeddingService | None" = None
+    query: str, embedding_service: "EmbeddingServiceProtocol | None" = None
 ) -> MagenticState:
     """Initialize a new state for the current context."""
     memory = ResearchMemory(query=query, embedding_service=embedding_service)
