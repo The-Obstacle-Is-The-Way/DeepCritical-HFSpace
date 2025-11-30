@@ -4,11 +4,12 @@ This module provides sandboxed Python code execution using Modal's serverless in
 It's designed for running LLM-generated statistical analysis code safely.
 """
 
-import os
 from functools import lru_cache
 from typing import Any
 
 import structlog
+
+from src.utils.config import settings
 
 logger = structlog.get_logger(__name__)
 
@@ -72,8 +73,8 @@ class ModalCodeExecutor:
             Execution will fail at runtime without valid credentials.
         """
         # Check for Modal credentials
-        self.modal_token_id = os.getenv("MODAL_TOKEN_ID")
-        self.modal_token_secret = os.getenv("MODAL_TOKEN_SECRET")
+        self.modal_token_id = settings.modal_token_id
+        self.modal_token_secret = settings.modal_token_secret
 
         if not self.modal_token_id or not self.modal_token_secret:
             logger.warning(
@@ -241,13 +242,16 @@ print(json.dumps({{"__RESULT__": result}}))
 
     def _extract_output(self, text: str, start_marker: str, end_marker: str) -> str:
         """Extract content between markers."""
-        try:
-            start_idx = text.index(start_marker) + len(start_marker)
-            end_idx = text.index(end_marker)
-            return text[start_idx:end_idx].strip()
-        except ValueError:
-            # Markers not found, return original text
+        start_idx = text.find(start_marker)
+        if start_idx == -1:
             return text.strip()
+        start_idx += len(start_marker)
+
+        end_idx = text.find(end_marker, start_idx)
+        if end_idx == -1:
+            return text.strip()
+
+        return text[start_idx:end_idx].strip()
 
 
 @lru_cache(maxsize=1)

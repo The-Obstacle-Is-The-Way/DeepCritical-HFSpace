@@ -54,28 +54,41 @@ def _extract_titles_from_evidence(
 
 
 def get_model() -> Any:
-    """Get the LLM model based on configuration.
+    """Get the LLM model based on available API keys.
 
-    Explicitly passes API keys from settings to avoid requiring
-    users to export environment variables manually.
+    Priority order:
+    1. OpenAI (if OPENAI_API_KEY set)
+    2. Anthropic (if ANTHROPIC_API_KEY set)
+    3. HuggingFace (if HF_TOKEN set)
+
+    Raises:
+        ConfigurationError: If no API keys are configured.
+
+    Note: settings.llm_provider is ignored in favor of actual key availability.
+    This ensures the model matches what app.py selected for JudgeHandler.
     """
-    llm_provider = settings.llm_provider
+    from src.utils.exceptions import ConfigurationError
 
-    if llm_provider == "anthropic":
+    # Priority 1: OpenAI (most common, best tool calling)
+    if settings.has_openai_key:
+        openai_provider = OpenAIProvider(api_key=settings.openai_api_key)
+        return OpenAIChatModel(settings.openai_model, provider=openai_provider)
+
+    # Priority 2: Anthropic
+    if settings.has_anthropic_key:
         provider = AnthropicProvider(api_key=settings.anthropic_api_key)
         return AnthropicModel(settings.anthropic_model, provider=provider)
 
-    if llm_provider == "huggingface":
-        # Free tier - uses HF_TOKEN from environment if available
+    # Priority 3: HuggingFace (requires HF_TOKEN)
+    if settings.has_huggingface_key:
         model_name = settings.huggingface_model or "meta-llama/Llama-3.1-70B-Instruct"
         hf_provider = HuggingFaceProvider(api_key=settings.hf_token)
         return HuggingFaceModel(model_name, provider=hf_provider)
 
-    if llm_provider != "openai":
-        logger.warning("Unknown LLM provider, defaulting to OpenAI", provider=llm_provider)
-
-    openai_provider = OpenAIProvider(api_key=settings.openai_api_key)
-    return OpenAIChatModel(settings.openai_model, provider=openai_provider)
+    # No keys configured - fail fast with clear error
+    raise ConfigurationError(
+        "No LLM API key configured. Set one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, or HF_TOKEN"
+    )
 
 
 class JudgeHandler:
