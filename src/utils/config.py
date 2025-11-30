@@ -60,10 +60,22 @@ class Settings(BaseSettings):
 
     # Agent Configuration
     max_iterations: int = Field(default=10, ge=1, le=50)
+    advanced_max_rounds: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Max coordination rounds for Advanced mode (default 5 for faster demos)",
+    )
+    advanced_timeout: float = Field(
+        default=300.0,
+        ge=60.0,
+        le=900.0,
+        description="Timeout for Advanced mode in seconds (default 5 min)",
+    )
     search_timeout: int = Field(default=30, description="Seconds to wait for search")
     magentic_timeout: int = Field(
         default=600,
-        description="Timeout for Magentic mode in seconds",
+        description="Timeout for Magentic mode in seconds (deprecated, use advanced_timeout)",
     )
 
     # Logging

@@ -122,7 +122,8 @@ def get_domain_config(domain: ResearchDomain | str | None = None) -> DomainConfi
     if isinstance(domain, str):
         try:
             domain = ResearchDomain(domain)
-        except ValueError:
-            domain = DEFAULT_DOMAIN
+        except ValueError as e:
+            valid_domains = [d.value for d in ResearchDomain]
+            raise ValueError(f"Invalid domain '{domain}'. Valid domains: {valid_domains}") from e
 
     return DOMAIN_CONFIGS[domain]

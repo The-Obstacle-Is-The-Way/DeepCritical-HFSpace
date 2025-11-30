@@ -28,10 +28,14 @@ class TestGetDomainConfig:
         config = get_domain_config("sexual_health")
         assert "Sexual Health" in config.name
 
-    def test_invalid_string_returns_default(self):
-        # Invalid domains fall back to default (sexual_health)
-        config = get_domain_config("invalid_domain")
-        assert config.name == "Sexual Health Research"
+    def test_invalid_string_raises_value_error(self):
+        # Invalid domains should fail fast with clear error
+        import pytest
+
+        with pytest.raises(ValueError) as exc_info:
+            get_domain_config("invalid_domain")
+        assert "Invalid domain" in str(exc_info.value)
+        assert "sexual_health" in str(exc_info.value)  # Shows valid options
 
     def test_config_has_required_fields(self):
         required_fields = [

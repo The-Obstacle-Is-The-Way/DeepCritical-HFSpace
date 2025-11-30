@@ -1,9 +1,12 @@
-import os
+"""Tests for AdvancedOrchestrator configuration."""
+
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from src.orchestrators.advanced import AdvancedOrchestrator
+from src.utils.config import Settings
 
 
 @pytest.mark.unit
@@ -11,63 +14,71 @@ class TestAdvancedOrchestratorConfig:
     """Tests for configuration options."""
 
     def test_default_max_rounds_is_five(self) -> None:
-        """Default max_rounds should be 5 for faster demos."""
-        with (
-            patch.dict(os.environ, {}, clear=True),
-            patch("src.orchestrators.advanced.check_magentic_requirements"),
-        ):
-            # Clear any existing env var
-            os.environ.pop("ADVANCED_MAX_ROUNDS", None)
+        """Default max_rounds should be 5 from settings."""
+        with patch("src.orchestrators.advanced.check_magentic_requirements"):
             orch = AdvancedOrchestrator()
             assert orch._max_rounds == 5
 
-    def test_max_rounds_from_env(self) -> None:
-        """max_rounds should be configurable via environment."""
-        with (
-            patch.dict(os.environ, {"ADVANCED_MAX_ROUNDS": "3"}),
-            patch("src.orchestrators.advanced.check_magentic_requirements"),
-        ):
-            orch = AdvancedOrchestrator()
-            assert orch._max_rounds == 3
-
-    def test_explicit_max_rounds_overrides_env(self) -> None:
-        """Explicit parameter should override environment."""
-        with (
-            patch.dict(os.environ, {"ADVANCED_MAX_ROUNDS": "3"}),
-            patch("src.orchestrators.advanced.check_magentic_requirements"),
-        ):
+    def test_explicit_max_rounds_overrides_settings(self) -> None:
+        """Explicit parameter should override settings."""
+        with patch("src.orchestrators.advanced.check_magentic_requirements"):
             orch = AdvancedOrchestrator(max_rounds=7)
             assert orch._max_rounds == 7
 
     def test_timeout_default_is_five_minutes(self) -> None:
-        """Default timeout should be 300s (5 min) for faster failure."""
+        """Default timeout should be 300s (5 min) from settings."""
         with patch("src.orchestrators.advanced.check_magentic_requirements"):
             orch = AdvancedOrchestrator()
             assert orch._timeout_seconds == 300.0
 
-    def test_invalid_env_rounds_falls_back_to_default(self) -> None:
-        """Invalid ADVANCED_MAX_ROUNDS should fall back to 5."""
-        with (
-            patch.dict(os.environ, {"ADVANCED_MAX_ROUNDS": "not_a_number"}),
-            patch("src.orchestrators.advanced.check_magentic_requirements"),
-        ):
-            orch = AdvancedOrchestrator()
-            assert orch._max_rounds == 5
+    def test_explicit_timeout_overrides_settings(self) -> None:
+        """Explicit timeout parameter should override settings."""
+        with patch("src.orchestrators.advanced.check_magentic_requirements"):
+            orch = AdvancedOrchestrator(timeout_seconds=120.0)
+            assert orch._timeout_seconds == 120.0
 
-    def test_zero_env_rounds_clamps_to_one(self) -> None:
-        """ADVANCED_MAX_ROUNDS=0 should clamp to 1."""
-        with (
-            patch.dict(os.environ, {"ADVANCED_MAX_ROUNDS": "0"}),
-            patch("src.orchestrators.advanced.check_magentic_requirements"),
-        ):
-            orch = AdvancedOrchestrator()
-            assert orch._max_rounds == 1
 
-    def test_negative_env_rounds_clamps_to_one(self) -> None:
-        """Negative ADVANCED_MAX_ROUNDS should clamp to 1."""
-        with (
-            patch.dict(os.environ, {"ADVANCED_MAX_ROUNDS": "-5"}),
-            patch("src.orchestrators.advanced.check_magentic_requirements"),
-        ):
-            orch = AdvancedOrchestrator()
-            assert orch._max_rounds == 1
+@pytest.mark.unit
+class TestSettingsValidation:
+    """Tests for pydantic Settings validation (fail-fast behavior)."""
+
+    def test_invalid_max_rounds_type_raises(self) -> None:
+        """Non-integer ADVANCED_MAX_ROUNDS should fail at startup."""
+        with pytest.raises(ValidationError) as exc_info:
+            Settings(advanced_max_rounds="not_a_number")  # type: ignore[arg-type]
+        assert "advanced_max_rounds" in str(exc_info.value)
+
+    def test_zero_max_rounds_raises(self) -> None:
+        """ADVANCED_MAX_ROUNDS=0 should fail validation (ge=1)."""
+        with pytest.raises(ValidationError) as exc_info:
+            Settings(advanced_max_rounds=0)
+        assert "greater than or equal to 1" in str(exc_info.value)
+
+    def test_negative_max_rounds_raises(self) -> None:
+        """Negative ADVANCED_MAX_ROUNDS should fail validation."""
+        with pytest.raises(ValidationError) as exc_info:
+            Settings(advanced_max_rounds=-5)
+        assert "greater than or equal to 1" in str(exc_info.value)
+
+    def test_max_rounds_above_limit_raises(self) -> None:
+        """ADVANCED_MAX_ROUNDS > 20 should fail validation (le=20)."""
+        with pytest.raises(ValidationError) as exc_info:
+            Settings(advanced_max_rounds=100)
+        assert "less than or equal to 20" in str(exc_info.value)
+
+    def test_valid_max_rounds_accepted(self) -> None:
+        """Valid ADVANCED_MAX_ROUNDS should be accepted."""
+        s = Settings(advanced_max_rounds=10)
+        assert s.advanced_max_rounds == 10
+
+    def test_timeout_too_low_raises(self) -> None:
+        """ADVANCED_TIMEOUT < 60 should fail validation."""
+        with pytest.raises(ValidationError) as exc_info:
+            Settings(advanced_timeout=30.0)
+        assert "greater than or equal to 60" in str(exc_info.value)
+
+    def test_timeout_too_high_raises(self) -> None:
+        """ADVANCED_TIMEOUT > 900 should fail validation."""
+        with pytest.raises(ValidationError) as exc_info:
+            Settings(advanced_timeout=1000.0)
+        assert "less than or equal to 900" in str(exc_info.value)
