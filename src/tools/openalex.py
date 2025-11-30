@@ -109,7 +109,7 @@ class OpenAlexTool:
         ids_obj = work.get("ids", {})
         pmid_url = ids_obj.get("pmid")  # "https://pubmed.ncbi.nlm.nih.gov/29456894"
         pmid = None
-        if pmid_url and "pubmed.ncbi.nlm.nih.gov" in pmid_url:
+        if pmid_url and isinstance(pmid_url, str) and "pubmed.ncbi.nlm.nih.gov" in pmid_url:
             # Extract numeric PMID from URL
             pmid_match = re.search(r"/(\d+)/?$", pmid_url)
             if pmid_match:
