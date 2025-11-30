@@ -25,6 +25,21 @@ from src.utils.models import OrchestratorConfig
 OrchestratorMode = Literal["simple", "magentic", "advanced", "hierarchical"]
 
 
+# CSS to force dark mode on API key input
+CUSTOM_CSS = """
+.api-key-input input {
+    background-color: #1f2937 !important;
+    color: white !important;
+    border-color: #374151 !important;
+}
+.api-key-input input:focus {
+    background-color: #1f2937 !important;
+    color: white !important;
+    border-color: #e879f9 !important;
+}
+"""
+
+
 def configure_orchestrator(
     use_mock: bool = False,
     mode: OrchestratorMode = "simple",
@@ -248,34 +263,22 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
 
     # 1. Unwrapped ChatInterface (Fixes Accordion Bug)
     description = (
-        "*AI-Powered Research Agent — searches PubMed, "
-        "ClinicalTrials.gov, Europe PMC & OpenAlex*\n\n"
+        "<div style='text-align: center'>"
+        "<em>AI-Powered Research Agent — searches PubMed, "
+        "ClinicalTrials.gov, Europe PMC & OpenAlex</em><br><br>"
         "Deep research for sexual wellness, ED treatments, hormone therapy, "
-        "libido, and reproductive health - for all genders.\n\n"
-        "---\n"
-        "*Research tool only — not for medical advice.*  \n"
-        "**MCP Server Active**: Connect Claude Desktop to `/gradio_api/mcp/`"
+        "libido, and reproductive health - for all genders.<br><br>"
+        "---<br>"
+        "<em>Research tool only — not for medical advice.</em><br>"
+        "<strong>MCP Server Active</strong>: Connect Claude Desktop to "
+        "<code>/gradio_api/mcp/</code>"
+        "</div>"
     )
-
-    # CSS to force dark mode on API key input
-    custom_css = """
-    .api-key-input input {
-        background-color: #1f2937 !important;
-        color: white !important;
-        border-color: #374151 !important;
-    }
-    .api-key-input input:focus {
-        background-color: #1f2937 !important;
-        color: white !important;
-        border-color: #e879f9 !important;
-    }
-    """
 
     demo = gr.ChatInterface(
         fn=research_agent,
         title="🍆 DeepBoner",
         description=description,
-        css=custom_css,
         examples=[
             [
                 "What drugs improve female libido post-menopause?",
@@ -337,6 +340,7 @@ def main() -> None:
         share=False,
         mcp_server=True,
         ssr_mode=False,  # Fix for intermittent loading/hydration issues in HF Spaces
+        css=CUSTOM_CSS,  # Moved here for Gradio 6.0 support
     )
 
 
