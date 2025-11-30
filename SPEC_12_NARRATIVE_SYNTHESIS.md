@@ -176,7 +176,7 @@ async def summarize_results(results: list[Any]) -> str:
 
 ### Architecture Change
 
-```
+```text
 Current (Simple Mode):
   Evidence → Judge → {structured data} → String Template → Bullet Points
 

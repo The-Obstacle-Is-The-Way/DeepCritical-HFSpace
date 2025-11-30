@@ -27,8 +27,8 @@ class TestEuropePMCTool:
                 "result": [
                     {
                         "id": "12345",
-                        "title": "Long COVID Treatment Study",
-                        "abstractText": "This study examines treatments for Long COVID.",
+                        "title": "Testosterone Therapy for HSDD Study",
+                        "abstractText": "This study examines testosterone therapy for HSDD.",
                         "doi": "10.1234/test",
                         "pubYear": "2024",
                         "source": "MED",
@@ -49,11 +49,11 @@ class TestEuropePMCTool:
 
             mock_instance.get.return_value = mock_resp
 
-            results = await tool.search("long covid treatment", max_results=5)
+            results = await tool.search("testosterone HSDD therapy", max_results=5)
 
             assert len(results) == 1
             assert isinstance(results[0], Evidence)
-            assert "Long COVID Treatment Study" in results[0].citation.title
+            assert "Testosterone Therapy for HSDD Study" in results[0].citation.title
 
     @pytest.mark.asyncio
     async def test_search_marks_preprints(self, tool: EuropePMCTool) -> None:
@@ -113,11 +113,11 @@ class TestEuropePMCIntegration:
 
     @pytest.mark.asyncio
     async def test_real_api_call(self) -> None:
-        """Test actual API returns relevant results."""
+        """Test actual API returns relevant results for sexual health query."""
         tool = EuropePMCTool()
-        results = await tool.search("long covid treatment", max_results=3)
+        results = await tool.search("testosterone libido therapy", max_results=3)
 
         assert len(results) > 0
-        # At least one result should mention COVID
+        # At least one result should mention testosterone or libido
         titles = " ".join([r.citation.title.lower() for r in results])
-        assert "covid" in titles or "sars" in titles
+        assert "testosterone" in titles or "libido" in titles or "sexual" in titles

@@ -8,6 +8,7 @@ from src.agent_factory.judges import JudgeHandler, MockJudgeHandler
 from src.utils.models import AssessmentDetails, Citation, Evidence, JudgeAssessment
 
 
+@pytest.mark.unit
 class TestJudgeHandler:
     """Tests for JudgeHandler."""
 
@@ -107,6 +108,8 @@ class TestJudgeHandler:
             assert result.sufficient is False
             assert result.recommendation == "continue"
             assert len(result.next_search_queries) > 0
+            # Assert specific expected query is present
+            assert "sildenafil mechanism" in result.next_search_queries
 
     @pytest.mark.asyncio
     async def test_assess_handles_llm_failure(self):
@@ -143,6 +146,7 @@ class TestJudgeHandler:
             assert "failed" in result.reasoning.lower()
 
 
+@pytest.mark.unit
 class TestMockJudgeHandler:
     """Tests for MockJudgeHandler."""
 

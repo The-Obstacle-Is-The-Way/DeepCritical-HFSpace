@@ -166,7 +166,13 @@ class JudgeHandler:
             return assessment
 
         except Exception as e:
-            logger.error("Assessment failed", error=str(e))
+            # Log with context for debugging
+            logger.error(
+                "Assessment failed",
+                error=str(e),
+                exc_type=type(e).__name__,
+                evidence_count=len(evidence),
+            )
             # Return a safe default assessment on failure
             return self._create_fallback_assessment(question, str(e))
 

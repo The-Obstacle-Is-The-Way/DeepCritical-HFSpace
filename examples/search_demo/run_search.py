@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Demo: Search for drug repurposing evidence.
+Demo: Search for sexual health research evidence.
 
 This script demonstrates multi-source search functionality:
 - PubMed search (biomedical literature)

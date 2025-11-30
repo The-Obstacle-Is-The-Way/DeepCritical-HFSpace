@@ -55,11 +55,11 @@ async def test_simple_mode_structure_validation(mock_search_handler, mock_judge_
     complete_event = next(e for e in events if e.type == "complete")
     report = complete_event.message
 
-    # Check markdown structure
-    assert "## Sexual Health Analysis" in report
-    assert "### Citations" in report
-    assert "### Key Findings" in report
+    # Check LLM narrative synthesis structure (SPEC_12)
+    # LLM generates prose with these sections (may omit ### prefix)
+    assert "Executive Summary" in report or "Sexual Health Analysis" in report
+    assert "Full Citation List" in report or "Citations" in report
 
-    # Check for citations
+    # Check for citations (from citation footer added by orchestrator)
     assert "Study on test query" in report
-    assert "https://pubmed.example.com/123" in report
+    assert "pubmed.example.com/123" in report

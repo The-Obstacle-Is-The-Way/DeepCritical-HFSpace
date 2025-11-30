@@ -2,7 +2,7 @@
 """
 Demo: Full Stack DeepBoner Agent (Phases 1-8).
 
-This script demonstrates the COMPLETE REAL drug repurposing research pipeline:
+This script demonstrates the COMPLETE REAL sexual health research pipeline:
 - Phase 2: REAL Search (PubMed + ClinicalTrials + Europe PMC)
 - Phase 6: REAL Embeddings (sentence-transformers + ChromaDB)
 - Phase 7: REAL Hypothesis (LLM mechanistic reasoning)
@@ -190,7 +190,7 @@ Examples:
     )
     parser.add_argument(
         "query",
-        help="Research query (e.g., 'metformin Alzheimer's disease')",
+        help="Research query (e.g., 'testosterone libido')",
     )
     parser.add_argument(
         "-i",

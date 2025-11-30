@@ -125,7 +125,7 @@ async def search_preprints(query: str, max_results: int = 10) -> str:
     from bioRxiv, medRxiv, and peer-reviewed papers.
 
     Args:
-        query: Search terms (e.g., "long covid treatment")
+        query: Search terms (e.g., "flibanserin HSDD preprint")
         max_results: Maximum results to return (default 10)
 
     Returns:

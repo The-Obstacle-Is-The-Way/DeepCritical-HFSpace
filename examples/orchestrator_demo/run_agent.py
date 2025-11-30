@@ -51,7 +51,7 @@ Examples:
     uv run python examples/orchestrator_demo/run_agent.py "flibanserin HSDD" --iterations 5
         """,
     )
-    parser.add_argument("query", help="Research query (e.g., 'metformin cancer')")
+    parser.add_argument("query", help="Research query (e.g., 'testosterone libido')")
     parser.add_argument("--iterations", type=int, default=3, help="Max iterations (default: 3)")
     args = parser.parse_args()
 

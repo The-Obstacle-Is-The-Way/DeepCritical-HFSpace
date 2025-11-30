@@ -12,8 +12,8 @@ class TestQueryPreprocessing:
     def test_strip_question_words(self) -> None:
         """Test removal of question words."""
         assert strip_question_words("What drugs treat HSDD") == "drugs treat hsdd"
-        assert strip_question_words("Which medications help diabetes") == "medications diabetes"
-        assert strip_question_words("How can we cure aging") == "we cure aging"
+        assert strip_question_words("Which medications help low libido") == "medications low libido"
+        assert strip_question_words("How can we treat ED") == "we treat ed"
         assert strip_question_words("Is sildenafil effective") == "sildenafil"
 
     def test_strip_preserves_medical_terms(self) -> None:

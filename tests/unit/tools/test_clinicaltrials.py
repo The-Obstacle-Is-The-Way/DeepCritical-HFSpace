@@ -134,9 +134,9 @@ class TestClinicalTrialsIntegration:
 
     @pytest.mark.asyncio
     async def test_real_api_returns_interventional(self) -> None:
-        """Test that real API returns interventional studies."""
+        """Test that real API returns interventional studies for sexual health query."""
         tool = ClinicalTrialsTool()
-        results = await tool.search("long covid treatment", max_results=3)
+        results = await tool.search("testosterone HSDD", max_results=3)
 
         # Should get results
         assert len(results) > 0

@@ -32,6 +32,7 @@ def mock_evidence() -> Evidence:
 class TestSearchPubMed:
     """Tests for search_pubmed MCP tool."""
 
+    @pytest.mark.asyncio
     @patch("src.mcp_tools._pubmed.search")
     async def test_returns_formatted_string(self, mock_search):
         """Test that search_pubmed returns Markdown formatted string."""
@@ -93,7 +94,7 @@ class TestSearchClinicalTrials:
         with patch("src.mcp_tools._trials") as mock_tool:
             mock_tool.search = AsyncMock(return_value=[mock_evidence])
 
-            result = await search_clinical_trials("diabetes", 10)
+            result = await search_clinical_trials("sildenafil erectile dysfunction", 10)
 
             assert isinstance(result, str)
             assert "Clinical Trials" in result

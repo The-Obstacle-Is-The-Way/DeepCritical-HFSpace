@@ -92,7 +92,11 @@ async def test_simple_mode_synthesizes_before_max_iterations():
     complete_event = complete_events[0]
 
     assert "MagicDrug" in complete_event.message
-    assert "Drug Candidates" in complete_event.message
+    # SPEC_12: LLM synthesis produces narrative prose, not template with "Drug Candidates" header
+    # Check for narrative structure (LLM may omit ### prefix) OR template fallback
+    assert (
+        "Executive Summary" in complete_event.message or "Drug Candidates" in complete_event.message
+    )
     assert complete_event.data.get("synthesis_reason") == "high_scores_with_candidates"
     assert complete_event.iteration == 2  # Should stop at it 2
 
