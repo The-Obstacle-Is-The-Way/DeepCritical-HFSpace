@@ -41,9 +41,9 @@ The `hypotheses_tested` field MUST be a LIST of objects, each with these fields:
 
 Example:
   hypotheses_tested: [
-    {{"hypothesis": "Metformin -> AMPK -> reduced inflammation",
+    {{"hypothesis": "Testosterone -> AR -> enhanced libido",
       "supported": 3, "contradicted": 1}},
-    {{"hypothesis": "Aspirin inhibits COX-2 pathway",
+    {{"hypothesis": "Sildenafil inhibits PDE5 pathway",
       "supported": 5, "contradicted": 0}}
   ]
 
@@ -55,7 +55,8 @@ The `references` field MUST be a LIST of objects, each with these fields:
 
 Example:
   references: [
-    {{"title": "Metformin and Cancer", "authors": "Smith et al.", "source": "pubmed", "url": "https://pubmed.ncbi.nlm.nih.gov/12345678/"}}
+    {{"title": "Testosterone and Libido", "authors": "Smith",
+      "source": "pubmed", "url": "https://pubmed.ncbi.nlm.nih.gov/123/"}}
   ]
 
 ─────────────────────────────────────────────────────────────────────────────

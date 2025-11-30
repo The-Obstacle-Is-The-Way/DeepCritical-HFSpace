@@ -22,10 +22,10 @@ from src.utils.models import (  # noqa: E402
 def sample_evidence() -> list[Evidence]:
     return [
         Evidence(
-            content="Metformin activates AMPK...",
+            content="Testosterone activates androgen receptors...",
             citation=Citation(
                 source="pubmed",
-                title="Metformin mechanisms",
+                title="Testosterone mechanisms in HSDD",
                 url="https://pubmed.ncbi.nlm.nih.gov/12345/",
                 date="2023",
                 authors=["Smith J", "Jones A"],
@@ -38,10 +38,10 @@ def sample_evidence() -> list[Evidence]:
 def sample_hypotheses() -> list[MechanismHypothesis]:
     return [
         MechanismHypothesis(
-            drug="Metformin",
-            target="AMPK",
-            pathway="mTOR inhibition",
-            effect="Neuroprotection",
+            drug="Testosterone",
+            target="Androgen Receptor",
+            pathway="Dopamine modulation",
+            effect="Enhanced libido",
             confidence=0.8,
             search_suggestions=[],
         )
@@ -51,30 +51,35 @@ def sample_hypotheses() -> list[MechanismHypothesis]:
 @pytest.fixture
 def mock_report() -> ResearchReport:
     return ResearchReport(
-        title="Drug Repurposing Analysis: Metformin for Alzheimer's",
+        title="Sexual Health Analysis: Testosterone for HSDD",
         executive_summary=(
-            "This report analyzes metformin as a potential candidate for "
-            "repurposing in Alzheimer's disease treatment. It summarizes "
-            "findings from mechanistic studies showing AMPK activation effects "
-            "and reviews clinical data. The evidence suggests a potential "
-            "neuroprotective role, although clinical trials are still limited."
+            "This report analyzes testosterone as a treatment for "
+            "hypoactive sexual desire disorder (HSDD). It summarizes "
+            "findings from mechanistic studies showing androgen receptor effects "
+            "and reviews clinical data. The evidence suggests significant "
+            "efficacy, with clinical trials supporting transdermal formulations."
         ),
-        research_question="Can metformin be repurposed for Alzheimer's disease?",
+        research_question="Is testosterone effective for treating HSDD in women?",
         methodology=ReportSection(
             title="Methodology", content="Searched PubMed and web sources..."
         ),
         hypotheses_tested=[
-            {"mechanism": "Metformin -> AMPK -> neuroprotection", "supported": 5, "contradicted": 1}
+            {
+                "mechanism": "Testosterone -> AR -> libido",
+                "supported": 5,
+                "contradicted": 1,
+            }
         ],
         mechanistic_findings=ReportSection(
-            title="Mechanistic Findings", content="Evidence suggests AMPK activation..."
+            title="Mechanistic Findings",
+            content="Evidence suggests androgen receptor activation...",
         ),
         clinical_findings=ReportSection(
-            title="Clinical Findings", content="Limited clinical data available..."
+            title="Clinical Findings", content="Multiple RCTs support efficacy..."
         ),
-        drug_candidates=["Metformin"],
+        drug_candidates=["Testosterone"],
         limitations=["Abstract-level analysis only"],
-        conclusion="Metformin shows promise...",
+        conclusion="Testosterone shows strong efficacy for HSDD...",
         references=[],
         sources_searched=["pubmed", "web"],
         total_papers_reviewed=10,
@@ -106,7 +111,7 @@ async def test_report_agent_generates_report(
         mock_agent_class.return_value.run = AsyncMock(return_value=mock_result)
 
         agent = ReportAgent(store)
-        response = await agent.run("metformin alzheimer")
+        response = await agent.run("testosterone HSDD")
 
         assert response.messages[0].text is not None
         assert "Executive Summary" in response.messages[0].text
@@ -161,7 +166,7 @@ async def test_report_agent_removes_hallucinated_citations(
         references=[
             # Valid reference (matches sample_evidence)
             {
-                "title": "Metformin mechanisms",
+                "title": "Testosterone mechanisms in HSDD",
                 "url": "https://pubmed.ncbi.nlm.nih.gov/12345/",
                 "authors": "Smith J, Jones A",
                 "date": "2023",
@@ -195,7 +200,7 @@ async def test_report_agent_removes_hallucinated_citations(
 
     # Only the valid reference should remain
     assert len(validated_report.references) == 1
-    assert validated_report.references[0]["title"] == "Metformin mechanisms"
+    assert validated_report.references[0]["title"] == "Testosterone mechanisms in HSDD"
     # Check that "Fake Paper" is NOT in the string representation of the references list
     # (This is a bit safer than checking presence in list of dicts if structure varies)
     ref_urls = [r.get("url") for r in validated_report.references]

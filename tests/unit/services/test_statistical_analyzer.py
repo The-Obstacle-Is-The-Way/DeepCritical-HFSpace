@@ -17,10 +17,10 @@ def sample_evidence() -> list[Evidence]:
     """Sample evidence for testing."""
     return [
         Evidence(
-            content="Metformin shows effect size of 0.45.",
+            content="Testosterone therapy shows effect size of 0.45.",
             citation=Citation(
                 source="pubmed",
-                title="Metformin Study",
+                title="Testosterone HSDD Study",
                 url="https://pubmed.ncbi.nlm.nih.gov/12345/",
                 date="2024-01-15",
                 authors=["Smith J"],

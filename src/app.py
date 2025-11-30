@@ -36,7 +36,7 @@ def configure_orchestrator(
         use_mock: If True, use MockJudgeHandler (no API key needed)
         mode: Orchestrator mode ("simple" or "advanced")
         user_api_key: Optional user-provided API key (BYOK) - auto-detects provider
-        domain: Research domain (e.g., "general", "sexual_health")
+        domain: Research domain (defaults to "sexual_health")
 
     Returns:
         Tuple of (Orchestrator instance, backend_name)
@@ -112,7 +112,7 @@ async def research_agent(
     message: str,
     history: list[dict[str, Any]],
     mode: str = "simple",
-    domain: str = "general",
+    domain: str = "sexual_health",
     api_key: str = "",
     api_key_state: str = "",
 ) -> AsyncGenerator[str, None]:
@@ -138,7 +138,7 @@ async def research_agent(
     # Gradio passes None for missing example columns, overriding defaults
     api_key_str = api_key or ""
     api_key_state_str = api_key_state or ""
-    domain_str = domain or "general"
+    domain_str = domain or "sexual_health"
 
     # BUG FIX: Prefer freshly-entered key, then persisted state
     user_api_key = (api_key_str.strip() or api_key_state_str.strip()) or None

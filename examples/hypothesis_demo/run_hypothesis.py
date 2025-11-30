@@ -9,8 +9,8 @@ This script demonstrates the REAL hypothesis generation pipeline:
 
 Usage:
     # Requires OPENAI_API_KEY or ANTHROPIC_API_KEY
-    uv run python examples/hypothesis_demo/run_hypothesis.py "metformin Alzheimer's"
-    uv run python examples/hypothesis_demo/run_hypothesis.py "sildenafil heart failure"
+    uv run python examples/hypothesis_demo/run_hypothesis.py "testosterone libido"
+    uv run python examples/hypothesis_demo/run_hypothesis.py "sildenafil erectile dysfunction"
 """
 
 import argparse
@@ -102,15 +102,15 @@ async def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    uv run python examples/hypothesis_demo/run_hypothesis.py "metformin Alzheimer's"
-    uv run python examples/hypothesis_demo/run_hypothesis.py "sildenafil heart failure"
-    uv run python examples/hypothesis_demo/run_hypothesis.py "aspirin cancer prevention"
+    uv run python examples/hypothesis_demo/run_hypothesis.py "testosterone libido"
+    uv run python examples/hypothesis_demo/run_hypothesis.py "sildenafil erectile dysfunction"
+    uv run python examples/hypothesis_demo/run_hypothesis.py "flibanserin mechanism"
         """,
     )
     parser.add_argument(
         "query",
         nargs="?",
-        default="metformin Alzheimer's disease",
+        default="testosterone libido",
         help="Research query",
     )
     args = parser.parse_args()

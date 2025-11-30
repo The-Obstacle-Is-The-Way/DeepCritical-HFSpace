@@ -31,10 +31,10 @@ def sample_evidence():
     """Sample Evidence objects for testing."""
     return [
         Evidence(
-            content="Metformin shows neuroprotective properties in Alzheimer's models...",
+            content="Testosterone shows efficacy in treating hypoactive sexual desire disorder...",
             citation=Citation(
                 source="pubmed",
-                title="Metformin and Alzheimer's Disease: A Systematic Review",
+                title="Testosterone and Female Libido: A Systematic Review",
                 url="https://pubmed.ncbi.nlm.nih.gov/12345678/",
                 date="2024-01-15",
                 authors=["Smith J", "Johnson M"],
@@ -42,11 +42,11 @@ def sample_evidence():
             relevance=0.85,
         ),
         Evidence(
-            content="Drug repurposing offers faster path to treatment...",
+            content="Transdermal testosterone offers effective treatment path...",
             citation=Citation(
                 source="pubmed",
-                title="Drug Repurposing Strategies",
-                url="https://example.com/drug-repurposing",
+                title="Testosterone Therapy Strategies",
+                url="https://example.com/testosterone-therapy",
                 date="Unknown",
                 authors=[],
             ),

@@ -12,7 +12,7 @@ Usage:
     uv run python examples/search_demo/run_search.py
 
     # With custom query:
-    uv run python examples/search_demo/run_search.py "metformin cancer"
+    uv run python examples/search_demo/run_search.py "testosterone libido"
 
 Requirements:
     - Optional: NCBI_API_KEY in .env for higher PubMed rate limits
@@ -61,7 +61,7 @@ async def main(query: str) -> None:
 
 if __name__ == "__main__":
     # Default query or use command line arg
-    default_query = "metformin Alzheimer's disease drug repurposing"
+    default_query = "testosterone post-menopause libido"
     query = sys.argv[1] if len(sys.argv) > 1 else default_query
 
     asyncio.run(main(query))

@@ -25,7 +25,7 @@ async def search_pubmed(query: str, max_results: int = 10) -> str:
     drugs, diseases, mechanisms of action, and clinical studies.
 
     Args:
-        query: Search keywords (e.g., "metformin alzheimer mechanism")
+        query: Search keywords (e.g., "testosterone libido mechanism")
         max_results: Maximum results to return (default 10)
 
     Returns:
@@ -85,7 +85,7 @@ async def search_clinical_trials(query: str, max_results: int = 10) -> str:
     for potential interventions.
 
     Args:
-        query: Search terms (e.g., "metformin cancer phase 3")
+        query: Search terms (e.g., "sildenafil phase 3")
         max_results: Maximum results to return (default 10)
 
     Returns:

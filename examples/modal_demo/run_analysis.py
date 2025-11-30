@@ -3,8 +3,9 @@
 
 This script uses StatisticalAnalyzer directly (NO agent_framework dependency).
 
-Usage:
-    uv run python examples/modal_demo/run_analysis.py "metformin alzheimer"
+# Usage:
+#   source .env
+#   uv run python examples/modal_demo/run_analysis.py "testosterone libido"
 """
 
 import argparse

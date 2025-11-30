@@ -12,7 +12,7 @@ class TestMCPToolsLive:
         """Test that MCP tools execute real searches."""
         from src.mcp_tools import search_pubmed
 
-        result = await search_pubmed("metformin diabetes", 3)
+        result = await search_pubmed("testosterone libido", 3)
 
         assert isinstance(result, str)
         assert "PubMed Results" in result

@@ -1,178 +1,61 @@
-# SPEC_11: Narrow Scope to Sexual Health Only
+# SPEC_11: Sexual Health Research Specialist (Final Polish)
 
-## Problem Statement
+**Status**: APPROVED
+**Priority**: P0 (Critical Fix)
+**Effort**: Low (Cleanup & Polish)
+**Related Issues**: #75, #89
 
-DeepBoner has an **identity crisis**. Despite being branded as a "pro-sexual deep research agent" (the name is literally "DeepBoner"), the codebase currently supports three domains:
+## 1. Executive Summary
 
-1. **GENERAL** - Generic research (default!)
-2. **DRUG_REPURPOSING** - Drug repurposing research
-3. **SEXUAL_HEALTH** - Sexual health research
+DeepBoner is **exclusively** a Sexual Health Research Agent. The codebase is currently in a transitional state where "General" and "Drug Repurposing" modes were architecturally removed, but significant artifacts (docstrings, default arguments, variable names, and examples) remain.
 
-This happened because Issue #75 recommended "general purpose with domain presets", but that was the **wrong decision** for this project's identity.
+This specification dictates the **complete eradication** of non-sexual-health concepts from the codebase to ensure a consistent, focused, and professional product identity.
 
-### Evidence of the Problem
+## 2. The Rules of Engagement
 
-**Current examples in Gradio UI:**
-```python
-examples=[
-    ["What drugs improve female libido post-menopause?", "simple", "sexual_health", ...],
-    ["Metformin mechanism for Alzheimer's?", "simple", "general", ...],  # <-- NOT SEXUAL HEALTH!
-    ["Clinical trials for PDE5 inhibitors alternatives?", "advanced", "sexual_health", ...],
-]
-```
+1.  **No "General" Defaults**: The string literal `"general"` shall not exist as a default value for any `domain` parameter.
+2.  **No "Drug Repurposing" References**: Terms like "metformin", "alzheimer", "cancer", "aspirin" in examples must be replaced with sexual health examples.
+3.  **Single Source of Truth**: `src.config.domain.ResearchDomain.SEXUAL_HEALTH` is the *only* valid domain.
+4.  **Ironclad Tests**: Tests must use sexual health queries (e.g., "libido", "testosterone", "PDE5") to ensure the domain logic is actually exercising the production paths.
 
-**Default domain is "general":**
-```python
-value="general",  # <-- WRONG! Should be sexual_health
-```
+## 3. Implementation Plan
 
-## The Decision
+### 3.1. Code Cleanup (`src/`)
 
-**DeepBoner IS a Sexual Health Research Specialist (Option B from Issue #75)**
+#### `src/app.py`
+- **Logic Fix**: Change `domain_str = domain or "general"` to `domain_str = domain or "sexual_health"`.
+- **Signature Fix**: Change `domain: str = "general"` to `domain: str = "sexual_health"`.
+- **Docstring Fix**: Remove `(e.g., "general", "sexual_health")`.
 
-Reasons:
-1. **Brand identity**: "DeepBoner" is unmistakably sexual health themed
-2. **Hackathon differentiation**: A focused niche beats generic competition
-3. **Prompt quality**: Domain-specific prompts are more effective
-4. **Simplicity**: Less code, less confusion
+#### `src/mcp_tools.py`
+- **Signature Fix**: Update `search_pubmed` and `search_all_sources` to default `domain="sexual_health"`.
+- **Docstring Fix**: Update examples from "metformin alzheimer" to "testosterone libido".
+- **Argument Description**: Remove `(general, drug_repurposing, sexual_health)` list.
 
-## Implementation Plan
+#### `src/tools/*.py`
+- **`clinicaltrials.py`, `query_utils.py`, `tools.py`**: Replace all "metformin/alzheimer" example strings with sexual health examples.
 
-### Phase 1: Simplify Domain Enum
+#### `src/config/domain.py`
+- **Comment Fix**: Remove `# Get default (general) config`.
 
-**File: `src/config/domain.py`**
+### 3.2. Test Suite Alignment (`tests/`)
 
-```python
-# BEFORE
-class ResearchDomain(str, Enum):
-    GENERAL = "general"
-    DRUG_REPURPOSING = "drug_repurposing"
-    SEXUAL_HEALTH = "sexual_health"
+#### `tests/unit/agent_factory/test_judges.py`
+- Replace `metformin alzheimer` test queries with `sildenafil efficacy`.
 
-DEFAULT_DOMAIN = ResearchDomain.GENERAL
+#### `tests/unit/tools/test_query_utils.py`
+- Ensure synonym expansion tests use relevant terms (or generic ones that don't imply a different domain).
 
-# AFTER
-class ResearchDomain(str, Enum):
-    SEXUAL_HEALTH = "sexual_health"
+#### `tests/unit/mcp/test_mcp_tools_domain.py`
+- Verify defaults are "sexual_health", not "general".
 
-DEFAULT_DOMAIN = ResearchDomain.SEXUAL_HEALTH
-```
+## 4. Verification Checklist
 
-**Also remove:**
-- `GENERAL_CONFIG`
-- `DRUG_REPURPOSING_CONFIG`
-- Their entries in `DOMAIN_CONFIGS`
+- [ ] **Grep Audit**: `grep -r "general" src/` should return zero results where it refers to a domain default.
+- [ ] **Grep Audit**: `grep -r "metformin" src/` should return zero results.
+- [ ] **Functionality**: `src/app.py` runs without crashing when `domain` is `None` (defaults to sexual_health).
+- [ ] **Tests**: All 237+ tests pass.
 
-### Phase 2: Update Gradio Examples
+## 5. Success State
 
-**File: `src/app.py`**
-
-Replace examples with 3 sexual-health-only queries:
-
-```python
-examples=[
-    [
-        "What drugs improve female libido post-menopause?",
-        "simple",
-        "sexual_health",
-        None,
-        None,
-    ],
-    [
-        "Testosterone therapy for hypoactive sexual desire disorder?",
-        "simple",
-        "sexual_health",
-        None,
-        None,
-    ],
-    [
-        "Clinical trials for PDE5 inhibitors alternatives?",
-        "advanced",
-        "sexual_health",
-        None,
-        None,
-    ],
-],
-```
-
-### Phase 3: Simplify or Remove Domain Dropdown
-
-**Option A: Remove dropdown entirely**
-- Remove the `gr.Dropdown` for domain selection
-- Hardcode `domain="sexual_health"` in the function
-
-**Option B: Keep but simplify** (recommended for backwards compat)
-- Only show `["sexual_health"]` in choices
-- Default to `"sexual_health"`
-- Keeps the parameter in case we want to add domains later
-
-```python
-gr.Dropdown(
-    choices=["sexual_health"],  # Only one choice
-    value="sexual_health",
-    label="Research Domain",
-    info="Specialized for sexual health research",
-    visible=False,  # Hide since there's only one option
-),
-```
-
-### Phase 4: Update Tests
-
-Update domain-related tests to only test SEXUAL_HEALTH:
-
-```python
-# BEFORE
-def test_get_domain_config_general():
-    config = get_domain_config(ResearchDomain.GENERAL)
-    assert config.name == "General Research"
-
-# AFTER
-def test_get_domain_config_default():
-    config = get_domain_config()
-    assert config.name == "Sexual Health Research"
-```
-
-### Phase 5: Update Documentation
-
-- `CLAUDE.md`: Update description to focus on sexual health
-- `README.md`: Update if needed
-- Remove references to "drug repurposing" or "general" modes
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/config/domain.py` | Remove GENERAL, DRUG_REPURPOSING; change DEFAULT_DOMAIN |
-| `src/app.py` | Update examples; simplify/hide domain dropdown |
-| `src/utils/config.py` | Change default `research_domain` field |
-| `tests/unit/config/test_domain.py` | Update to test only SEXUAL_HEALTH |
-| `tests/unit/utils/test_config_domain.py` | Update enum tests |
-| `tests/unit/test_app_domain.py` | Update to use SEXUAL_HEALTH |
-| `CLAUDE.md` | Update project description |
-
-## Example Queries (All Sexual Health)
-
-1. **Female libido**: "What drugs improve female libido post-menopause?"
-2. **Low desire**: "Testosterone therapy for hypoactive sexual desire disorder?"
-3. **ED alternatives**: "Clinical trials for PDE5 inhibitors alternatives?"
-
-Alternative options:
-- "Flibanserin mechanism of action and efficacy?"
-- "Bremelanotide for hypoactive sexual desire disorder?"
-- "PT-141 clinical trial results?"
-- "Natural supplements for erectile dysfunction?"
-
-## Success Criteria
-
-- [ ] Only `SEXUAL_HEALTH` domain exists in enum
-- [ ] Default domain is `SEXUAL_HEALTH`
-- [ ] All 3 Gradio examples are sexual health queries
-- [ ] Domain dropdown is hidden or removed
-- [ ] All tests pass with 227+ tests
-- [ ] No references to "Metformin for Alzheimer's" or "general" domain
-
-## Related Issues
-
-- #75 (CLOSED) - Domain Identity Crisis (original issue, wrong recommendation)
-- #76 (CLOSED) - Hardcoded prompts (implemented but too general)
-- #85 (OPEN) - Report lacks narrative synthesis (next priority)
+When this spec is implemented, a developer reading the code should see **zero evidence** that this agent was ever intended for anything other than Sexual Health research.

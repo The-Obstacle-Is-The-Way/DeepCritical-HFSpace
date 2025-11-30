@@ -269,14 +269,14 @@ class TestAgentEvent:
         """AgentEvent should format to markdown correctly."""
         event = AgentEvent(
             type="searching",
-            message="Searching for: metformin alzheimer",
+            message="Searching for: testosterone libido",
             iteration=1,
         )
 
         md = event.to_markdown()
         assert "🔍" in md
         assert "SEARCHING" in md
-        assert "metformin alzheimer" in md
+        assert "testosterone libido" in md
 
     def test_complete_event_icon(self):
         """Complete event should have celebration icon."""

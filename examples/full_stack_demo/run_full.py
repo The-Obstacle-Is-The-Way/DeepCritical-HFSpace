@@ -12,8 +12,8 @@ This script demonstrates the COMPLETE REAL drug repurposing research pipeline:
 NO MOCKS. NO FAKE DATA. REAL SCIENCE.
 
 Usage:
-    uv run python examples/full_stack_demo/run_full.py "metformin Alzheimer's"
-    uv run python examples/full_stack_demo/run_full.py "sildenafil heart failure" -i 3
+    uv run python examples/full_stack_demo/run_full.py "testosterone libido"
+    uv run python examples/full_stack_demo/run_full.py "sildenafil erectile dysfunction" -i 3
 
 Requires: OPENAI_API_KEY or ANTHROPIC_API_KEY
 """
@@ -183,9 +183,9 @@ This demo runs the COMPLETE pipeline with REAL API calls:
   5. REAL report: Actual LLM generating structured report
 
 Examples:
-    uv run python examples/full_stack_demo/run_full.py "metformin Alzheimer's"
-    uv run python examples/full_stack_demo/run_full.py "sildenafil heart failure" -i 3
-    uv run python examples/full_stack_demo/run_full.py "aspirin cancer prevention"
+    uv run python examples/full_stack_demo/run_full.py "testosterone libido"
+    uv run python examples/full_stack_demo/run_full.py "sildenafil erectile dysfunction" -i 3
+    uv run python examples/full_stack_demo/run_full.py "flibanserin mechanism"
         """,
     )
     parser.add_argument(

@@ -39,7 +39,7 @@ async def demo_real_pipeline() -> None:
     print("=" * 60)
 
     # 1. Fetch Real Data
-    query = "metformin mechanism of action"
+    query = "testosterone mechanism of action"
     print(f"\n[1] Fetching real papers for: '{query}'...")
     pubmed = PubMedTool()
     # Fetch enough results to likely get some overlap/redundancy

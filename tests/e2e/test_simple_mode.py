@@ -56,7 +56,7 @@ async def test_simple_mode_structure_validation(mock_search_handler, mock_judge_
     report = complete_event.message
 
     # Check markdown structure
-    assert "## Research Analysis" in report
+    assert "## Sexual Health Analysis" in report
     assert "### Citations" in report
     assert "### Key Findings" in report
 

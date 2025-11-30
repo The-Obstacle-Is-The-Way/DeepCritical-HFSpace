@@ -1,6 +1,6 @@
 """Unit tests for MCP tool wrappers."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -17,10 +17,10 @@ from src.utils.models import Citation, Evidence
 def mock_evidence() -> Evidence:
     """Sample evidence for testing."""
     return Evidence(
-        content="Metformin shows neuroprotective effects in preclinical models.",
+        content="Testosterone therapy shows efficacy in treating HSDD.",
         citation=Citation(
             source="pubmed",
-            title="Metformin and Alzheimer's Disease",
+            title="Testosterone and Female Libido",
             url="https://pubmed.ncbi.nlm.nih.gov/12345678/",
             date="2024-01-15",
             authors=["Smith J", "Jones M", "Brown K"],
@@ -32,18 +32,30 @@ def mock_evidence() -> Evidence:
 class TestSearchPubMed:
     """Tests for search_pubmed MCP tool."""
 
-    @pytest.mark.asyncio
-    async def test_returns_formatted_string(self, mock_evidence: Evidence) -> None:
-        """Should return formatted markdown string."""
-        with patch("src.mcp_tools._pubmed") as mock_tool:
-            mock_tool.search = AsyncMock(return_value=[mock_evidence])
+    @patch("src.mcp_tools._pubmed.search")
+    async def test_returns_formatted_string(self, mock_search):
+        """Test that search_pubmed returns Markdown formatted string."""
+        # Mock evidence
+        mock_evidence = MagicMock()
+        mock_evidence.citation.title = "Test Title"
+        mock_evidence.citation.authors = ["Author 1", "Author 2"]
+        mock_evidence.citation.date = "2024"
+        mock_evidence.citation.url = "http://test.com"
+        mock_evidence.content = "Abstract content..."
 
-            result = await search_pubmed("metformin alzheimer", 10)
+        mock_search.return_value = [mock_evidence]
 
-            assert isinstance(result, str)
-            assert "PubMed Results" in result
-            assert "Metformin and Alzheimer's Disease" in result
-            assert "Smith J" in result
+        with patch("src.mcp_tools.get_domain_config") as mock_config:
+            mock_config.return_value.name = "Sexual Health Research"
+
+            result = await search_pubmed("testosterone libido", 10)
+
+            assert "## PubMed Results" in result
+            assert "Sexual Health Research" in result
+            assert "Test Title" in result
+            assert "Author 1" in result
+            assert "2024" in result
+            assert "Abstract content..." in result
 
     @pytest.mark.asyncio
     async def test_clamps_max_results(self) -> None:
@@ -119,7 +131,7 @@ class TestSearchAllSources:
             mock_trials.return_value = "## Clinical Trials"
             mock_europepmc.return_value = "## Europe PMC Results"
 
-            result = await search_all_sources("metformin", 5)
+            result = await search_all_sources("testosterone libido", 5)
 
             assert "Comprehensive Search" in result
             assert "PubMed" in result
@@ -138,7 +150,7 @@ class TestSearchAllSources:
             mock_trials.side_effect = Exception("API Error")
             mock_europepmc.return_value = "## Europe PMC Results"
 
-            result = await search_all_sources("metformin", 5)
+            result = await search_all_sources("testosterone libido", 5)
 
             # Should still contain working sources
             assert "PubMed" in result

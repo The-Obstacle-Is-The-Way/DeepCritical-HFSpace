@@ -24,12 +24,12 @@ A good hypothesis:
 4. Generates SEARCH QUERIES: Helps find more evidence
 
 Example hypothesis format:
-- Drug: Metformin
-- Target: AMPK (AMP-activated protein kinase)
-- Pathway: mTOR inhibition -> autophagy activation
-- Effect: Enhanced clearance of amyloid-beta in Alzheimer's
+- Drug: Testosterone
+- Target: Androgen Receptor
+- Pathway: Dopaminergic signaling modulation
+- Effect: Enhanced libido in HSDD
 - Confidence: 0.7
-- Search suggestions: ["metformin AMPK brain", "autophagy amyloid clearance"]
+- Search suggestions: ["testosterone libido mechanism", "sildenafil efficacy women"]
 
 Be specific. Use actual gene/protein names when possible."""
 

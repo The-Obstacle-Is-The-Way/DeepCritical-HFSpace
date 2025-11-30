@@ -32,7 +32,7 @@ async def test_judge_node_initialization(mocker):
     mocker.patch("src.agents.graph.nodes.Agent", return_value=mock_agent_instance)
 
     state: ResearchState = {
-        "query": "Does coffee cause cancer?",
+        "query": "Does stress affect libido?",
         "hypotheses": [],
         "conflicts": [],
         "evidence_ids": [],

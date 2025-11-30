@@ -6,7 +6,7 @@ allowing the agent to operate in domain-agnostic or domain-specific modes.
 Usage:
     from src.config.domain import get_domain_config, ResearchDomain
 
-    # Get default (general) config
+    # Get default config
     config = get_domain_config()
 
     # Get specific domain
@@ -111,7 +111,7 @@ def get_domain_config(domain: ResearchDomain | str | None = None) -> DomainConfi
     """Get configuration for a research domain.
 
     Args:
-        domain: The research domain. Defaults to GENERAL if None.
+        domain: The research domain. Defaults to sexual_health if None.
 
     Returns:
         DomainConfig for the specified domain.

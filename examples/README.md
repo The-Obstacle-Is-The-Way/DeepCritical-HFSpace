@@ -2,7 +2,7 @@
 
 **NO MOCKS. NO FAKE DATA. REAL SCIENCE.**
 
-These demos run the REAL drug repurposing research pipeline with actual API calls.
+These demos run the REAL sexual health research pipeline with actual API calls.
 
 ---
 
@@ -31,7 +31,7 @@ NCBI_API_KEY=your-key
 Demonstrates REAL parallel search across PubMed, ClinicalTrials.gov, and Europe PMC.
 
 ```bash
-uv run python examples/search_demo/run_search.py "metformin cancer"
+uv run python examples/search_demo/run_search.py "testosterone libido"
 ```
 
 **What's REAL:**
@@ -63,8 +63,8 @@ uv run python examples/embeddings_demo/run_embeddings.py
 Demonstrates the REAL search-judge-synthesize loop.
 
 ```bash
-uv run python examples/orchestrator_demo/run_agent.py "metformin cancer"
-uv run python examples/orchestrator_demo/run_agent.py "aspirin alzheimer" --iterations 5
+uv run python examples/orchestrator_demo/run_agent.py "testosterone libido"
+uv run python examples/orchestrator_demo/run_agent.py "sildenafil erectile dysfunction" --iterations 5
 ```
 
 **What's REAL:**
@@ -81,7 +81,7 @@ Demonstrates REAL multi-agent coordination using Microsoft Agent Framework.
 
 ```bash
 # Requires OPENAI_API_KEY specifically
-uv run python examples/orchestrator_demo/run_magentic.py "metformin cancer"
+uv run python examples/orchestrator_demo/run_magentic.py "testosterone libido"
 ```
 
 **What's REAL:**
@@ -96,8 +96,8 @@ uv run python examples/orchestrator_demo/run_magentic.py "metformin cancer"
 Demonstrates REAL mechanistic hypothesis generation.
 
 ```bash
-uv run python examples/hypothesis_demo/run_hypothesis.py "metformin Alzheimer's"
-uv run python examples/hypothesis_demo/run_hypothesis.py "sildenafil heart failure"
+uv run python examples/hypothesis_demo/run_hypothesis.py "testosterone libido"
+uv run python examples/hypothesis_demo/run_hypothesis.py "sildenafil erectile dysfunction"
 ```
 
 **What's REAL:**
@@ -113,8 +113,8 @@ uv run python examples/hypothesis_demo/run_hypothesis.py "sildenafil heart failu
 **THE COMPLETE PIPELINE** - All phases working together.
 
 ```bash
-uv run python examples/full_stack_demo/run_full.py "metformin Alzheimer's"
-uv run python examples/full_stack_demo/run_full.py "sildenafil heart failure" -i 3
+uv run python examples/full_stack_demo/run_full.py "testosterone libido"
+uv run python examples/full_stack_demo/run_full.py "sildenafil erectile dysfunction" -i 3
 ```
 
 **What's REAL:**
