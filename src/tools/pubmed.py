@@ -3,6 +3,7 @@
 from typing import Any
 
 import httpx
+import structlog
 import xmltodict
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -11,6 +12,8 @@ from src.tools.rate_limiter import get_pubmed_limiter
 from src.utils.config import settings
 from src.utils.exceptions import RateLimitError, SearchError
 from src.utils.models import Citation, Evidence
+
+logger = structlog.get_logger()
 
 
 class PubMedTool:
@@ -126,8 +129,9 @@ class PubMedTool:
                 evidence = self._article_to_evidence(article)
                 if evidence:
                     evidence_list.append(evidence)
-            except Exception:
-                continue  # Skip malformed articles
+            except (KeyError, AttributeError, TypeError) as e:
+                logger.debug("Skipping malformed article", error=str(e))
+                continue
 
         return evidence_list
 

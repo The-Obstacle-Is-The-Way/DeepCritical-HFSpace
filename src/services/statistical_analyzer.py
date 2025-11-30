@@ -12,6 +12,8 @@ import re
 from functools import lru_cache, partial
 from typing import Any, Literal
 
+import structlog
+
 # Type alias for verdict values
 VerdictType = Literal["SUPPORTED", "REFUTED", "INCONCLUSIVE"]
 
@@ -25,6 +27,8 @@ from src.tools.code_execution import (
     get_sandbox_library_prompt,
 )
 from src.utils.models import Evidence
+
+logger = structlog.get_logger()
 
 
 class AnalysisResult(BaseModel):
@@ -244,7 +248,7 @@ Generate executable Python code to analyze this evidence."""
                 else:
                     return 0.60
             except ValueError:
-                pass
+                logger.debug("Failed to parse p-values", p_values=p_values)
 
         return 0.70  # Default
 

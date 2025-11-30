@@ -15,7 +15,6 @@ Design Patterns:
 """
 
 import asyncio
-import os
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 
@@ -85,27 +84,11 @@ class AdvancedOrchestrator(OrchestratorProtocol):
         if not chat_client and not api_key:
             check_magentic_requirements()
 
-        # Environment-configurable rounds (default 5 for demos)
-        raw_rounds = os.getenv("ADVANCED_MAX_ROUNDS", "5")
-        try:
-            env_rounds = int(raw_rounds)
-        except ValueError:
-            logger.warning(
-                "Invalid ADVANCED_MAX_ROUNDS value %r, falling back to 5",
-                raw_rounds,
-            )
-            env_rounds = 5
-
-        if env_rounds < 1:
-            logger.warning(
-                "ADVANCED_MAX_ROUNDS must be >= 1, got %d; using 1 instead",
-                env_rounds,
-            )
-            env_rounds = 1
-
-        self._max_rounds = max_rounds if max_rounds is not None else env_rounds
-
-        self._timeout_seconds = timeout_seconds
+        # Use pydantic-validated settings (fails fast on invalid config)
+        self._max_rounds = max_rounds if max_rounds is not None else settings.advanced_max_rounds
+        self._timeout_seconds = (
+            timeout_seconds if timeout_seconds != 300.0 else settings.advanced_timeout
+        )
         self.domain = domain
         self.domain_config = get_domain_config(domain)
         self._chat_client: OpenAIChatClient | None

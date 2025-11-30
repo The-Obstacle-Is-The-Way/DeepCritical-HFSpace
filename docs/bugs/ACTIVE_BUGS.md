@@ -3,10 +3,11 @@
 > Last updated: 2025-11-30
 >
 > **Note:** Completed bug docs archived to `docs/bugs/archive/`
+> **See also:** [Code Quality Audit Findings (2025-11-30)](AUDIT_FINDINGS_2025_11_30.md)
 
 ## P0 - Blocker
 
-*(None - P0 bugs resolved)*
+(None)
 
 ---
 
@@ -55,6 +56,16 @@
 ---
 
 ## Resolved Bugs
+
+### ~~P0 - Synthesis Fails with OpenAIError in Free Mode~~ FIXED
+**File:** `docs/bugs/P0_SYNTHESIS_PROVIDER_MISMATCH.md`
+**Found:** 2025-11-30 (Code Audit)
+**Resolved:** 2025-11-30
+
+- Problem: "Simple Mode" (Free Tier) crashed with `OpenAIError`.
+- Root Cause: `get_model()` defaulted to OpenAI regardless of available keys.
+- Fix: Implemented auto-detection in `judges.py` (OpenAI > Anthropic > HuggingFace).
+- Added extensive unit tests and regression tests.
 
 ### ~~P0 - Simple Mode Never Synthesizes~~ FIXED
 **PR:** [#71](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/pull/71) (SPEC_06)

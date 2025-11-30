@@ -24,6 +24,7 @@ def mock_settings():
 def test_get_model_openai(mock_settings):
     """Test that OpenAI model is returned when provider is openai."""
     mock_settings.llm_provider = "openai"
+    mock_settings.has_openai_key = True
     mock_settings.openai_api_key = "sk-test"
     mock_settings.openai_model = "gpt-5"
 
@@ -35,6 +36,8 @@ def test_get_model_openai(mock_settings):
 def test_get_model_anthropic(mock_settings):
     """Test that Anthropic model is returned when provider is anthropic."""
     mock_settings.llm_provider = "anthropic"
+    mock_settings.has_openai_key = False
+    mock_settings.has_anthropic_key = True
     mock_settings.anthropic_api_key = "sk-ant-test"
     mock_settings.anthropic_model = "claude-sonnet-4-5-20250929"
 
@@ -46,6 +49,9 @@ def test_get_model_anthropic(mock_settings):
 def test_get_model_huggingface(mock_settings):
     """Test that HuggingFace model is returned when provider is huggingface."""
     mock_settings.llm_provider = "huggingface"
+    mock_settings.has_openai_key = False
+    mock_settings.has_anthropic_key = False
+    mock_settings.has_huggingface_key = True  # CodeRabbit: explicitly set for auto-detect
     mock_settings.hf_token = "hf_test_token"
     mock_settings.huggingface_model = "meta-llama/Llama-3.1-70B-Instruct"
 
@@ -57,6 +63,7 @@ def test_get_model_huggingface(mock_settings):
 def test_get_model_default_fallback(mock_settings):
     """Test fallback to OpenAI if provider is unknown."""
     mock_settings.llm_provider = "unknown_provider"
+    mock_settings.has_openai_key = True
     mock_settings.openai_api_key = "sk-test"
     mock_settings.openai_model = "gpt-5"
 

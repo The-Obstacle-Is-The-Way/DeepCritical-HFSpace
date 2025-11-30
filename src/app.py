@@ -112,11 +112,11 @@ def configure_orchestrator(
         judge_handler = JudgeHandler(model=model, domain=domain)
 
     # 3. Environment API Keys (fallback)
-    elif os.getenv("OPENAI_API_KEY"):
+    elif settings.has_openai_key:
         judge_handler = JudgeHandler(model=None, domain=domain)  # Uses env key
         backend_info = "Paid API (OpenAI from env)"
 
-    elif os.getenv("ANTHROPIC_API_KEY"):
+    elif settings.has_anthropic_key:
         judge_handler = JudgeHandler(model=None, domain=domain)  # Uses env key
         backend_info = "Paid API (Anthropic from env)"
 
@@ -177,8 +177,8 @@ async def research_agent(
     user_api_key = (api_key_str.strip() or api_key_state_str.strip()) or None
 
     # Check available keys
-    has_openai = bool(os.getenv("OPENAI_API_KEY"))
-    has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
+    has_openai = settings.has_openai_key
+    has_anthropic = settings.has_anthropic_key
     # Check for OpenAI user key
     is_openai_user_key = (
         user_api_key and user_api_key.startswith("sk-") and not user_api_key.startswith("sk-ant-")

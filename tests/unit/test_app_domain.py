@@ -25,10 +25,17 @@ class TestAppDomain:
         )
 
     @patch.dict("os.environ", {}, clear=True)
+    @patch("src.app.settings")
     @patch("src.app.create_orchestrator")
     @patch("src.app.HFInferenceJudgeHandler")
-    def test_configure_orchestrator_passes_domain_free_tier(self, mock_hf_judge, mock_create):
+    def test_configure_orchestrator_passes_domain_free_tier(
+        self, mock_hf_judge, mock_create, mock_settings
+    ):
         """Test domain is passed when using free tier (no API keys)."""
+        # Simulate no keys in settings
+        mock_settings.has_openai_key = False
+        mock_settings.has_anthropic_key = False
+
         configure_orchestrator(use_mock=False, mode="simple", domain=ResearchDomain.SEXUAL_HEALTH)
 
         # HFInferenceJudgeHandler should receive domain (no API keys = free tier)
@@ -42,8 +49,13 @@ class TestAppDomain:
             domain=ResearchDomain.SEXUAL_HEALTH,
         )
 
+    @patch("src.app.settings")
     @patch("src.app.configure_orchestrator")
-    async def test_research_agent_passes_domain(self, mock_config):
+    async def test_research_agent_passes_domain(self, mock_config, mock_settings):
+        # Mock settings to have some state
+        mock_settings.has_openai_key = False
+        mock_settings.has_anthropic_key = False
+
         # Mock orchestrator
         mock_orch = MagicMock()
         mock_orch.run.return_value = []  # Async iterator?
