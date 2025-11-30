@@ -98,13 +98,23 @@ class LlamaIndexRAGService:
         self.chroma_client = self._chromadb.PersistentClient(path=self.persist_dir)
 
         # Get or create collection
-        # ChromaDB raises ValueError if collection doesn't exist
+        # ChromaDB raises different exceptions depending on version:
+        # - ValueError (older versions)
+        # - InvalidCollectionException / NotFoundError (newer versions)
         try:
             self.collection = self.chroma_client.get_collection(self.collection_name)
             logger.info("loaded_existing_collection", name=self.collection_name)
-        except ValueError:
-            self.collection = self.chroma_client.create_collection(self.collection_name)
-            logger.info("created_new_collection", name=self.collection_name)
+        except Exception as e:
+            # Catch any collection-not-found error and create it
+            if (
+                "not exist" in str(e).lower()
+                or "not found" in str(e).lower()
+                or isinstance(e, ValueError)
+            ):
+                self.collection = self.chroma_client.create_collection(self.collection_name)
+                logger.info("created_new_collection", name=self.collection_name)
+            else:
+                raise
 
         # Initialize vector store and index
         self.vector_store = self._ChromaVectorStore(chroma_collection=self.collection)
@@ -306,9 +316,7 @@ class LlamaIndexRAGService:
         )
         return [list(emb) for emb in embeddings]
 
-    async def add_evidence(
-        self, evidence_id: str, content: str, metadata: dict[str, Any]
-    ) -> None:
+    async def add_evidence(self, evidence_id: str, content: str, metadata: dict[str, Any]) -> None:
         """Async wrapper for adding evidence (Protocol-compatible).
 
         Converts the sync ingest_evidence pattern to the async protocol interface.
@@ -335,9 +343,7 @@ class LlamaIndexRAGService:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, self.ingest_evidence, [evidence])
 
-    async def search_similar(
-        self, query: str, n_results: int = 5
-    ) -> list[dict[str, Any]]:
+    async def search_similar(self, query: str, n_results: int = 5) -> list[dict[str, Any]]:
         """Async wrapper for retrieve (Protocol-compatible).
 
         Returns results in the same format as EmbeddingService.search_similar()
@@ -369,9 +375,7 @@ class LlamaIndexRAGService:
             for r in results
         ]
 
-    async def deduplicate(
-        self, evidence: list[Evidence], threshold: float = 0.9
-    ) -> list[Evidence]:
+    async def deduplicate(self, evidence: list[Evidence], threshold: float = 0.9) -> list[Evidence]:
         """Async wrapper for deduplication (Protocol-compatible).
 
         Uses search_similar() to check for existing similar content.

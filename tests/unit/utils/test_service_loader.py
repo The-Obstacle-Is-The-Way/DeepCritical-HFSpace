@@ -7,36 +7,44 @@ from src.utils.service_loader import (
 
 
 def test_get_embedding_service_success():
-    """Test successful loading of embedding service."""
-    with patch("src.services.embeddings.get_embedding_service") as mock_get:
-        mock_service = MagicMock()
-        mock_get.return_value = mock_service
+    """Test successful loading of embedding service (free tier fallback)."""
+    mock_service = MagicMock()
 
-        service = get_embedding_service_if_available()
+    # Patch settings to disable premium tier, then patch the local service
+    with patch("src.utils.service_loader.settings") as mock_settings:
+        mock_settings.has_openai_key = False
 
-        assert service is mock_service
-        mock_get.assert_called_once()
+        with patch("src.services.embeddings.get_embedding_service", return_value=mock_service):
+            service = get_embedding_service_if_available()
+            assert service is mock_service
 
 
 def test_get_embedding_service_import_error():
     """Test handling of ImportError when loading embedding service."""
-    # Simulate import error by patching the function to raise ImportError
-    with patch(
-        "src.services.embeddings.get_embedding_service",
-        side_effect=ImportError("Missing deps"),
-    ):
-        service = get_embedding_service_if_available()
-        assert service is None
+    # Disable premium tier, then make local service fail
+    with patch("src.utils.service_loader.settings") as mock_settings:
+        mock_settings.has_openai_key = False
+
+        with patch(
+            "src.services.embeddings.get_embedding_service",
+            side_effect=ImportError("Missing deps"),
+        ):
+            service = get_embedding_service_if_available()
+            assert service is None
 
 
 def test_get_embedding_service_generic_error():
     """Test handling of generic Exception when loading embedding service."""
-    with patch(
-        "src.services.embeddings.get_embedding_service",
-        side_effect=ValueError("Boom"),
-    ):
-        service = get_embedding_service_if_available()
-        assert service is None
+    # Disable premium tier, then make local service fail
+    with patch("src.utils.service_loader.settings") as mock_settings:
+        mock_settings.has_openai_key = False
+
+        with patch(
+            "src.services.embeddings.get_embedding_service",
+            side_effect=ValueError("Boom"),
+        ):
+            service = get_embedding_service_if_available()
+            assert service is None
 
 
 def test_get_analyzer_success():

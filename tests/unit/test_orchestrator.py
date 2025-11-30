@@ -1,6 +1,6 @@
 """Unit tests for Orchestrator."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -242,9 +242,14 @@ class TestOrchestrator:
             config=config,
         )
 
-        events = []
-        async for event in orchestrator.run("test query"):
-            events.append(event)
+        # Force use of local (in-memory) embedding service for test isolation
+        # Without this, the test uses persistent LlamaIndex store which has data from previous runs
+        with patch("src.utils.service_loader.settings") as mock_settings:
+            mock_settings.has_openai_key = False
+
+            events = []
+            async for event in orchestrator.run("test query"):
+                events.append(event)
 
         # Second search_complete should show 0 new evidence
         search_complete_events = [e for e in events if e.type == "search_complete"]
