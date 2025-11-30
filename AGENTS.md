@@ -50,14 +50,21 @@ Research Report with Citations
 
 **Key Components**:
 
-- `src/orchestrator.py` - Main agent loop
+- `src/orchestrators/` - Orchestrator package (simple, advanced, langgraph modes)
+  - `simple.py` - Main search-and-judge loop
+  - `advanced.py` - Multi-agent Magentic mode
+  - `langgraph_orchestrator.py` - LangGraph-based workflow
 - `src/tools/pubmed.py` - PubMed E-utilities search
 - `src/tools/clinicaltrials.py` - ClinicalTrials.gov API
 - `src/tools/europepmc.py` - Europe PMC search
 - `src/tools/code_execution.py` - Modal sandbox execution
 - `src/tools/search_handler.py` - Scatter-gather orchestration
-- `src/services/embeddings.py` - Semantic search & deduplication (ChromaDB)
+- `src/services/embeddings.py` - Local embeddings (sentence-transformers, in-memory)
+- `src/services/llamaindex_rag.py` - Premium embeddings (OpenAI, persistent ChromaDB)
+- `src/services/embedding_protocol.py` - Protocol interface for embedding services
+- `src/services/research_memory.py` - Shared memory layer for research state
 - `src/services/statistical_analyzer.py` - Statistical analysis via Modal
+- `src/utils/service_loader.py` - Tiered service selection (free vs premium)
 - `src/agent_factory/judges.py` - LLM-based evidence assessment
 - `src/agents/` - Magentic multi-agent mode (SearchAgent, JudgeAgent, etc.)
 - `src/mcp_tools.py` - MCP tool wrappers for Claude Desktop
@@ -86,14 +93,15 @@ DeepBonerError (base)
 ├── SearchError
 │   └── RateLimitError
 ├── JudgeError
-└── ConfigurationError
+├── ConfigurationError
+└── EmbeddingError
 ```
 
 ## LLM Model Defaults (November 2025)
 
 Given the rapid advancements, as of November 29, 2025, the DeepBoner project uses the following default LLM models in its configuration (`src/utils/config.py`):
 
-- **OpenAI:** `gpt-5.1`
+- **OpenAI:** `gpt-5`
   - Current flagship model (November 2025). Requires Tier 5 access.
 - **Anthropic:** `claude-sonnet-4-5-20250929`
   - This is the mid-range Claude 4.5 model, released on September 29, 2025.
