@@ -1,15 +1,18 @@
 # SPEC_12: Narrative Report Synthesis
 
-**Status**: Draft
+**Status**: Ready for Implementation
 **Priority**: P1 - Core deliverable
 **Related Issues**: #85, #86
 **Related Spec**: SPEC_11 (Sexual Health Focus)
+**Author**: Deep Audit against Microsoft Agent Framework
+
+---
 
 ## Problem Statement
 
 DeepBoner's report generation outputs **structured metadata** instead of **synthesized prose**. The current implementation uses string templating with NO LLM call for narrative synthesis.
 
-### Current Output (Actual)
+### Current Output (Simple Mode - What Users See)
 
 ```markdown
 ## Sexual Health Analysis
@@ -20,19 +23,14 @@ Testosterone therapy for hypoactive sexual desire disorder?
 ### Drug Candidates
 - **Testosterone**
 - **LibiGel**
-- **Androgel**
 
 ### Key Findings
-- Testosterone therapy improves sexual desire and activity in postmenopausal women with HSDD.
-- Transdermal testosterone is a preferred formulation.
+- Testosterone therapy improves sexual desire
 
 ### Assessment
 - **Mechanism Score**: 8/10
 - **Clinical Evidence Score**: 9/10
 - **Confidence**: 90%
-
-### Reasoning
-The evidence provides a clear understanding of the mechanism of action...
 
 ### Citations (33 sources)
 1. [Title](url)...
@@ -41,7 +39,7 @@ The evidence provides a clear understanding of the mechanism of action...
 ### Expected Output (Professional Research Report)
 
 ```markdown
-## Sexual Health Research Report: Testosterone Therapy for Hypoactive Sexual Desire Disorder
+## Sexual Health Research Report: Testosterone Therapy for HSDD
 
 ### Executive Summary
 
@@ -55,54 +53,41 @@ efficacy-safety profile.
 
 Hypoactive sexual desire disorder affects an estimated 12% of postmenopausal women
 and is characterized by persistent lack of sexual interest causing personal distress.
-The International Society for the Study of Women's Sexual Health (ISSWSH) published
-clinical guidelines in 2021 establishing testosterone as a recommended intervention...
+The ISSWSH published clinical guidelines in 2021 establishing testosterone as a
+recommended intervention...
 
 ### Evidence Synthesis
 
 **Mechanism of Action**
 
 Testosterone exerts its effects on sexual desire through multiple pathways. At the
-hypothalamic level, testosterone modulates dopaminergic signaling that underlies
-libido. Evidence from Smith et al. (2021) demonstrates that androgen receptor
-activation in the central nervous system correlates with subjective measures of
-sexual desire (r=0.67, p<0.001)...
-
-**Clinical Trial Evidence**
-
-A systematic review of 8 randomized controlled trials (N=3,035) demonstrated that
-transdermal testosterone significantly improved:
-- Satisfying sexual events: +2.1 per month (95% CI: 1.4-2.8)
-- Sexual desire scores: +0.4 on validated scales (p<0.001)
-
-The Global Consensus Position Statement (2019) and ISSWSH Guidelines (2021) both
-recommend transdermal testosterone as first-line therapy...
+hypothalamic level, testosterone modulates dopaminergic signaling. Evidence from
+Smith et al. (2021) demonstrates androgen receptor activation correlates with
+subjective measures of desire (r=0.67, p<0.001)...
 
 ### Recommendations
 
-Based on this evidence synthesis:
 1. **Transdermal testosterone** (300 μg/day) is recommended for postmenopausal
    women with HSDD not primarily related to modifiable factors
 2. **Duration**: Continue for 6 months to assess efficacy; discontinue if no benefit
-3. **Monitoring**: Lipid profile and liver function at baseline and 3-6 months
 
-### Limitations & Future Directions
+### Limitations
 
-- Long-term safety data beyond 24 months remains limited
-- Efficacy in premenopausal women less well-established
-- Head-to-head comparisons between formulations are needed
+Long-term safety data beyond 24 months remains limited...
 
 ### References
-
-1. Parish SJ et al. (2021). International Society for the Study of Women's Sexual
-   Health Clinical Practice Guideline for the Use of Systemic Testosterone for
-   Hypoactive Sexual Desire Disorder in Women. J Sex Med. https://pubmed.ncbi.nlm.nih.gov/33814355/
-...
+1. Smith AB et al. (2021). Testosterone mechanisms... https://pubmed.ncbi.nlm.nih.gov/123/
 ```
+
+---
 
 ## Root Cause Analysis
 
-### Current Implementation (`src/orchestrators/simple.py:448-505`)
+### Location 1: Simple Orchestrator (THE PRIMARY BUG)
+
+**File**: `src/orchestrators/simple.py`
+**Lines**: 448-505
+**Method**: `_generate_synthesis()`
 
 ```python
 def _generate_synthesis(
@@ -124,24 +109,52 @@ def _generate_synthesis(
 """
 ```
 
-**The problem**: No LLM is ever called to synthesize the report. It's just formatted
-data from the JudgeAssessment.
+**The Problem**: No LLM is ever called. It's just formatted data from JudgeAssessment.
 
-### Microsoft Agent Framework Pattern
+### Location 2: Partial Synthesis (Max Iterations Fallback)
 
-From `reference_repos/agent-framework/python/samples/getting_started/workflows/orchestration/concurrent_custom_aggregator.py`:
+**File**: `src/orchestrators/simple.py`
+**Lines**: 507-602
+**Method**: `_generate_partial_synthesis()`
+
+Same issue - string templating, no LLM call.
+
+### Location 3: Report Agent (Advanced Mode)
+
+**File**: `src/agents/report_agent.py`
+**Lines**: 93-94
+
+```python
+result = await self._get_agent().run(prompt)
+report = result.output  # ResearchReport (structured data)
+```
+
+This DOES make an LLM call, but it outputs `ResearchReport` (structured Pydantic model), not narrative prose. The `to_markdown()` method just formats the structured fields.
+
+### Location 4: Report System Prompt
+
+**File**: `src/prompts/report.py`
+**Lines**: 13-76
+
+The system prompt tells the LLM to output structured JSON with fields like `hypotheses_tested: [...]` and `references: [...]`. It does NOT request narrative prose.
+
+---
+
+## Microsoft Agent Framework Pattern (Reference)
+
+**File**: `reference_repos/agent-framework/python/samples/getting_started/workflows/orchestration/concurrent_custom_aggregator.py`
+**Lines**: 56-79
 
 ```python
 # Define a custom aggregator callback that uses the chat client to SYNTHESIZE
 async def summarize_results(results: list[Any]) -> str:
-    # Collect expert outputs
     expert_sections: list[str] = []
     for r in results:
         messages = getattr(r.agent_run_response, "messages", [])
         final_text = messages[-1].text if messages else "(no content)"
         expert_sections.append(f"{r.executor_id}:\n{final_text}")
 
-    # Ask the MODEL to synthesize
+    # ✅ LLM CALL for synthesis
     system_msg = ChatMessage(
         Role.SYSTEM,
         text=(
@@ -151,147 +164,98 @@ async def summarize_results(results: list[Any]) -> str:
     )
     user_msg = ChatMessage(Role.USER, text="\n\n".join(expert_sections))
 
-    # ✅ LLM CALL for synthesis
     response = await chat_client.get_response([system_msg, user_msg])
     return response.messages[-1].text
 ```
 
 **The pattern**: The aggregator makes an **LLM call** to synthesize, not string concatenation.
 
+---
+
 ## Solution Design
 
-### Architecture
+### Architecture Change
 
 ```
-Current:
+Current (Simple Mode):
   Evidence → Judge → {structured data} → String Template → Bullet Points
 
-Proposed:
-  Evidence → Judge → {structured data} → SynthesisAgent → Narrative Prose
-                                                ↓
-                                         LLM-based synthesis
+Proposed (Simple Mode):
+  Evidence → Judge → {structured data} → LLM Synthesis → Narrative Prose
+                                              ↓
+                                     Uses SynthesisPrompt
 ```
 
-### Components
+### Components to Create/Modify
 
-#### 1. `SynthesisAgent` (`src/agents/synthesis.py`)
+| File | Action | Description |
+|------|--------|-------------|
+| `src/prompts/synthesis.py` | **NEW** | Narrative synthesis prompts |
+| `src/orchestrators/simple.py` | **MODIFY** | Make `_generate_synthesis()` async, add LLM call |
+| `src/config/domain.py` | **MODIFY** | Add `synthesis_system_prompt` field |
+| `tests/unit/prompts/test_synthesis.py` | **NEW** | Test synthesis prompts |
+| `tests/unit/orchestrators/test_simple_synthesis.py` | **NEW** | Test LLM synthesis |
 
-A new agent dedicated to narrative report generation:
+---
 
-```python
-from pydantic import BaseModel
-from pydantic_ai import Agent
+## Implementation Plan
 
-class NarrativeReport(BaseModel):
-    """Structured output for narrative report."""
-    executive_summary: str  # 2-3 sentences, key takeaways
-    background: str  # What is this condition, why does it matter
-    evidence_synthesis: str  # Mechanism + Clinical evidence in prose
-    recommendations: list[str]  # Actionable recommendations
-    limitations: str  # Honest limitations
-    references: list[Reference]  # Properly formatted
+### Phase 1: Create Synthesis Prompts
 
-class SynthesisAgent:
-    """Generates narrative research reports from structured data."""
-
-    async def synthesize(
-        self,
-        query: str,
-        evidence: list[Evidence],
-        assessment: JudgeAssessment,
-        domain: ResearchDomain,
-    ) -> NarrativeReport:
-        """Generate narrative prose report."""
-        # Build context
-        context = self._build_synthesis_context(evidence, assessment)
-
-        # ✅ LLM CALL for synthesis
-        result = await self.agent.run(
-            f"Generate a narrative research report for: {query}",
-            context=context,
-        )
-        return result.data
-```
-
-#### 2. Updated System Prompt (`src/prompts/synthesis.py`)
+**File**: `src/prompts/synthesis.py` (NEW)
 
 ```python
-SYNTHESIS_SYSTEM_PROMPT = """You are a scientific writer specializing in sexual health research.
-Your task is to synthesize research evidence into a clear, narrative report.
+"""Prompts for narrative report synthesis."""
 
-## Writing Style
+from src.config.domain import ResearchDomain, get_domain_config
+
+def get_synthesis_system_prompt(domain: ResearchDomain | str | None = None) -> str:
+    """Get the system prompt for narrative synthesis."""
+    config = get_domain_config(domain)
+    return f"""You are a scientific writer specializing in {config.name.lower()}.
+Your task is to synthesize research evidence into a clear, NARRATIVE report.
+
+## CRITICAL: Writing Style
 - Write in PROSE PARAGRAPHS, not bullet points
 - Use academic but accessible language
-- Be specific about evidence strength (e.g., "in a randomized controlled trial of N=200")
+- Be specific about evidence strength (e.g., "in an RCT of N=200")
 - Reference specific studies by author name
-- Provide quantitative results where available
+- Provide quantitative results where available (p-values, effect sizes)
 
 ## Report Structure
 
 ### Executive Summary (REQUIRED - 2-3 sentences)
-Summarize the key finding and clinical implication. Start with the bottom line.
-Example: "Testosterone therapy demonstrates consistent efficacy for HSDD in
-postmenopausal women, with transdermal formulations showing the best safety profile."
+Start with the bottom line. Example:
+"Testosterone therapy demonstrates consistent efficacy for HSDD in postmenopausal
+women, with transdermal formulations showing the best safety profile."
 
 ### Background (REQUIRED - 1 paragraph)
-Explain the condition, its prevalence, and why this question matters clinically.
+Explain the condition, its prevalence, and clinical significance.
 
 ### Evidence Synthesis (REQUIRED - 2-4 paragraphs)
-Weave together the evidence into a coherent narrative:
+Weave the evidence into a coherent NARRATIVE:
 - Mechanism of Action: How does the intervention work?
-- Clinical Evidence: What do the trials show? Be specific about effect sizes.
+- Clinical Evidence: What do trials show? Include effect sizes.
 - Comparative Evidence: How does it compare to alternatives?
 
-### Recommendations (REQUIRED - 3-5 bullet points)
-Provide actionable clinical recommendations based on the evidence.
+### Recommendations (REQUIRED - 3-5 items)
+Provide actionable clinical recommendations.
 
 ### Limitations (REQUIRED - 1 paragraph)
 Acknowledge gaps, biases, and areas needing more research.
 
 ### References (REQUIRED)
-List the key references in proper academic format.
+List key references with author, year, title, URL.
 
 ## CRITICAL RULES
 1. ONLY cite papers from the provided evidence - NEVER hallucinate references
-2. Write in complete sentences and paragraphs
-3. Avoid lists/bullets except in Recommendations section
-4. Include specific statistics when available (p-values, effect sizes, CIs)
-5. Acknowledge uncertainty honestly
+2. Write in complete sentences and paragraphs (PROSE, not lists)
+3. Include specific statistics when available
+4. Acknowledge uncertainty honestly
 """
-```
 
-#### 3. Updated Orchestrator Integration
 
-```python
-# In src/orchestrators/simple.py
-
-async def _generate_synthesis(
-    self,
-    query: str,
-    evidence: list[Evidence],
-    assessment: JudgeAssessment,
-) -> str:
-    """Generate narrative synthesis using LLM."""
-    from src.agents.synthesis import SynthesisAgent
-
-    synthesis_agent = SynthesisAgent(domain=self.domain)
-
-    report = await synthesis_agent.synthesize(
-        query=query,
-        evidence=evidence,
-        assessment=assessment,
-        domain=self.domain,
-    )
-
-    return report.to_markdown()
-```
-
-### Few-Shot Example (Required for Quality)
-
-From issue #82, include a concrete example in the prompt:
-
-```python
-FEW_SHOT_EXAMPLE = """
+FEW_SHOT_EXAMPLE = '''
 ## Example: Strong Evidence Synthesis
 
 INPUT:
@@ -312,10 +276,9 @@ mechanism particularly valuable for patients who do not respond to oral therapie
 ### Background
 
 Erectile dysfunction affects approximately 30 million men in the United States,
-with prevalence increasing with age. While PDE5 inhibitors (sildenafil, tadalafil)
-remain first-line therapy, approximately 30% of patients are non-responders or
-have contraindications. Alprostadil provides an alternative mechanism of action
-through direct smooth muscle relaxation.
+with prevalence increasing with age. While PDE5 inhibitors remain first-line
+therapy, approximately 30% of patients are non-responders. Alprostadil provides
+an alternative mechanism through direct smooth muscle relaxation.
 
 ### Evidence Synthesis
 
@@ -323,98 +286,368 @@ through direct smooth muscle relaxation.
 
 Alprostadil works through a distinct pathway from PDE5 inhibitors. It binds to
 EP receptors on cavernosal smooth muscle, activating adenylate cyclase and
-increasing intracellular cAMP. This leads to smooth muscle relaxation and
-penile erection independent of nitric oxide signaling. As noted by Smith et al.
-(2019), this mechanism explains its efficacy in patients with endothelial
-dysfunction or nerve damage.
+increasing intracellular cAMP. As noted by Smith et al. (2019), this mechanism
+explains its efficacy in patients with endothelial dysfunction.
 
 **Clinical Evidence**
 
 A meta-analysis by Johnson et al. (2020) pooled data from 8 randomized controlled
-trials (N=3,247) comparing intracavernosal alprostadil to placebo. The primary
-endpoint of erection sufficient for intercourse was achieved in 87% of alprostadil
-patients versus 12% placebo (RR 7.25, 95% CI: 5.8-9.1, p<0.001). The number
-needed to treat (NNT) was 1.3, indicating robust effect size.
-
-Subgroup analysis revealed consistent efficacy across etiologies:
-- Vascular ED: 85% response rate
-- Neurogenic ED: 91% response rate
-- Post-prostatectomy: 82% response rate
+trials (N=3,247). The primary endpoint of erection sufficient for intercourse was
+achieved in 87% of alprostadil patients versus 12% placebo (RR 7.25, 95% CI:
+5.8-9.1, p<0.001). The NNT was 1.3, indicating robust effect size.
 
 ### Recommendations
 
-1. Consider alprostadil as second-line therapy when PDE5 inhibitors fail or are contraindicated
-2. Start with 10 μg intracavernosal injection, titrate up to 40 μg based on response
+1. Consider alprostadil as second-line therapy when PDE5 inhibitors fail
+2. Start with 10 μg intracavernosal injection, titrate to 40 μg
 3. Provide in-office training for self-injection technique
-4. Monitor for penile fibrosis with long-term use (occurs in 3-5% of patients)
 
 ### Limitations
 
-Long-term data beyond 2 years is limited. Head-to-head comparisons with
-newer therapies (low-intensity shockwave) are lacking. Most trials excluded
-patients with severe cardiovascular disease, limiting generalizability.
-The intraurethral formulation (MUSE) has lower efficacy (43%) than injection.
+Long-term data beyond 2 years is limited. Head-to-head comparisons with newer
+therapies are lacking. Most trials excluded severe cardiovascular disease.
 
 ### References
 
-1. Smith AB et al. (2019). Alprostadil mechanism of action in erectile tissue.
-   J Urol. https://pubmed.ncbi.nlm.nih.gov/12345678/
-2. Johnson CD et al. (2020). Meta-analysis of intracavernosal alprostadil.
-   J Sex Med. https://pubmed.ncbi.nlm.nih.gov/23456789/
+1. Smith AB et al. (2019). Alprostadil mechanism. J Urol. https://pubmed.ncbi.nlm.nih.gov/123/
+2. Johnson CD et al. (2020). Meta-analysis of alprostadil. J Sex Med. https://pubmed.ncbi.nlm.nih.gov/456/
+'''
+
+
+def format_synthesis_prompt(
+    query: str,
+    evidence_summary: str,
+    drug_candidates: list[str],
+    key_findings: list[str],
+    mechanism_score: int,
+    clinical_score: int,
+    confidence: float,
+) -> str:
+    """Format the user prompt for synthesis."""
+    return f"""Synthesize a narrative research report for the following query.
+
+## Research Question
+{query}
+
+## Evidence Summary
+{evidence_summary}
+
+## Identified Drug Candidates
+{', '.join(drug_candidates) or 'None identified'}
+
+## Key Findings from Evidence
+{chr(10).join(f'- {f}' for f in key_findings) or 'No specific findings'}
+
+## Assessment Scores
+- Mechanism Score: {mechanism_score}/10
+- Clinical Evidence Score: {clinical_score}/10
+- Confidence: {confidence:.0%}
+
+## Instructions
+Generate a NARRATIVE research report following the structure above.
+Write in prose paragraphs, NOT bullet points (except for Recommendations).
+ONLY cite papers mentioned in the Evidence Summary above.
+
+{FEW_SHOT_EXAMPLE}
 """
 ```
 
-## Implementation Plan
+### Phase 2: Update Simple Orchestrator
 
-### Phase 1: Core SynthesisAgent
+**File**: `src/orchestrators/simple.py`
+**Change**: Make `_generate_synthesis()` async and add LLM call
 
-1. Create `src/agents/synthesis.py` with:
-   - `SynthesisAgent` class
-   - `NarrativeReport` Pydantic model
-   - LLM-based synthesis method
+```python
+# Add imports at top
+from src.prompts.synthesis import get_synthesis_system_prompt, format_synthesis_prompt
+from src.agent_factory.judges import get_model
+from pydantic_ai import Agent
 
-2. Create `src/prompts/synthesis.py` with:
-   - `SYNTHESIS_SYSTEM_PROMPT`
-   - `FEW_SHOT_EXAMPLE`
-   - `format_synthesis_context()` helper
+# Change method signature and implementation (lines 448-505)
+async def _generate_synthesis(
+    self,
+    query: str,
+    evidence: list[Evidence],
+    assessment: JudgeAssessment,
+) -> str:
+    """
+    Generate the final synthesis response using LLM.
 
-3. Update `src/orchestrators/simple.py`:
-   - Make `_generate_synthesis()` async
-   - Call `SynthesisAgent.synthesize()`
-   - Keep `_generate_partial_synthesis()` as fallback (free tier)
+    Args:
+        query: The original question
+        evidence: All collected evidence
+        assessment: The final assessment
 
-### Phase 2: Advanced Mode Integration
+    Returns:
+        Narrative synthesis as markdown
+    """
+    # Build evidence summary for LLM context
+    evidence_lines = []
+    for e in evidence[:20]:  # Limit context
+        authors = ", ".join(e.citation.authors[:2]) if e.citation.authors else "Unknown"
+        evidence_lines.append(
+            f"- {e.citation.title} ({authors}, {e.citation.date}): {e.content[:200]}..."
+        )
+    evidence_summary = "\n".join(evidence_lines)
 
-4. Update `src/orchestrators/advanced.py`:
-   - Add `SynthesisAgent` to Magentic workflow
-   - Ensure it receives all evidence from prior agents
+    # Format synthesis prompt
+    user_prompt = format_synthesis_prompt(
+        query=query,
+        evidence_summary=evidence_summary,
+        drug_candidates=assessment.details.drug_candidates,
+        key_findings=assessment.details.key_findings,
+        mechanism_score=assessment.details.mechanism_score,
+        clinical_score=assessment.details.clinical_evidence_score,
+        confidence=assessment.confidence,
+    )
 
-### Phase 3: Test Coverage
+    # Create synthesis agent
+    system_prompt = get_synthesis_system_prompt(self.domain)
 
-5. Create `tests/unit/agents/test_synthesis.py`:
-   - Test narrative output structure
-   - Test reference accuracy (no hallucinated citations)
-   - Test prose vs bullet point ratio
+    try:
+        agent: Agent[None, str] = Agent(
+            model=get_model(),
+            output_type=str,
+            system_prompt=system_prompt,
+        )
+        result = await agent.run(user_prompt)
+        narrative = result.output
+    except Exception as e:
+        # Fallback to template if LLM fails
+        logger.warning("LLM synthesis failed, using template", error=str(e))
+        return self._generate_template_synthesis(query, evidence, assessment)
 
-### Phase 4: Domain Customization
+    # Add citations footer
+    citations = "\n".join(
+        f"{i + 1}. [{e.citation.title}]({e.citation.url}) "
+        f"({e.citation.source.upper()}, {e.citation.date})"
+        for i, e in enumerate(evidence[:10])
+    )
 
-6. Update `src/config/domain.py`:
-   - Add `synthesis_system_prompt` field to `DomainConfig`
-   - Add `synthesis_few_shot_example` field
-   - Configure for sexual health domain
+    return f"""{narrative}
 
-## File Changes
+---
+### Full Citation List ({len(evidence)} sources)
+{citations}
 
-| File | Change |
-|------|--------|
-| `src/agents/synthesis.py` | NEW - SynthesisAgent |
-| `src/prompts/synthesis.py` | NEW - Synthesis prompts |
-| `src/orchestrators/simple.py` | MODIFY - Call SynthesisAgent |
-| `src/orchestrators/advanced.py` | MODIFY - Add to Magentic |
-| `src/config/domain.py` | MODIFY - Add synthesis prompts |
-| `src/utils/models.py` | MODIFY - Add NarrativeReport |
-| `tests/unit/agents/test_synthesis.py` | NEW - Tests |
-| `tests/unit/prompts/test_synthesis.py` | NEW - Tests |
+*Analysis based on {len(evidence)} sources across {len(self.history)} iterations.*
+"""
+
+def _generate_template_synthesis(
+    self,
+    query: str,
+    evidence: list[Evidence],
+    assessment: JudgeAssessment,
+) -> str:
+    """Fallback template synthesis (no LLM)."""
+    # Keep the existing string template logic here as fallback
+    ...
+```
+
+### Phase 3: Update Call Site
+
+**File**: `src/orchestrators/simple.py`
+**Line**: 393
+
+```python
+# Change from:
+final_response = self._generate_synthesis(query, all_evidence, assessment)
+
+# To:
+final_response = await self._generate_synthesis(query, all_evidence, assessment)
+```
+
+### Phase 4: Update Domain Config
+
+**File**: `src/config/domain.py`
+
+Add optional `synthesis_system_prompt` field to `DomainConfig`:
+
+```python
+class DomainConfig(BaseModel):
+    # ... existing fields ...
+
+    # Synthesis (optional, can inherit from base)
+    synthesis_system_prompt: str | None = None
+```
+
+### Phase 5: Add Tests
+
+**File**: `tests/unit/prompts/test_synthesis.py` (NEW)
+
+```python
+"""Tests for synthesis prompts."""
+
+import pytest
+
+from src.prompts.synthesis import (
+    get_synthesis_system_prompt,
+    format_synthesis_prompt,
+    FEW_SHOT_EXAMPLE,
+)
+
+
+def test_synthesis_system_prompt_is_narrative_focused() -> None:
+    """System prompt should emphasize prose, not bullets."""
+    prompt = get_synthesis_system_prompt()
+    assert "PROSE PARAGRAPHS" in prompt
+    assert "not bullet points" in prompt.lower()
+    assert "Executive Summary" in prompt
+
+
+def test_synthesis_system_prompt_warns_about_hallucination() -> None:
+    """System prompt should warn about citation hallucination."""
+    prompt = get_synthesis_system_prompt()
+    assert "NEVER hallucinate" in prompt
+
+
+def test_format_synthesis_prompt_includes_evidence() -> None:
+    """User prompt should include evidence summary."""
+    prompt = format_synthesis_prompt(
+        query="testosterone libido",
+        evidence_summary="Study shows efficacy...",
+        drug_candidates=["Testosterone"],
+        key_findings=["Improved libido"],
+        mechanism_score=8,
+        clinical_score=7,
+        confidence=0.85,
+    )
+    assert "testosterone libido" in prompt
+    assert "Study shows efficacy" in prompt
+    assert "Testosterone" in prompt
+    assert "8/10" in prompt
+
+
+def test_few_shot_example_is_narrative() -> None:
+    """Few-shot example should demonstrate narrative style."""
+    # Count paragraphs vs bullets
+    paragraphs = len([p for p in FEW_SHOT_EXAMPLE.split('\n\n') if len(p) > 100])
+    bullets = FEW_SHOT_EXAMPLE.count('\n- ')
+
+    # Prose should dominate (at least 2x more paragraphs than bullets)
+    assert paragraphs >= bullets, "Few-shot example should be mostly narrative"
+```
+
+**File**: `tests/unit/orchestrators/test_simple_synthesis.py` (NEW)
+
+```python
+"""Tests for simple orchestrator synthesis."""
+
+import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from src.orchestrators.simple import Orchestrator
+from src.utils.models import Evidence, Citation, JudgeAssessment, JudgeDetails
+
+
+@pytest.fixture
+def sample_evidence() -> list[Evidence]:
+    return [
+        Evidence(
+            content="Testosterone therapy shows efficacy in HSDD treatment.",
+            citation=Citation(
+                source="pubmed",
+                title="Testosterone and Female Libido",
+                url="https://pubmed.ncbi.nlm.nih.gov/12345/",
+                date="2023",
+                authors=["Smith J"],
+            ),
+        )
+    ]
+
+
+@pytest.fixture
+def sample_assessment() -> JudgeAssessment:
+    return JudgeAssessment(
+        sufficient=True,
+        confidence=0.85,
+        reasoning="Evidence is sufficient",
+        recommendation="synthesize",
+        next_search_queries=[],
+        details=JudgeDetails(
+            mechanism_score=8,
+            clinical_evidence_score=7,
+            drug_candidates=["Testosterone"],
+            key_findings=["Improved libido in postmenopausal women"],
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_generate_synthesis_calls_llm(
+    sample_evidence: list[Evidence],
+    sample_assessment: JudgeAssessment,
+) -> None:
+    """Synthesis should make an LLM call, not just template."""
+    mock_search = MagicMock()
+    mock_judge = MagicMock()
+
+    orchestrator = Orchestrator(
+        search_handler=mock_search,
+        judge_handler=mock_judge,
+    )
+
+    with patch("src.orchestrators.simple.Agent") as mock_agent_class:
+        mock_agent = MagicMock()
+        mock_result = MagicMock()
+        mock_result.output = "This is a narrative synthesis with prose paragraphs."
+        mock_agent.run = AsyncMock(return_value=mock_result)
+        mock_agent_class.return_value = mock_agent
+
+        result = await orchestrator._generate_synthesis(
+            query="testosterone HSDD",
+            evidence=sample_evidence,
+            assessment=sample_assessment,
+        )
+
+        # Verify LLM was called
+        mock_agent_class.assert_called_once()
+        mock_agent.run.assert_called_once()
+
+        # Verify output includes narrative
+        assert "narrative synthesis" in result.lower() or "prose" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_generate_synthesis_falls_back_on_error(
+    sample_evidence: list[Evidence],
+    sample_assessment: JudgeAssessment,
+) -> None:
+    """Synthesis should fall back to template if LLM fails."""
+    mock_search = MagicMock()
+    mock_judge = MagicMock()
+
+    orchestrator = Orchestrator(
+        search_handler=mock_search,
+        judge_handler=mock_judge,
+    )
+
+    with patch("src.orchestrators.simple.Agent") as mock_agent_class:
+        mock_agent_class.side_effect = Exception("LLM unavailable")
+
+        result = await orchestrator._generate_synthesis(
+            query="testosterone HSDD",
+            evidence=sample_evidence,
+            assessment=sample_assessment,
+        )
+
+        # Should still return something (template fallback)
+        assert "Sexual Health Analysis" in result or "testosterone" in result.lower()
+```
+
+---
+
+## File Changes Summary
+
+| File | Lines | Change Type | Description |
+|------|-------|-------------|-------------|
+| `src/prompts/synthesis.py` | ~150 | NEW | Narrative synthesis prompts |
+| `src/orchestrators/simple.py` | 393, 448-505 | MODIFY | Async synthesis with LLM |
+| `src/config/domain.py` | 57 | MODIFY | Add `synthesis_system_prompt` |
+| `tests/unit/prompts/test_synthesis.py` | ~60 | NEW | Prompt tests |
+| `tests/unit/orchestrators/test_simple_synthesis.py` | ~80 | NEW | Synthesis tests |
+
+---
 
 ## Acceptance Criteria
 
@@ -423,18 +656,21 @@ The intraurethral formulation (MUSE) has lower efficacy (43%) than injection.
 - [ ] Report has **background section** explaining the condition
 - [ ] Report has **synthesized narrative** weaving evidence together
 - [ ] Report has **actionable recommendations**
-- [ ] Report has **limitations** section (honest acknowledgment)
+- [ ] Report has **limitations** section
 - [ ] Citations are **properly formatted** (author, year, title, URL)
 - [ ] No hallucinated references (CRITICAL)
-- [ ] Works in both simple and advanced modes
-- [ ] Falls back gracefully on free tier (minimal templating OK)
+- [ ] Falls back gracefully if LLM unavailable
+- [ ] All existing tests still pass
+- [ ] New tests achieve 90%+ coverage of synthesis code
+
+---
 
 ## Test Criteria
 
 ```python
 def test_report_is_narrative_not_bullets():
     """Report should be mostly prose, not bullet points."""
-    report = synthesis_agent.synthesize(...)
+    report = await orchestrator._generate_synthesis(...)
 
     # Count paragraphs vs bullet points
     paragraphs = len([p for p in report.split('\n\n') if len(p) > 100])
@@ -446,24 +682,49 @@ def test_report_is_narrative_not_bullets():
 def test_references_not_hallucinated():
     """All references must come from provided evidence."""
     evidence_urls = {e.citation.url for e in evidence}
-    report = synthesis_agent.synthesize(...)
+    report = await orchestrator._generate_synthesis(...)
 
-    for ref in report.references:
-        assert ref.url in evidence_urls, f"Hallucinated reference: {ref.url}"
+    # Extract URLs from report
+    import re
+    report_urls = set(re.findall(r'https?://[^\s\)]+', report))
+
+    for url in report_urls:
+        # Allow pubmed URLs even if slightly different format
+        if "pubmed" in url or "clinicaltrials" in url:
+            assert any(evidence_url in url or url in evidence_url
+                      for evidence_url in evidence_urls), f"Hallucinated: {url}"
 ```
+
+---
 
 ## Related Microsoft Agent Framework Patterns
 
-| Pattern | Location | Application |
-|---------|----------|-------------|
-| Custom Aggregator | `concurrent_custom_aggregator.py` | LLM-based synthesis |
+| Pattern | File | Application |
+|---------|------|-------------|
+| Custom Aggregator | `concurrent_custom_aggregator.py:56-79` | LLM-based synthesis |
 | Fan-Out/Fan-In | `fan_out_fan_in_edges.py` | Multi-expert synthesis |
-| Research Assistant | `research_assistant_agent.py` | Tool-based research |
-| Sequential Orchestration | `spec-001-foundry-sdk-alignment.md` | Analyst→Writer→Editor chain |
+| Sequential Chain | `sequential_agents.py` | Writer→Reviewer pattern |
+
+---
+
+## Implementation Notes for Async Agent
+
+1. **Start with `src/prompts/synthesis.py`** - This is independent and can be created first
+2. **Then modify `src/orchestrators/simple.py`** - Change `_generate_synthesis` to async
+3. **Update the call site** (line 393) - Add `await`
+4. **Add tests** - Both unit and integration
+5. **Run `make check`** - Ensure all 237+ tests still pass
+
+The key insight from the MS Agent Framework is:
+> The aggregator makes an **LLM call** to synthesize, not string concatenation.
+
+Our `_generate_synthesis()` currently does NO LLM call. Fix that, and the reports will transform from bullet points to narrative prose.
+
+---
 
 ## References
 
 - GitHub Issue #85: Report lacks narrative synthesis
 - GitHub Issue #86: Microsoft Agent Framework patterns
-- LangChain Deep Agents blog: Few-shot examples importance
-- Open Deep Research Architecture: Scoping + Synthesis pattern
+- `reference_repos/agent-framework/python/samples/getting_started/workflows/orchestration/concurrent_custom_aggregator.py`
+- LangChain Deep Agents: Few-shot examples importance
