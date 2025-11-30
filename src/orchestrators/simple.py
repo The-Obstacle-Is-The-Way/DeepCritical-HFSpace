@@ -18,6 +18,7 @@ import structlog
 
 from src.config.domain import ResearchDomain, get_domain_config
 from src.orchestrators.base import JudgeHandlerProtocol, SearchHandlerProtocol
+from src.prompts.synthesis import format_synthesis_prompt, get_synthesis_system_prompt
 from src.utils.config import settings
 from src.utils.models import (
     AgentEvent,
@@ -388,9 +389,9 @@ class Orchestrator:
                         iteration=iteration,
                     )
 
-                    # Generate final response
+                    # Generate final response using LLM narrative synthesis
                     # Use all gathered evidence for the final report
-                    final_response = self._generate_synthesis(query, all_evidence, assessment)
+                    final_response = await self._generate_synthesis(query, all_evidence, assessment)
 
                     yield AgentEvent(
                         type="complete",
@@ -445,14 +446,18 @@ class Orchestrator:
             iteration=iteration,
         )
 
-    def _generate_synthesis(
+    async def _generate_synthesis(
         self,
         query: str,
         evidence: list[Evidence],
         assessment: JudgeAssessment,
     ) -> str:
         """
-        Generate the final synthesis response.
+        Generate the final synthesis response using LLM.
+
+        This method calls an LLM to generate a narrative research report,
+        following the Microsoft Agent Framework pattern of using LLM synthesis
+        instead of string templating.
 
         Args:
             query: The original question
@@ -460,7 +465,88 @@ class Orchestrator:
             assessment: The final assessment
 
         Returns:
-            Formatted synthesis as markdown
+            Narrative synthesis as markdown
+        """
+        # Build evidence summary for LLM context (limit to avoid token overflow)
+        evidence_lines = []
+        for e in evidence[:20]:
+            authors = ", ".join(e.citation.authors[:2]) if e.citation.authors else "Unknown"
+            content_preview = e.content[:200].replace("\n", " ")
+            evidence_lines.append(
+                f"- {e.citation.title} ({authors}, {e.citation.date}): {content_preview}..."
+            )
+        evidence_summary = "\n".join(evidence_lines)
+
+        # Format synthesis prompt with assessment data
+        user_prompt = format_synthesis_prompt(
+            query=query,
+            evidence_summary=evidence_summary,
+            drug_candidates=assessment.details.drug_candidates,
+            key_findings=assessment.details.key_findings,
+            mechanism_score=assessment.details.mechanism_score,
+            clinical_score=assessment.details.clinical_evidence_score,
+            confidence=assessment.confidence,
+        )
+
+        # Get domain-specific system prompt
+        system_prompt = get_synthesis_system_prompt(self.domain)
+
+        try:
+            # Import here to avoid circular deps and keep optional
+            from pydantic_ai import Agent
+
+            from src.agent_factory.judges import get_model
+
+            # Create synthesis agent (string output, not structured)
+            agent: Agent[None, str] = Agent(
+                model=get_model(),
+                output_type=str,
+                system_prompt=system_prompt,
+            )
+            result = await agent.run(user_prompt)
+            narrative = result.output
+
+            logger.info("LLM narrative synthesis completed", chars=len(narrative))
+
+        except Exception as e:
+            # Fallback to template synthesis if LLM fails
+            logger.warning("LLM synthesis failed, using template fallback", error=str(e))
+            return self._generate_template_synthesis(query, evidence, assessment)
+
+        # Add full citation list footer
+        citations = "\n".join(
+            f"{i + 1}. [{e.citation.title}]({e.citation.url}) "
+            f"({e.citation.source.upper()}, {e.citation.date})"
+            for i, e in enumerate(evidence[:15])
+        )
+
+        return f"""{narrative}
+
+---
+### Full Citation List ({len(evidence)} sources)
+{citations}
+
+*Analysis based on {len(evidence)} sources across {len(self.history)} iterations.*
+"""
+
+    def _generate_template_synthesis(
+        self,
+        query: str,
+        evidence: list[Evidence],
+        assessment: JudgeAssessment,
+    ) -> str:
+        """
+        Generate fallback template synthesis (no LLM).
+
+        Used when LLM synthesis fails or is unavailable.
+
+        Args:
+            query: The original question
+            evidence: All collected evidence
+            assessment: The final assessment
+
+        Returns:
+            Formatted synthesis as markdown (bullet-point style)
         """
         drug_list = (
             "\n".join([f"- **{d}**" for d in assessment.details.drug_candidates])
@@ -474,7 +560,7 @@ class Orchestrator:
             [
                 f"{i + 1}. [{e.citation.title}]({e.citation.url}) "
                 f"({e.citation.source.upper()}, {e.citation.date})"
-                for i, e in enumerate(evidence[:10])  # Limit to 10 citations
+                for i, e in enumerate(evidence[:10])
             ]
         )
 
