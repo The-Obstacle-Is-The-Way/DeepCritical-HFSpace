@@ -7,6 +7,7 @@ import structlog
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from src.config.domain import ResearchDomain
 from src.utils.exceptions import ConfigurationError
 
 
@@ -19,6 +20,9 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    # Domain configuration
+    research_domain: ResearchDomain = ResearchDomain.GENERAL
 
     # LLM Configuration
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")

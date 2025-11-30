@@ -1,8 +1,13 @@
 """Judge prompts for evidence assessment."""
 
+from src.config.domain import ResearchDomain, get_domain_config
 from src.utils.models import Evidence
 
-SYSTEM_PROMPT = """You are an expert drug repurposing research judge.
+
+def get_system_prompt(domain: ResearchDomain | str | None = None) -> str:
+    """Get the system prompt for the judge agent."""
+    config = get_domain_config(domain)
+    return f"""{config.judge_system_prompt}
 
 Your task is to SCORE evidence from biomedical literature. You do NOT decide whether to
 continue searching or synthesize - that decision is made by the orchestration system
@@ -62,6 +67,16 @@ When suggesting next_search_queries:
 - Refine existing terms, don't explore random medical associations
 """
 
+
+def get_scoring_prompt(domain: ResearchDomain | str | None = None) -> str:
+    """Get the scoring instructions for the judge."""
+    config = get_domain_config(domain)
+    return config.judge_scoring_prompt
+
+
+# Keep SYSTEM_PROMPT for backwards compatibility
+SYSTEM_PROMPT = get_system_prompt()
+
 MAX_EVIDENCE_FOR_JUDGE = 30  # Keep under token limits
 
 
@@ -99,6 +114,7 @@ def format_user_prompt(
     iteration: int = 0,
     max_iterations: int = 10,
     total_evidence_count: int | None = None,
+    domain: ResearchDomain | str | None = None,
 ) -> str:
     """
     Format user prompt with selected evidence and iteration context.
@@ -108,6 +124,7 @@ def format_user_prompt(
     """
     total_count = total_evidence_count or len(evidence)
     max_content_len = 1500
+    scoring_prompt = get_scoring_prompt(domain)
 
     def format_single_evidence(i: int, e: Evidence) -> str:
         content = e.content
@@ -137,7 +154,7 @@ def format_user_prompt(
 
 ## Your Task
 
-Score this evidence for drug repurposing potential. Provide ONLY scores and extracted data.
+{scoring_prompt}
 DO NOT decide "synthesize" vs "continue" - that decision is made by the system.
 
 ## REMINDER: Original Question (stay focused)

@@ -9,14 +9,19 @@ from src.agents.tools import (
     search_preprints,
     search_pubmed,
 )
+from src.config.domain import ResearchDomain, get_domain_config
 from src.utils.config import settings
 
 
-def create_search_agent(chat_client: OpenAIChatClient | None = None) -> ChatAgent:
+def create_search_agent(
+    chat_client: OpenAIChatClient | None = None,
+    domain: ResearchDomain | str | None = None,
+) -> ChatAgent:
     """Create a search agent with internal LLM and search tools.
 
     Args:
         chat_client: Optional custom chat client. If None, uses default.
+        domain: Research domain for customization.
 
     Returns:
         ChatAgent configured for biomedical search
@@ -25,14 +30,12 @@ def create_search_agent(chat_client: OpenAIChatClient | None = None) -> ChatAgen
         model_id=settings.openai_model,  # Use configured model
         api_key=settings.openai_api_key,
     )
+    config = get_domain_config(domain)
 
     return ChatAgent(
         name="SearchAgent",
-        description=(
-            "Searches biomedical databases (PubMed, ClinicalTrials.gov, Europe PMC) "
-            "for drug repurposing evidence"
-        ),
-        instructions="""You are a biomedical search specialist. When asked to find evidence:
+        description=config.search_agent_description,
+        instructions=f"""You are a biomedical search specialist. When asked to find evidence:
 
 1. Analyze the request to determine what to search for
 2. Extract key search terms (drug names, disease names, mechanisms)
@@ -43,18 +46,23 @@ def create_search_agent(chat_client: OpenAIChatClient | None = None) -> ChatAgen
 4. Summarize what you found and highlight key evidence
 
 Be thorough - search multiple databases when appropriate.
-Focus on finding: mechanisms of action, clinical evidence, and specific drug candidates.""",
+Focus on finding: mechanisms of action, clinical evidence, and specific findings
+related to {config.name}.""",
         chat_client=client,
         tools=[search_pubmed, search_clinical_trials, search_preprints],
         temperature=1.0,  # Explicitly set for reasoning model compatibility (o1/o3)
     )
 
 
-def create_judge_agent(chat_client: OpenAIChatClient | None = None) -> ChatAgent:
+def create_judge_agent(
+    chat_client: OpenAIChatClient | None = None,
+    domain: ResearchDomain | str | None = None,
+) -> ChatAgent:
     """Create a judge agent that evaluates evidence quality.
 
     Args:
         chat_client: Optional custom chat client. If None, uses default.
+        domain: Research domain for customization.
 
     Returns:
         ChatAgent configured for evidence assessment
@@ -63,11 +71,14 @@ def create_judge_agent(chat_client: OpenAIChatClient | None = None) -> ChatAgent
         model_id=settings.openai_model,
         api_key=settings.openai_api_key,
     )
+    config = get_domain_config(domain)
 
     return ChatAgent(
         name="JudgeAgent",
         description="Evaluates evidence quality and determines if sufficient for synthesis",
-        instructions="""You are an evidence quality assessor. When asked to evaluate:
+        instructions=f"""{config.judge_system_prompt}
+
+When asked to evaluate:
 
 1. Review all evidence presented in the conversation
 2. Score on two dimensions (0-10 each):
@@ -89,11 +100,15 @@ Be rigorous but fair. Look for:
     )
 
 
-def create_hypothesis_agent(chat_client: OpenAIChatClient | None = None) -> ChatAgent:
+def create_hypothesis_agent(
+    chat_client: OpenAIChatClient | None = None,
+    domain: ResearchDomain | str | None = None,
+) -> ChatAgent:
     """Create a hypothesis generation agent.
 
     Args:
         chat_client: Optional custom chat client. If None, uses default.
+        domain: Research domain for customization.
 
     Returns:
         ChatAgent configured for hypothesis generation
@@ -102,11 +117,14 @@ def create_hypothesis_agent(chat_client: OpenAIChatClient | None = None) -> Chat
         model_id=settings.openai_model,
         api_key=settings.openai_api_key,
     )
+    config = get_domain_config(domain)
 
     return ChatAgent(
         name="HypothesisAgent",
-        description="Generates mechanistic hypotheses for drug repurposing",
-        instructions="""You are a biomedical hypothesis generator. Based on evidence:
+        description=config.hypothesis_agent_description,
+        instructions=f"""{config.hypothesis_system_prompt}
+
+Based on evidence:
 
 1. Identify the key molecular targets involved
 2. Map the biological pathways affected
@@ -126,11 +144,15 @@ Focus on mechanistic plausibility and existing evidence.""",
     )
 
 
-def create_report_agent(chat_client: OpenAIChatClient | None = None) -> ChatAgent:
+def create_report_agent(
+    chat_client: OpenAIChatClient | None = None,
+    domain: ResearchDomain | str | None = None,
+) -> ChatAgent:
     """Create a report synthesis agent.
 
     Args:
         chat_client: Optional custom chat client. If None, uses default.
+        domain: Research domain for customization.
 
     Returns:
         ChatAgent configured for report generation
@@ -139,11 +161,14 @@ def create_report_agent(chat_client: OpenAIChatClient | None = None) -> ChatAgen
         model_id=settings.openai_model,
         api_key=settings.openai_api_key,
     )
+    config = get_domain_config(domain)
 
     return ChatAgent(
         name="ReportAgent",
         description="Synthesizes research findings into structured reports",
-        instructions="""You are a scientific report writer. When asked to synthesize:
+        instructions=f"""{config.report_system_prompt}
+
+When asked to synthesize:
 
 Generate a structured report with these sections:
 
@@ -164,8 +189,8 @@ Databases searched, queries used, evidence reviewed
 - Clinical trials
 - Safety profile
 
-## Drug Candidates
-List specific drugs with repurposing potential
+## Candidates
+List specific candidates with potential
 
 ## Limitations
 Gaps in evidence, conflicting data, caveats

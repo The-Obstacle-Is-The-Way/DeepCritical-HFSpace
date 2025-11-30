@@ -2,13 +2,18 @@
 
 from typing import TYPE_CHECKING
 
+from src.config.domain import ResearchDomain, get_domain_config
 from src.utils.text_utils import select_diverse_evidence, truncate_at_sentence
 
 if TYPE_CHECKING:
     from src.services.embedding_protocol import EmbeddingServiceProtocol
     from src.utils.models import Evidence
 
-SYSTEM_PROMPT = """You are a biomedical research scientist specializing in drug repurposing.
+
+def get_system_prompt(domain: ResearchDomain | str | None = None) -> str:
+    """Get the system prompt for the hypothesis agent."""
+    config = get_domain_config(domain)
+    return f"""{config.hypothesis_system_prompt}
 
 Your role is to generate mechanistic hypotheses based on evidence.
 
@@ -27,6 +32,10 @@ Example hypothesis format:
 - Search suggestions: ["metformin AMPK brain", "autophagy amyloid clearance"]
 
 Be specific. Use actual gene/protein names when possible."""
+
+
+# Keep SYSTEM_PROMPT for backwards compatibility
+SYSTEM_PROMPT = get_system_prompt()
 
 
 async def format_hypothesis_prompt(

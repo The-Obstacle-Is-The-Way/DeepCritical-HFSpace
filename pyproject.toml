@@ -3,6 +3,7 @@ name = "deepboner"
 version = "0.1.0"
 description = "AI-Native Sexual Health Research Agent"
 readme = "README.md"
+license = "Apache-2.0"
 requires-python = ">=3.11"
 dependencies = [
     # Core

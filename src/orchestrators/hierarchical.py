@@ -18,6 +18,7 @@ import structlog
 
 from src.agents.judge_agent_llm import LLMSubIterationJudge
 from src.agents.magentic_agents import create_search_agent
+from src.config.domain import ResearchDomain
 from src.middleware.sub_iteration import SubIterationMiddleware, SubIterationTeam
 from src.orchestrators.base import OrchestratorProtocol
 from src.state import init_magentic_state
@@ -37,8 +38,8 @@ class ResearchTeam(SubIterationTeam):
     sub-iteration middleware framework.
     """
 
-    def __init__(self) -> None:
-        self.agent = create_search_agent()
+    def __init__(self, domain: ResearchDomain | str | None = None) -> None:
+        self.agent = create_search_agent(domain=domain)
 
     async def execute(self, task: str) -> str:
         """Execute a research task.
@@ -71,16 +72,19 @@ class HierarchicalOrchestrator(OrchestratorProtocol):
         self,
         config: OrchestratorConfig | None = None,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+        domain: ResearchDomain | str | None = None,
     ) -> None:
         """Initialize the hierarchical orchestrator.
 
         Args:
             config: Optional configuration (uses defaults if not provided)
             timeout_seconds: Maximum workflow duration (default: 5 minutes)
+            domain: Research domain for customization
         """
         self.config = config or OrchestratorConfig()
         self._timeout_seconds = timeout_seconds
-        self.team = ResearchTeam()
+        self.domain = domain
+        self.team = ResearchTeam(domain=domain)
         self.judge = LLMSubIterationJudge()
         self.middleware = SubIterationMiddleware(
             self.team, self.judge, max_iterations=self.config.max_iterations

@@ -10,6 +10,7 @@ from agent_framework import (
     Role,
 )
 
+from src.config.domain import ResearchDomain, get_domain_config
 from src.orchestrators import SearchHandlerProtocol
 from src.utils.models import Citation, Evidence, SearchResult
 
@@ -25,10 +26,12 @@ class SearchAgent(BaseAgent):  # type: ignore[misc]
         search_handler: SearchHandlerProtocol,
         evidence_store: dict[str, list[Evidence]],
         embedding_service: "EmbeddingService | None" = None,
+        domain: ResearchDomain | str | None = None,
     ) -> None:
+        config = get_domain_config(domain)
         super().__init__(
             name="SearchAgent",
-            description="Searches PubMed for drug repurposing evidence",
+            description=config.search_agent_description,
         )
         self._handler = search_handler
         self._evidence_store = evidence_store

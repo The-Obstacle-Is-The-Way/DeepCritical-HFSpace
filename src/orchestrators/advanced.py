@@ -36,6 +36,7 @@ from src.agents.magentic_agents import (
     create_search_agent,
 )
 from src.agents.state import init_magentic_state
+from src.config.domain import ResearchDomain, get_domain_config
 from src.orchestrators.base import OrchestratorProtocol
 from src.utils.config import settings
 from src.utils.llm_factory import check_magentic_requirements
@@ -68,6 +69,7 @@ class AdvancedOrchestrator(OrchestratorProtocol):
         chat_client: OpenAIChatClient | None = None,
         api_key: str | None = None,
         timeout_seconds: float = 600.0,
+        domain: ResearchDomain | str | None = None,
     ) -> None:
         """Initialize orchestrator.
 
@@ -76,6 +78,7 @@ class AdvancedOrchestrator(OrchestratorProtocol):
             chat_client: Optional shared chat client for agents
             api_key: Optional OpenAI API key (for BYOK)
             timeout_seconds: Maximum workflow duration (default: 10 minutes)
+            domain: Research domain for customization
         """
         # Validate requirements only if no key provided
         if not chat_client and not api_key:
@@ -83,6 +86,8 @@ class AdvancedOrchestrator(OrchestratorProtocol):
 
         self._max_rounds = max_rounds
         self._timeout_seconds = timeout_seconds
+        self.domain = domain
+        self.domain_config = get_domain_config(domain)
         self._chat_client: OpenAIChatClient | None
 
         if chat_client:
@@ -104,10 +109,10 @@ class AdvancedOrchestrator(OrchestratorProtocol):
     def _build_workflow(self) -> Any:
         """Build the workflow with ChatAgent participants."""
         # Create agents with internal LLMs
-        search_agent = create_search_agent(self._chat_client)
-        judge_agent = create_judge_agent(self._chat_client)
-        hypothesis_agent = create_hypothesis_agent(self._chat_client)
-        report_agent = create_report_agent(self._chat_client)
+        search_agent = create_search_agent(self._chat_client, domain=self.domain)
+        judge_agent = create_judge_agent(self._chat_client, domain=self.domain)
+        hypothesis_agent = create_hypothesis_agent(self._chat_client, domain=self.domain)
+        report_agent = create_report_agent(self._chat_client, domain=self.domain)
 
         # Manager chat client (orchestrates the agents)
         manager_client = self._chat_client or OpenAIChatClient(
@@ -156,7 +161,7 @@ class AdvancedOrchestrator(OrchestratorProtocol):
 
         workflow = self._build_workflow()
 
-        task = f"""Research drug repurposing opportunities for: {query}
+        task = f"""Research {self.domain_config.report_focus} for: {query}
 
 Workflow:
 1. SearchAgent: Find evidence from PubMed, ClinicalTrials.gov, and Europe PMC

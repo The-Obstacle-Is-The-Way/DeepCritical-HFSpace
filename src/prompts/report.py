@@ -2,13 +2,18 @@
 
 from typing import TYPE_CHECKING, Any
 
+from src.config.domain import ResearchDomain, get_domain_config
 from src.utils.text_utils import select_diverse_evidence, truncate_at_sentence
 
 if TYPE_CHECKING:
     from src.services.embedding_protocol import EmbeddingServiceProtocol
     from src.utils.models import Evidence, MechanismHypothesis
 
-SYSTEM_PROMPT = """You are a scientific writer specializing in drug repurposing research reports.
+
+def get_system_prompt(domain: ResearchDomain | str | None = None) -> str:
+    """Get the system prompt for the report agent."""
+    config = get_domain_config(domain)
+    return f"""{config.report_system_prompt}
 
 Your role is to synthesize evidence and hypotheses into a clear, structured report.
 
@@ -36,8 +41,10 @@ The `hypotheses_tested` field MUST be a LIST of objects, each with these fields:
 
 Example:
   hypotheses_tested: [
-    {"hypothesis": "Metformin -> AMPK -> reduced inflammation", "supported": 3, "contradicted": 1},
-    {"hypothesis": "Aspirin inhibits COX-2 pathway", "supported": 5, "contradicted": 0}
+    {{"hypothesis": "Metformin -> AMPK -> reduced inflammation",
+      "supported": 3, "contradicted": 1}},
+    {{"hypothesis": "Aspirin inhibits COX-2 pathway",
+      "supported": 5, "contradicted": 0}}
   ]
 
 The `references` field MUST be a LIST of objects, each with these fields:
@@ -48,7 +55,7 @@ The `references` field MUST be a LIST of objects, each with these fields:
 
 Example:
   references: [
-    {"title": "Metformin and Cancer", "authors": "Smith et al.", "source": "pubmed", "url": "https://pubmed.ncbi.nlm.nih.gov/12345678/"}
+    {{"title": "Metformin and Cancer", "authors": "Smith et al.", "source": "pubmed", "url": "https://pubmed.ncbi.nlm.nih.gov/12345678/"}}
   ]
 
 ─────────────────────────────────────────────────────────────────────────────
@@ -66,6 +73,10 @@ You MUST follow these rules for the References section:
 
 VIOLATION OF THESE RULES PRODUCES DANGEROUS MISINFORMATION.
 ─────────────────────────────────────────────────────────────────────────────"""
+
+
+# Keep SYSTEM_PROMPT for backwards compatibility
+SYSTEM_PROMPT = get_system_prompt()
 
 
 async def format_report_prompt(

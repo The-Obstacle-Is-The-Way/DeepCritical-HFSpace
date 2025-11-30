@@ -8,7 +8,7 @@ sdk_version: "6.0.1"
 python_version: "3.11"
 app_file: src/app.py
 pinned: true
-license: mit
+license: apache-2.0
 short_description: "Deep Research Agent for the Strongest Boners 💪🔬"
 tags:
   - mcp-in-action-track-enterprise

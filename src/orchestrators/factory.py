@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Literal
 
 import structlog
 
+from src.config.domain import ResearchDomain
 from src.orchestrators.base import (
     JudgeHandlerProtocol,
     OrchestratorProtocol,
@@ -58,6 +59,7 @@ def create_orchestrator(
     config: OrchestratorConfig | None = None,
     mode: Literal["simple", "magentic", "advanced", "hierarchical"] | None = None,
     api_key: str | None = None,
+    domain: ResearchDomain | str | None = None,
 ) -> OrchestratorProtocol:
     """
     Create an orchestrator instance.
@@ -73,6 +75,7 @@ def create_orchestrator(
         mode: "simple", "magentic", "advanced", or "hierarchical"
               Note: "magentic" is an alias for "advanced" (kept for backwards compatibility)
         api_key: Optional API key for advanced mode (OpenAI)
+        domain: Research domain for customization (default: General)
 
     Returns:
         Orchestrator instance implementing OrchestratorProtocol
@@ -83,19 +86,20 @@ def create_orchestrator(
     """
     effective_config = config or OrchestratorConfig()
     effective_mode = _determine_mode(mode, api_key)
-    logger.info("Creating orchestrator", mode=effective_mode)
+    logger.info("Creating orchestrator", mode=effective_mode, domain=domain)
 
     if effective_mode == "advanced":
         orchestrator_cls = _get_advanced_orchestrator_class()
         return orchestrator_cls(
             max_rounds=effective_config.max_iterations,
             api_key=api_key,
+            domain=domain,
         )
 
     if effective_mode == "hierarchical":
         from src.orchestrators.hierarchical import HierarchicalOrchestrator
 
-        return HierarchicalOrchestrator(config=effective_config)
+        return HierarchicalOrchestrator(config=effective_config, domain=domain)
 
     # Simple mode requires handlers
     if search_handler is None or judge_handler is None:
@@ -105,6 +109,7 @@ def create_orchestrator(
         search_handler=search_handler,
         judge_handler=judge_handler,
         config=effective_config,
+        domain=domain,
     )
 
 

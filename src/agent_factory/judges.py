@@ -15,10 +15,11 @@ from pydantic_ai.providers.huggingface import HuggingFaceProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from src.config.domain import ResearchDomain
 from src.prompts.judge import (
-    SYSTEM_PROMPT,
     format_empty_evidence_prompt,
     format_user_prompt,
+    get_system_prompt,
     select_evidence_for_judge,
 )
 from src.utils.config import settings
@@ -84,18 +85,24 @@ class JudgeHandler:
     Uses PydanticAI to ensure responses match the JudgeAssessment schema.
     """
 
-    def __init__(self, model: Any = None) -> None:
+    def __init__(
+        self,
+        model: Any = None,
+        domain: ResearchDomain | str | None = None,
+    ) -> None:
         """
         Initialize the JudgeHandler.
 
         Args:
             model: Optional PydanticAI model. If None, uses config default.
+            domain: Research domain for prompt customization.
         """
         self.model = model or get_model()
+        self.domain = domain
         self.agent = Agent(
             model=self.model,
             output_type=JudgeAssessment,
-            system_prompt=SYSTEM_PROMPT,
+            system_prompt=get_system_prompt(domain),
             retries=3,
         )
 
@@ -126,6 +133,7 @@ class JudgeHandler:
             question=question[:100],
             evidence_count=len(evidence),
             iteration=iteration,
+            domain=self.domain,
         )
 
         # Format the prompt based on whether we have evidence
@@ -138,6 +146,7 @@ class JudgeHandler:
                 iteration,
                 max_iterations,
                 total_evidence_count=len(evidence),
+                domain=self.domain,
             )
         else:
             user_prompt = format_empty_evidence_prompt(question)
@@ -213,14 +222,20 @@ class HFInferenceJudgeHandler:
     # Rationale: 3 models x 3 retries each = 9 total API attempts before circuit break
     MAX_CONSECUTIVE_FAILURES: ClassVar[int] = 3
 
-    def __init__(self, model_id: str | None = None) -> None:
+    def __init__(
+        self,
+        model_id: str | None = None,
+        domain: ResearchDomain | str | None = None,
+    ) -> None:
         """
         Initialize with HF Inference client.
 
         Args:
             model_id: Optional specific model ID. If None, uses FALLBACK_MODELS chain.
+            domain: Research domain for prompt customization.
         """
         self.model_id = model_id
+        self.domain = domain
         # Will automatically use HF_TOKEN from env if available
         self.client = InferenceClient()
         self.call_count = 0
@@ -269,6 +284,7 @@ class HFInferenceJudgeHandler:
                 iteration,
                 max_iterations,
                 total_evidence_count=len(evidence),
+                domain=self.domain,
             )
         else:
             user_prompt = format_empty_evidence_prompt(question)
@@ -314,12 +330,13 @@ class HFInferenceJudgeHandler:
     async def _call_with_retry(self, model: str, prompt: str, question: str) -> JudgeAssessment:
         """Make API call with retry logic using chat_completion."""
         loop = asyncio.get_running_loop()
+        system_prompt = get_system_prompt(self.domain)
 
         # Build messages for chat_completion (model-agnostic)
         messages = [
             {
                 "role": "system",
-                "content": f"""{SYSTEM_PROMPT}
+                "content": f"""{system_prompt}
 
 IMPORTANT: Respond with ONLY valid JSON matching this schema:
 {{
@@ -420,7 +437,9 @@ IMPORTANT: Respond with ONLY valid JSON matching this schema:
         return None
 
     def _create_quota_exhausted_assessment(
-        self, question: str, evidence: list[Evidence]
+        self,
+        question: str,
+        evidence: list[Evidence],
     ) -> JudgeAssessment:
         """Create an assessment that stops the loop when quota is exhausted."""
         findings = _extract_titles_from_evidence(
@@ -455,7 +474,9 @@ IMPORTANT: Respond with ONLY valid JSON matching this schema:
         )
 
     def _create_forced_synthesis_assessment(
-        self, question: str, evidence: list[Evidence]
+        self,
+        question: str,
+        evidence: list[Evidence],
     ) -> JudgeAssessment:
         """Force synthesis after repeated failures to prevent infinite loops."""
         findings = _extract_titles_from_evidence(
@@ -524,14 +545,20 @@ class MockJudgeHandler:
     to provide a useful demo experience without requiring API keys.
     """
 
-    def __init__(self, mock_response: JudgeAssessment | None = None) -> None:
+    def __init__(
+        self,
+        mock_response: JudgeAssessment | None = None,
+        domain: ResearchDomain | str | None = None,
+    ) -> None:
         """
         Initialize with optional mock response.
 
         Args:
             mock_response: The assessment to return. If None, extracts from evidence.
+            domain: Research domain (ignored in mock but kept for interface compatibility).
         """
         self.mock_response = mock_response
+        self.domain = domain
         self.call_count = 0
         self.last_question: str | None = None
         self.last_evidence: list[Evidence] | None = None

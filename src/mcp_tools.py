@@ -7,6 +7,7 @@ Each function follows the MCP tool contract:
 - Formatted string returns
 """
 
+from src.config.domain import get_domain_config
 from src.tools.clinicaltrials import ClinicalTrialsTool
 from src.tools.europepmc import EuropePMCTool
 from src.tools.pubmed import PubMedTool
@@ -17,27 +18,29 @@ _trials = ClinicalTrialsTool()
 _europepmc = EuropePMCTool()
 
 
-async def search_pubmed(query: str, max_results: int = 10) -> str:
+async def search_pubmed(query: str, max_results: int = 10, domain: str = "general") -> str:
     """Search PubMed for peer-reviewed biomedical literature.
 
     Searches NCBI PubMed database for scientific papers matching your query.
     Returns titles, authors, abstracts, and citation information.
 
     Args:
-        query: Search query (e.g., "metformin alzheimer", "drug repurposing cancer")
+        query: Search query (e.g., "metformin alzheimer")
         max_results: Maximum results to return (1-50, default 10)
+        domain: Research domain (general, drug_repurposing, sexual_health)
 
     Returns:
         Formatted search results with paper titles, authors, dates, and abstracts
     """
     max_results = max(1, min(50, max_results))  # Clamp to valid range
+    config = get_domain_config(domain)
 
     results = await _pubmed.search(query, max_results)
 
     if not results:
         return f"No PubMed results found for: {query}"
 
-    formatted = [f"## PubMed Results for: {query}\n"]
+    formatted = [f"## PubMed Results for: {query} ({config.name})\n"]
     for i, evidence in enumerate(results, 1):
         formatted.append(f"### {i}. {evidence.citation.title}")
         formatted.append(f"**Authors**: {', '.join(evidence.citation.authors[:3])}")
@@ -109,15 +112,16 @@ async def search_europepmc(query: str, max_results: int = 10) -> str:
     return "\n".join(formatted)
 
 
-async def search_all_sources(query: str, max_per_source: int = 5) -> str:
+async def search_all_sources(query: str, max_per_source: int = 5, domain: str = "general") -> str:
     """Search all biomedical sources simultaneously.
 
     Performs parallel search across PubMed, ClinicalTrials.gov, and Europe PMC.
-    This is the most comprehensive search option for drug repurposing research.
+    This is the most comprehensive search option for biomedical research.
 
     Args:
         query: Search query (e.g., "metformin alzheimer", "aspirin cancer prevention")
         max_per_source: Maximum results per source (1-20, default 5)
+        domain: Research domain (general, drug_repurposing, sexual_health)
 
     Returns:
         Combined results from all sources with source labels
@@ -125,9 +129,10 @@ async def search_all_sources(query: str, max_per_source: int = 5) -> str:
     import asyncio
 
     max_per_source = max(1, min(20, max_per_source))
+    config = get_domain_config(domain)
 
     # Run all searches in parallel
-    pubmed_task = search_pubmed(query, max_per_source)
+    pubmed_task = search_pubmed(query, max_per_source, domain)
     trials_task = search_clinical_trials(query, max_per_source)
     europepmc_task = search_europepmc(query, max_per_source)
 
@@ -135,7 +140,7 @@ async def search_all_sources(query: str, max_per_source: int = 5) -> str:
         pubmed_task, trials_task, europepmc_task, return_exceptions=True
     )
 
-    formatted = [f"# Comprehensive Search: {query}\n"]
+    formatted = [f"# Comprehensive Search: {query} ({config.name})\n"]
 
     # Add each result section (handle exceptions gracefully)
     if isinstance(pubmed_results, str):
@@ -161,10 +166,10 @@ async def analyze_hypothesis(
     condition: str,
     evidence_summary: str,
 ) -> str:
-    """Perform statistical analysis of drug repurposing hypothesis using Modal.
+    """Perform statistical analysis of research hypothesis using Modal.
 
     Executes AI-generated Python code in a secure Modal sandbox to analyze
-    the statistical evidence for a drug repurposing hypothesis.
+    the statistical evidence for a research hypothesis.
 
     Args:
         drug: The drug being evaluated (e.g., "metformin")

@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import structlog
 
+from src.config.domain import ResearchDomain, get_domain_config
 from src.orchestrators.base import JudgeHandlerProtocol, SearchHandlerProtocol
 from src.utils.config import settings
 from src.utils.models import (
@@ -61,6 +62,7 @@ class Orchestrator:
         config: OrchestratorConfig | None = None,
         enable_analysis: bool = False,
         enable_embeddings: bool = True,
+        domain: ResearchDomain | str | None = None,
     ):
         """
         Initialize the orchestrator.
@@ -71,6 +73,7 @@ class Orchestrator:
             config: Optional configuration (uses defaults if not provided)
             enable_analysis: Whether to perform statistical analysis (if Modal available)
             enable_embeddings: Whether to use semantic search for ranking/dedup
+            domain: Research domain for customization
         """
         self.search = search_handler
         self.judge = judge_handler
@@ -78,6 +81,8 @@ class Orchestrator:
         self.history: list[dict[str, Any]] = []
         self._enable_analysis = enable_analysis and settings.modal_available
         self._enable_embeddings = enable_embeddings
+        self.domain = domain
+        self.domain_config = get_domain_config(domain)
 
         # Lazy-load services (typed for IDE support)
         self._analyzer: StatisticalAnalyzer | None = None
@@ -473,7 +478,7 @@ class Orchestrator:
             ]
         )
 
-        return f"""## Drug Repurposing Analysis
+        return f"""{self.domain_config.report_title}
 
 ### Question
 {query}
@@ -561,7 +566,7 @@ class Orchestrator:
         )
         comb_strength = "Sufficient" if combined_score >= 12 else "Partial"
 
-        return f"""## Drug Repurposing Analysis
+        return f"""{self.domain_config.report_title}
 
 ### Research Question
 {query}

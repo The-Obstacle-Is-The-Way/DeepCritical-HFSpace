@@ -1,4 +1,4 @@
-"""Gradio UI for DeepBoner agent with MCP server support."""
+"Gradio UI for DeepBoner agent with MCP server support."
 
 import os
 from collections.abc import AsyncGenerator
@@ -11,6 +11,7 @@ from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from src.agent_factory.judges import HFInferenceJudgeHandler, JudgeHandler, MockJudgeHandler
+from src.config.domain import ResearchDomain
 from src.orchestrators import create_orchestrator
 from src.tools.clinicaltrials import ClinicalTrialsTool
 from src.tools.europepmc import EuropePMCTool
@@ -26,6 +27,7 @@ def configure_orchestrator(
     use_mock: bool = False,
     mode: str = "simple",
     user_api_key: str | None = None,
+    domain: str | ResearchDomain | None = None,
 ) -> tuple[Any, str]:
     """
     Create an orchestrator instance.
@@ -34,6 +36,7 @@ def configure_orchestrator(
         use_mock: If True, use MockJudgeHandler (no API key needed)
         mode: Orchestrator mode ("simple" or "advanced")
         user_api_key: Optional user-provided API key (BYOK) - auto-detects provider
+        domain: Research domain (e.g., "general", "sexual_health")
 
     Returns:
         Tuple of (Orchestrator instance, backend_name)
@@ -56,7 +59,7 @@ def configure_orchestrator(
 
     # 1. Forced Mock (Unit Testing)
     if use_mock:
-        judge_handler = MockJudgeHandler()
+        judge_handler = MockJudgeHandler(domain=domain)
         backend_info = "Mock (Testing)"
 
     # 2. Paid API Key (User provided or Env)
@@ -77,20 +80,20 @@ def configure_orchestrator(
             raise ConfigurationError(
                 "Invalid API key format. Expected sk-... (OpenAI) or sk-ant-... (Anthropic)"
             )
-        judge_handler = JudgeHandler(model=model)
+        judge_handler = JudgeHandler(model=model, domain=domain)
 
     # 3. Environment API Keys (fallback)
     elif os.getenv("OPENAI_API_KEY"):
-        judge_handler = JudgeHandler(model=None)  # Uses env key
+        judge_handler = JudgeHandler(model=None, domain=domain)  # Uses env key
         backend_info = "Paid API (OpenAI from env)"
 
     elif os.getenv("ANTHROPIC_API_KEY"):
-        judge_handler = JudgeHandler(model=None)  # Uses env key
+        judge_handler = JudgeHandler(model=None, domain=domain)  # Uses env key
         backend_info = "Paid API (Anthropic from env)"
 
     # 4. Free Tier (HuggingFace Inference)
     else:
-        judge_handler = HFInferenceJudgeHandler()
+        judge_handler = HFInferenceJudgeHandler(domain=domain)
         backend_info = "Free Tier (Llama 3.1 / Mistral)"
 
     orchestrator = create_orchestrator(
@@ -99,6 +102,7 @@ def configure_orchestrator(
         config=config,
         mode=mode,  # type: ignore
         api_key=user_api_key,
+        domain=domain,
     )
 
     return orchestrator, backend_info
@@ -108,6 +112,7 @@ async def research_agent(
     message: str,
     history: list[dict[str, Any]],
     mode: str = "simple",
+    domain: str = "general",
     api_key: str = "",
     api_key_state: str = "",
 ) -> AsyncGenerator[str, None]:
@@ -118,6 +123,7 @@ async def research_agent(
         message: User's research question
         history: Chat history (Gradio format)
         mode: Orchestrator mode ("simple" or "advanced")
+        domain: Research domain
         api_key: Optional user-provided API key (BYOK - auto-detects provider)
         api_key_state: Persistent API key state (survives example clicks)
 
@@ -132,6 +138,7 @@ async def research_agent(
     # Gradio passes None for missing example columns, overriding defaults
     api_key_str = api_key or ""
     api_key_state_str = api_key_state or ""
+    domain_str = domain or "general"
 
     # BUG FIX: Prefer freshly-entered key, then persisted state
     user_api_key = (api_key_str.strip() or api_key_state_str.strip()) or None
@@ -172,11 +179,12 @@ async def research_agent(
             use_mock=False,  # Never use mock in production - HF Inference is the free fallback
             mode=mode,
             user_api_key=user_api_key,
+            domain=domain_str,
         )
 
         # Immediate backend info + loading feedback so user knows something is happening
         yield (
-            f"🧠 **Backend**: {backend_name}\n\n"
+            f"🧠 **Backend**: {backend_name} | **Domain**: {domain_str.title()}\n\n"
             "⏳ **Processing...** Searching PubMed, ClinicalTrials.gov, Europe PMC, OpenAlex...\n"
         )
 
@@ -231,34 +239,39 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
     api_key_state = gr.State("")
 
     # 1. Unwrapped ChatInterface (Fixes Accordion Bug)
+    description = (
+        "*AI-Powered Research Agent — searches PubMed, "
+        "ClinicalTrials.gov, Europe PMC & OpenAlex*\n\n"
+        "Deep research for sexual wellness, ED treatments, hormone therapy, "
+        "libido, and reproductive health - for all genders.\n\n"
+        "---\n"
+        "*Research tool only — not for medical advice.*  \n"
+        "**MCP Server Active**: Connect Claude Desktop to `/gradio_api/mcp/`"
+    )
+
     demo = gr.ChatInterface(
         fn=research_agent,
         title="🍆 DeepBoner",
-        description=(
-            "*AI-Powered Sexual Health Research Agent — searches PubMed, "
-            "ClinicalTrials.gov, Europe PMC & OpenAlex*\n\n"
-            "Deep research for sexual wellness, ED treatments, hormone therapy, "
-            "libido, and reproductive health - for all genders.\n\n"
-            "---\n"
-            "*Research tool only — not for medical advice.*  \n"
-            "**MCP Server Active**: Connect Claude Desktop to `/gradio_api/mcp/`"
-        ),
+        description=description,
         examples=[
             [
                 "What drugs improve female libido post-menopause?",
                 "simple",
+                "sexual_health",
                 None,
                 None,
             ],
             [
-                "Clinical trials for erectile dysfunction alternatives to PDE5 inhibitors?",
-                "advanced",
-                None,
-                None,
-            ],
-            [
-                "Testosterone therapy for Hypoactive Sexual Desire Disorder?",
+                "Metformin mechanism for Alzheimer's?",
                 "simple",
+                "general",
+                None,
+                None,
+            ],
+            [
+                "Clinical trials for PDE5 inhibitors alternatives?",
+                "advanced",
+                "sexual_health",
                 None,
                 None,
             ],
@@ -271,6 +284,12 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
                 label="Orchestrator Mode",
                 info="⚡ Simple: Free/Any | 🔬 Advanced: OpenAI (Deep Research)",
             ),
+            gr.Dropdown(
+                choices=[d.value for d in ResearchDomain],
+                value="general",
+                label="Research Domain",
+                info="Select research focus area (adjusts prompts)",
+            ),
             gr.Textbox(
                 label="🔑 API Key (Optional)",
                 placeholder="sk-... (OpenAI) or sk-ant-... (Anthropic)",
@@ -280,9 +299,6 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
             api_key_state,  # Hidden state component for persistence
         ],
     )
-
-    # API key persists because examples include [message, mode, None, None].
-    # The explicit None values tell Gradio to NOT overwrite those inputs.
 
     return demo, additional_inputs_accordion
 
