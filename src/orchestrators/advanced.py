@@ -40,6 +40,7 @@ from src.clients.base import BaseChatClient
 from src.clients.factory import get_chat_client
 from src.config.domain import ResearchDomain, get_domain_config
 from src.orchestrators.base import OrchestratorProtocol
+from src.utils.config import settings
 from src.utils.models import AgentEvent
 from src.utils.service_loader import get_embedding_service_if_available
 
@@ -73,6 +74,7 @@ class AdvancedOrchestrator(OrchestratorProtocol):
         provider: str | None = None,
         api_key: str | None = None,
         domain: ResearchDomain | str | None = None,
+        timeout_seconds: float | None = None,
     ) -> None:
         """Initialize the advanced orchestrator.
 
@@ -82,10 +84,13 @@ class AdvancedOrchestrator(OrchestratorProtocol):
             provider: Optional provider override ("openai", "huggingface").
             api_key: Optional API key override.
             domain: Research domain for customization.
+            timeout_seconds: Optional timeout override (defaults to settings).
         """
         self._max_rounds = max_rounds
         self.domain = domain or ResearchDomain.SEXUAL_HEALTH
         self.domain_config = get_domain_config(self.domain)
+        self._timeout_seconds = timeout_seconds or settings.advanced_timeout
+        
         self.logger = logger.bind(orchestrator="advanced")
 
         # Use provided client or create one via factory

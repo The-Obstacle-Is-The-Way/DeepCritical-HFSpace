@@ -40,9 +40,6 @@ from src.orchestrators.base import (
 # Factory (creational pattern)
 from src.orchestrators.factory import create_orchestrator
 
-# Orchestrators (Strategy Pattern implementations)
-from src.orchestrators.simple import Orchestrator
-
 if TYPE_CHECKING:
     from src.orchestrators.advanced import AdvancedOrchestrator
     from src.orchestrators.hierarchical import HierarchicalOrchestrator
@@ -101,7 +98,6 @@ def get_magentic_orchestrator() -> type[AdvancedOrchestrator]:
 
 __all__ = [
     "JudgeHandlerProtocol",
-    "Orchestrator",
     "OrchestratorProtocol",
     "SearchHandlerProtocol",
     "create_orchestrator",

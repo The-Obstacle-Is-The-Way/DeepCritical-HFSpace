@@ -1,6 +1,6 @@
 """Tests for AdvancedOrchestrator configuration."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import ValidationError
@@ -13,29 +13,33 @@ from src.utils.config import Settings
 class TestAdvancedOrchestratorConfig:
     """Tests for configuration options."""
 
-    def test_default_max_rounds_is_five(self) -> None:
+    @patch("src.orchestrators.advanced.get_chat_client")
+    def test_default_max_rounds_is_five(self, mock_get_client) -> None:
         """Default max_rounds should be 5 from settings."""
-        with patch("src.orchestrators.advanced.check_magentic_requirements"):
-            orch = AdvancedOrchestrator()
-            assert orch._max_rounds == 5
+        mock_get_client.return_value = MagicMock()
+        orch = AdvancedOrchestrator()
+        assert orch._max_rounds == 5
 
-    def test_explicit_max_rounds_overrides_settings(self) -> None:
+    @patch("src.orchestrators.advanced.get_chat_client")
+    def test_explicit_max_rounds_overrides_settings(self, mock_get_client) -> None:
         """Explicit parameter should override settings."""
-        with patch("src.orchestrators.advanced.check_magentic_requirements"):
-            orch = AdvancedOrchestrator(max_rounds=7)
-            assert orch._max_rounds == 7
+        mock_get_client.return_value = MagicMock()
+        orch = AdvancedOrchestrator(max_rounds=7)
+        assert orch._max_rounds == 7
 
-    def test_timeout_default_is_five_minutes(self) -> None:
+    @patch("src.orchestrators.advanced.get_chat_client")
+    def test_timeout_default_is_five_minutes(self, mock_get_client) -> None:
         """Default timeout should be 300s (5 min) from settings."""
-        with patch("src.orchestrators.advanced.check_magentic_requirements"):
-            orch = AdvancedOrchestrator()
-            assert orch._timeout_seconds == 300.0
+        mock_get_client.return_value = MagicMock()
+        orch = AdvancedOrchestrator()
+        assert orch._timeout_seconds == 300.0
 
-    def test_explicit_timeout_overrides_settings(self) -> None:
+    @patch("src.orchestrators.advanced.get_chat_client")
+    def test_explicit_timeout_overrides_settings(self, mock_get_client) -> None:
         """Explicit timeout parameter should override settings."""
-        with patch("src.orchestrators.advanced.check_magentic_requirements"):
-            orch = AdvancedOrchestrator(timeout_seconds=120.0)
-            assert orch._timeout_seconds == 120.0
+        mock_get_client.return_value = MagicMock()
+        orch = AdvancedOrchestrator(timeout_seconds=120.0)
+        assert orch._timeout_seconds == 120.0
 
 
 @pytest.mark.unit
