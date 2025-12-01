@@ -29,12 +29,14 @@ def mock_handlers():
     return MagicMock(), MagicMock()
 
 
-def test_create_orchestrator_simple_maps_to_advanced(mock_settings, mock_handlers, mock_advanced_cls):
+def test_create_orchestrator_simple_maps_to_advanced(
+    mock_settings, mock_handlers, mock_advanced_cls
+):
     """Test that 'simple' mode explicitly maps to AdvancedOrchestrator."""
     search, judge = mock_handlers
     # Pass handlers (they are ignored but shouldn't crash)
     orch = create_orchestrator(search_handler=search, judge_handler=judge, mode="simple")
-    
+
     # Verify AdvancedOrchestrator was created
     mock_advanced_cls.assert_called_once()
     assert orch == mock_advanced_cls.return_value
@@ -51,7 +53,7 @@ def test_create_orchestrator_advanced_explicit(mock_settings, mock_handlers, moc
 def test_create_orchestrator_auto_advanced(mock_settings, mock_advanced_cls):
     """Test auto-detect defaults to Advanced (Unified)."""
     # Even with no keys (handled by factory internally), orchestrator factory returns Advanced
-    mock_settings.has_openai_key = False # Simulate no key
+    mock_settings.has_openai_key = False  # Simulate no key
 
     orch = create_orchestrator()
     mock_advanced_cls.assert_called_once()

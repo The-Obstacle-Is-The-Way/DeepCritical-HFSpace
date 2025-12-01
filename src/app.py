@@ -13,7 +13,7 @@ from src.utils.exceptions import ConfigurationError
 from src.utils.models import OrchestratorConfig
 from src.utils.service_loader import warmup_services
 
-OrchestratorMode = Literal["simple", "magentic", "advanced", "hierarchical"]
+OrchestratorMode = Literal["advanced", "hierarchical"]  # Unified Architecture (SPEC-16)
 
 
 # CSS to force dark mode on API key input
@@ -45,16 +45,19 @@ CUSTOM_CSS = """
 
 def configure_orchestrator(
     use_mock: bool = False,
-    mode: OrchestratorMode = "simple",
+    mode: OrchestratorMode = "advanced",
     user_api_key: str | None = None,
     domain: str | ResearchDomain | None = None,
 ) -> tuple[Any, str]:
     """
     Create an orchestrator instance.
 
+    Unified Architecture (SPEC-16): All users get Advanced Mode.
+    Backend auto-selects: OpenAI (if key) → HuggingFace (free fallback).
+
     Args:
         use_mock: If True, use MockJudgeHandler (no API key needed)
-        mode: Orchestrator mode ("simple" or "advanced")
+        mode: Orchestrator mode (default "advanced", "hierarchical" for sub-iteration)
         user_api_key: Optional user-provided API key (BYOK) - auto-detects provider
         domain: Research domain (defaults to "sexual_health")
 
@@ -106,19 +109,17 @@ def configure_orchestrator(
 
 
 def _validate_inputs(
-    mode: str,
     api_key: str | None,
     api_key_state: str | None,
-) -> tuple[OrchestratorMode, str | None, bool]:
-    """Validate inputs and determine mode/key status.
+) -> tuple[str | None, bool]:
+    """Validate inputs and determine key status.
+
+    Unified Architecture (SPEC-16): Mode is always "advanced".
+    Backend auto-selects based on available API keys.
 
     Returns:
-        Tuple of (validated_mode, effective_user_key, has_paid_key)
+        Tuple of (effective_user_key, has_paid_key)
     """
-    # Validate mode
-    valid_modes: set[str] = {"simple", "magentic", "advanced", "hierarchical"}
-    mode_validated: OrchestratorMode = mode if mode in valid_modes else "simple"  # type: ignore[assignment]
-
     # Determine effective key
     user_api_key = (api_key or api_key_state or "").strip() or None
 
@@ -127,16 +128,12 @@ def _validate_inputs(
     has_anthropic = settings.has_anthropic_key
     has_paid_key = has_openai or has_anthropic or bool(user_api_key)
 
-    # With Unified Architecture (SPEC-16), Advanced Mode works for everyone.
-    # No fallback needed.
-
-    return mode_validated, user_api_key, has_paid_key
+    return user_api_key, has_paid_key
 
 
 async def research_agent(
     message: str,
     history: list[dict[str, Any]],
-    mode: str = "simple",  # Gradio passes strings; validated below
     domain: str = "sexual_health",
     api_key: str = "",
     api_key_state: str = "",
@@ -145,10 +142,12 @@ async def research_agent(
     """
     Gradio chat function that runs the research agent.
 
+    Unified Architecture (SPEC-16): Always uses Advanced Mode.
+    Backend auto-selects: OpenAI (if key) → HuggingFace (free fallback).
+
     Args:
         message: User's research question
         history: Chat history (Gradio format)
-        mode: Orchestrator mode ("simple" or "advanced")
         domain: Research domain
         api_key: Optional user-provided API key (BYOK - auto-detects provider)
         api_key_state: Persistent API key state (survives example clicks)
@@ -164,8 +163,8 @@ async def research_agent(
     # BUG FIX: Handle None values from Gradio example caching
     domain_str = domain or "sexual_health"
 
-    # Validate inputs using helper to reduce complexity
-    mode_validated, user_api_key, has_paid_key = _validate_inputs(mode, api_key, api_key_state)
+    # Validate inputs (SPEC-16: mode is always "advanced")
+    user_api_key, has_paid_key = _validate_inputs(api_key, api_key_state)
 
     if not has_paid_key:
         yield (
@@ -179,9 +178,10 @@ async def research_agent(
 
     try:
         # use_mock=False - let configure_orchestrator decide based on available keys
+        # SPEC-16: mode is always "advanced" (unified architecture)
         orchestrator, backend_name = configure_orchestrator(
             use_mock=False,
-            mode=mode_validated,
+            mode="advanced",
             user_api_key=user_api_key,
             domain=domain_str,
         )
@@ -253,9 +253,7 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
     Returns:
         Configured Gradio Blocks interface with MCP server enabled
     """
-    additional_inputs_accordion = gr.Accordion(
-        label="⚙️ Mode & API Key (Free tier works!)", open=False
-    )
+    additional_inputs_accordion = gr.Accordion(label="⚙️ API Key (Free tier works!)", open=False)
 
     # BUG FIX: Add gr.State for API key persistence across example clicks
     api_key_state = gr.State("")
@@ -283,23 +281,22 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
         title="🍆 DeepBoner",
         description=description,
         examples=[
+            # SPEC-16: Mode is always "advanced" (unified architecture)
+            # Examples now only need: [question, domain, api_key, api_key_state]
             [
                 "What drugs improve female libido post-menopause?",
-                "simple",
                 "sexual_health",
                 None,
                 None,
             ],
             [
                 "Testosterone therapy for hypoactive sexual desire disorder?",
-                "simple",
                 "sexual_health",
                 None,
                 None,
             ],
             [
                 "Clinical trials for PDE5 inhibitors alternatives?",
-                "advanced",
                 "sexual_health",
                 None,
                 None,
@@ -307,12 +304,8 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
         ],
         additional_inputs_accordion=additional_inputs_accordion,
         additional_inputs=[
-            gr.Radio(
-                choices=["simple", "advanced"],
-                value="simple",
-                label="Orchestrator Mode",
-                info="⚡ Simple: Free/Any | 🔬 Advanced: OpenAI (Deep Research)",
-            ),
+            # SPEC-16: Mode toggle removed - everyone gets Advanced Mode
+            # Backend auto-selects: OpenAI (if key) → HuggingFace (free fallback)
             gr.Dropdown(
                 choices=[d.value for d in ResearchDomain],
                 value="sexual_health",

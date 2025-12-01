@@ -19,12 +19,6 @@ from src.orchestrators.base import (
     OrchestratorProtocol,
     SearchHandlerProtocol,
 )
-from src.config.domain import ResearchDomain
-from src.orchestrators.base import (
-    JudgeHandlerProtocol,
-    OrchestratorProtocol,
-    SearchHandlerProtocol,
-)
 from src.utils.config import settings
 from src.utils.models import OrchestratorConfig
 
@@ -66,6 +60,7 @@ def create_orchestrator(
 
     if effective_mode == "hierarchical":
         from src.orchestrators.hierarchical import HierarchicalOrchestrator
+
         return HierarchicalOrchestrator(config=effective_config, domain=domain)
 
     # Default: Advanced Mode (Unified)
@@ -89,7 +84,7 @@ def _determine_mode(explicit_mode: str | None) -> str:
     """
     if explicit_mode == "hierarchical":
         return "hierarchical"
-    
+
     # "simple" is deprecated -> upgrade to "advanced"
     # "magentic" is alias for "advanced"
     return "advanced"
