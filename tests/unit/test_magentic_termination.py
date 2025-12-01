@@ -147,4 +147,9 @@ async def test_termination_on_timeout(mock_magentic_requirements):
 
         # New behavior: synthesis is attempted on timeout
         # The message contains the report, so we check the reason code
-        assert last_event.data.get("reason") in ("timeout", "timeout_synthesis")
+        # In unit tests without API keys, synthesis will fail -> "timeout_synthesis_failed"
+        assert last_event.data.get("reason") in (
+            "timeout",
+            "timeout_synthesis",
+            "timeout_synthesis_failed",  # Expected in unit tests (no API key)
+        )
