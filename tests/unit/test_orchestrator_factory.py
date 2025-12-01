@@ -6,7 +6,7 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-from src.orchestrators import Orchestrator, create_orchestrator
+from src.orchestrators import create_orchestrator
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def mock_settings():
 
 
 @pytest.fixture
-def mock_magentic_cls():
+def mock_advanced_cls():
     with patch("src.orchestrators.factory._get_advanced_orchestrator_class") as mock:
         # The mock returns a class (callable), which returns an instance
         mock_class = MagicMock()
@@ -29,37 +29,32 @@ def mock_handlers():
     return MagicMock(), MagicMock()
 
 
-def test_create_orchestrator_simple_explicit(mock_settings, mock_handlers):
-    """Test explicit simple mode."""
+def test_create_orchestrator_simple_maps_to_advanced(
+    mock_settings, mock_handlers, mock_advanced_cls
+):
+    """Test that 'simple' mode explicitly maps to AdvancedOrchestrator."""
     search, judge = mock_handlers
+    # Pass handlers (they are ignored but shouldn't crash)
     orch = create_orchestrator(search_handler=search, judge_handler=judge, mode="simple")
-    assert isinstance(orch, Orchestrator)
+
+    # Verify AdvancedOrchestrator was created
+    mock_advanced_cls.assert_called_once()
+    assert orch == mock_advanced_cls.return_value
 
 
-def test_create_orchestrator_advanced_explicit(mock_settings, mock_handlers, mock_magentic_cls):
+def test_create_orchestrator_advanced_explicit(mock_settings, mock_handlers, mock_advanced_cls):
     """Test explicit advanced mode."""
-    # Ensure has_openai_key is True so it doesn't error if we add checks
-    mock_settings.has_openai_key = True
-
     orch = create_orchestrator(mode="advanced")
     # verify instantiated
-    mock_magentic_cls.assert_called_once()
-    assert orch == mock_magentic_cls.return_value
+    mock_advanced_cls.assert_called_once()
+    assert orch == mock_advanced_cls.return_value
 
 
-def test_create_orchestrator_auto_advanced(mock_settings, mock_magentic_cls):
-    """Test auto-detect advanced mode when OpenAI key exists."""
-    mock_settings.has_openai_key = True
+def test_create_orchestrator_auto_advanced(mock_settings, mock_advanced_cls):
+    """Test auto-detect defaults to Advanced (Unified)."""
+    # Even with no keys (handled by factory internally), orchestrator factory returns Advanced
+    mock_settings.has_openai_key = False  # Simulate no key
 
     orch = create_orchestrator()
-    mock_magentic_cls.assert_called_once()
-    assert orch == mock_magentic_cls.return_value
-
-
-def test_create_orchestrator_auto_simple(mock_settings, mock_handlers):
-    """Test auto-detect simple mode when no paid keys."""
-    mock_settings.has_openai_key = False
-
-    search, judge = mock_handlers
-    orch = create_orchestrator(search_handler=search, judge_handler=judge)
-    assert isinstance(orch, Orchestrator)
+    mock_advanced_cls.assert_called_once()
+    assert orch == mock_advanced_cls.return_value

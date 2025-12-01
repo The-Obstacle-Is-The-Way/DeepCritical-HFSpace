@@ -122,7 +122,8 @@ def format_user_prompt(
     NOTE: Evidence should be pre-selected using select_evidence_for_judge().
     This function assumes evidence is already capped.
     """
-    total_count = total_evidence_count or len(evidence)
+    # Use explicit None check - 0 is a valid count (empty evidence)
+    total_count = total_evidence_count if total_evidence_count is not None else len(evidence)
     max_content_len = 1500
     scoring_prompt = get_scoring_prompt(domain)
 

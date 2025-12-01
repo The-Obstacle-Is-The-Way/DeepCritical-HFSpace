@@ -28,7 +28,6 @@ from agent_framework import (
     MagenticOrchestratorMessageEvent,
     WorkflowOutputEvent,
 )
-from agent_framework.openai import OpenAIChatClient
 
 from src.agents.magentic_agents import (
     create_hypothesis_agent,
@@ -37,10 +36,11 @@ from src.agents.magentic_agents import (
     create_search_agent,
 )
 from src.agents.state import init_magentic_state
+from src.clients.base import BaseChatClient
+from src.clients.factory import get_chat_client
 from src.config.domain import ResearchDomain, get_domain_config
 from src.orchestrators.base import OrchestratorProtocol
 from src.utils.config import settings
-from src.utils.llm_factory import check_magentic_requirements
 from src.utils.models import AgentEvent
 from src.utils.service_loader import get_embedding_service_if_available
 
@@ -69,45 +69,50 @@ class AdvancedOrchestrator(OrchestratorProtocol):
 
     def __init__(
         self,
-        max_rounds: int | None = None,
-        chat_client: OpenAIChatClient | None = None,
+        max_rounds: int = 5,
+        chat_client: BaseChatClient | None = None,
+        provider: str | None = None,
         api_key: str | None = None,
-        timeout_seconds: float = 300.0,
         domain: ResearchDomain | str | None = None,
+        timeout_seconds: float | None = None,
     ) -> None:
-        """Initialize orchestrator.
+        """Initialize the advanced orchestrator.
 
         Args:
-            max_rounds: Maximum coordination rounds
-            chat_client: Optional shared chat client for agents
-            api_key: Optional OpenAI API key (for BYOK)
-            timeout_seconds: Maximum workflow duration (default: 5 minutes)
-            domain: Research domain for customization
+            max_rounds: Maximum number of coordination rounds.
+            chat_client: Optional pre-configured chat client.
+            provider: Optional provider override ("openai", "huggingface").
+            api_key: Optional API key override.
+            domain: Research domain for customization.
+            timeout_seconds: Optional timeout override (defaults to settings).
         """
-        # Validate requirements only if no key provided
-        if not chat_client and not api_key:
-            check_magentic_requirements()
+        self._max_rounds = max_rounds
+        self.domain = domain or ResearchDomain.SEXUAL_HEALTH
+        self.domain_config = get_domain_config(self.domain)
+        self._timeout_seconds = timeout_seconds or settings.advanced_timeout
 
-        # Use pydantic-validated settings (fails fast on invalid config)
-        self._max_rounds = max_rounds if max_rounds is not None else settings.advanced_max_rounds
-        self._timeout_seconds = (
-            timeout_seconds if timeout_seconds != 300.0 else settings.advanced_timeout
+        self.logger = logger.bind(orchestrator="advanced")
+
+        # Use provided client or create one via factory
+        self._chat_client = chat_client or get_chat_client(
+            provider=provider,
+            api_key=api_key,
         )
-        self.domain = domain
-        self.domain_config = get_domain_config(domain)
-        self._chat_client: OpenAIChatClient | None
 
-        if chat_client:
-            self._chat_client = chat_client
-        elif api_key:
-            # Create client with user provided key
-            self._chat_client = OpenAIChatClient(
-                model_id=settings.openai_model,
-                api_key=api_key,
-            )
-        else:
-            # Fallback to env vars (will fail later if requirements check wasn't run/passed)
-            self._chat_client = None
+        # Event stream for UI updates
+        self._events: list[AgentEvent] = []
+
+        # Initialize services lazily
+        self._embedding_service: EmbeddingServiceProtocol | None = None
+
+        # Track execution statistics
+        self.stats = {
+            "rounds": 0,
+            "searches": 0,
+            "hypotheses": 0,
+            "reports": 0,
+            "errors": 0,
+        }
 
     def _init_embedding_service(self) -> "EmbeddingServiceProtocol | None":
         """Initialize embedding service if available."""
@@ -122,10 +127,7 @@ class AdvancedOrchestrator(OrchestratorProtocol):
         report_agent = create_report_agent(self._chat_client, domain=self.domain)
 
         # Manager chat client (orchestrates the agents)
-        manager_client = self._chat_client or OpenAIChatClient(
-            model_id=settings.openai_model,  # Use configured model
-            api_key=settings.openai_api_key,
-        )
+        manager_client = self._chat_client
 
         return (
             MagenticBuilder()

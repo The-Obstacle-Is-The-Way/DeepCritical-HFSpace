@@ -49,7 +49,8 @@ async def test_streaming_events_are_buffered_not_spammed():
     try:
         # Run the research agent
         results = []
-        async for result in research_agent("test query", [], mode="simple", api_key=""):
+        # SPEC-16: mode parameter removed (unified architecture)
+        async for result in research_agent("test query", [], api_key=""):
             results.append(result)
 
         # Verify that we DO see streaming updates (for UX responsiveness)

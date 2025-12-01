@@ -36,10 +36,10 @@ async def test_research_agent_handles_none_parameters():
     try:
         # This should NOT raise AttributeError: 'NoneType' object has no attribute 'strip'
         results = []
+        # SPEC-16: mode parameter removed (unified architecture)
         async for result in research_agent(
             message="test query",
             history=[],
-            mode="simple",
             api_key=None,  # Simulating Gradio passing None
             api_key_state=None,  # Simulating Gradio passing None
         ):
@@ -71,10 +71,10 @@ async def test_research_agent_handles_empty_string_parameters():
 
     try:
         results = []
+        # SPEC-16: mode parameter removed (unified architecture)
         async for result in research_agent(
             message="test query",
             history=[],
-            mode="simple",
             api_key="",  # Normal empty string
             api_key_state="",  # Normal empty string
         ):

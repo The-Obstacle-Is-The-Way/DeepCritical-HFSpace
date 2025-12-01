@@ -19,7 +19,6 @@ from src.orchestrators.base import (
     OrchestratorProtocol,
     SearchHandlerProtocol,
 )
-from src.orchestrators.simple import Orchestrator
 from src.utils.config import settings
 from src.utils.models import OrchestratorConfig
 
@@ -30,27 +29,15 @@ logger = structlog.get_logger()
 
 
 def _get_advanced_orchestrator_class() -> type["AdvancedOrchestrator"]:
-    """Import AdvancedOrchestrator lazily to avoid hard dependency.
-
-    This allows the simple mode to work without agent-framework-core installed.
-
-    Returns:
-        The AdvancedOrchestrator class
-
-    Raises:
-        ValueError: If agent-framework-core is not installed
-    """
+    """Import AdvancedOrchestrator lazily."""
     try:
         from src.orchestrators.advanced import AdvancedOrchestrator
 
         return AdvancedOrchestrator
     except ImportError as e:
         logger.error("Failed to import AdvancedOrchestrator", error=str(e))
-        raise ValueError(
-            "Advanced mode requires agent-framework-core. "
-            "Install with: pip install agent-framework-core. "
-            "Or use mode='simple' instead."
-        ) from e
+        # With unified architecture, we should never fail here unless installation is broken
+        raise
 
 
 def create_orchestrator(
@@ -64,80 +51,40 @@ def create_orchestrator(
     """
     Create an orchestrator instance.
 
-    This factory automatically selects the appropriate orchestrator based on:
-    1. Explicit mode parameter (if provided)
-    2. Available API keys (auto-detection)
-
-    Args:
-        search_handler: The search handler (required for simple mode)
-        judge_handler: The judge handler (required for simple mode)
-        config: Optional configuration (max_iterations, timeouts, etc.)
-                Note: This parameter is only used by simple and hierarchical modes.
-                Advanced mode uses settings.advanced_max_rounds instead.
-        mode: "simple", "magentic", "advanced", or "hierarchical"
-              Note: "magentic" is an alias for "advanced" (kept for backwards compatibility)
-        api_key: Optional API key for advanced mode (OpenAI)
-        domain: Research domain for customization (default: sexual_health)
-
-    Returns:
-        Orchestrator instance implementing OrchestratorProtocol
-
-    Raises:
-        ValueError: If required handlers are missing for simple mode
-        ValueError: If advanced mode is requested but dependencies are missing
+    Defaults to AdvancedOrchestrator (Unified Architecture).
+    Simple Mode is deprecated and mapped to Advanced Mode.
     """
     effective_config = config or OrchestratorConfig()
-    effective_mode = _determine_mode(mode, api_key)
+    effective_mode = _determine_mode(mode)
     logger.info("Creating orchestrator", mode=effective_mode, domain=domain)
-
-    if effective_mode == "advanced":
-        orchestrator_cls = _get_advanced_orchestrator_class()
-        return orchestrator_cls(
-            max_rounds=settings.advanced_max_rounds,
-            api_key=api_key,
-            domain=domain,
-        )
 
     if effective_mode == "hierarchical":
         from src.orchestrators.hierarchical import HierarchicalOrchestrator
 
         return HierarchicalOrchestrator(config=effective_config, domain=domain)
 
-    # Simple mode requires handlers
-    if search_handler is None or judge_handler is None:
-        raise ValueError("Simple mode requires search_handler and judge_handler")
-
-    return Orchestrator(
-        search_handler=search_handler,
-        judge_handler=judge_handler,
-        config=effective_config,
+    # Default: Advanced Mode (Unified)
+    # Handles both Paid (OpenAI) and Free (HuggingFace) tiers
+    orchestrator_cls = _get_advanced_orchestrator_class()
+    return orchestrator_cls(
+        max_rounds=settings.advanced_max_rounds,
+        api_key=api_key,
         domain=domain,
     )
 
 
-def _determine_mode(explicit_mode: str | None, api_key: str | None) -> str:
+def _determine_mode(explicit_mode: str | None) -> str:
     """Determine which mode to use.
-
-    Priority:
-    1. Explicit mode parameter
-    2. Auto-detect based on available API keys
 
     Args:
         explicit_mode: Mode explicitly requested by caller
-        api_key: API key provided by caller
 
     Returns:
-        Effective mode string: "simple", "advanced", or "hierarchical"
+        Effective mode string: "advanced" (default) or "hierarchical"
     """
-    if explicit_mode:
-        if explicit_mode in ("magentic", "advanced"):
-            return "advanced"
-        if explicit_mode == "hierarchical":
-            return "hierarchical"
-        return "simple"
+    if explicit_mode == "hierarchical":
+        return "hierarchical"
 
-    # Auto-detect: advanced if paid API key available
-    if settings.has_openai_key or (api_key and api_key.startswith("sk-")):
-        return "advanced"
-
-    return "simple"
+    # "simple" is deprecated -> upgrade to "advanced"
+    # "magentic" is alias for "advanced"
+    return "advanced"

@@ -27,7 +27,8 @@ class Settings(BaseSettings):
     # LLM Configuration
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
     anthropic_api_key: str | None = Field(default=None, description="Anthropic API key")
-    llm_provider: Literal["openai", "anthropic", "huggingface"] = Field(
+    gemini_api_key: str | None = Field(default=None, description="Google Gemini API key")
+    llm_provider: Literal["openai", "anthropic", "huggingface", "gemini"] = Field(
         default="openai", description="Which LLM provider to use"
     )
     openai_model: str = Field(default="gpt-5", description="OpenAI model name")
@@ -93,12 +94,15 @@ class Settings(BaseSettings):
 
     def get_api_key(self) -> str:
         """Get the API key for the configured provider."""
-        if self.llm_provider == "openai":
+        # Normalize provider for case-insensitive matching
+        provider_lower = self.llm_provider.lower() if self.llm_provider else ""
+
+        if provider_lower == "openai":
             if not self.openai_api_key:
                 raise ConfigurationError("OPENAI_API_KEY not set")
             return self.openai_api_key
 
-        if self.llm_provider == "anthropic":
+        if provider_lower == "anthropic":
             if not self.anthropic_api_key:
                 raise ConfigurationError("ANTHROPIC_API_KEY not set")
             return self.anthropic_api_key
@@ -125,6 +129,11 @@ class Settings(BaseSettings):
         return bool(self.anthropic_api_key)
 
     @property
+    def has_gemini_key(self) -> bool:
+        """Check if Gemini API key is available."""
+        return bool(self.gemini_api_key)
+
+    @property
     def has_huggingface_key(self) -> bool:
         """Check if HuggingFace token is available."""
         return bool(self.hf_token)
@@ -132,7 +141,12 @@ class Settings(BaseSettings):
     @property
     def has_any_llm_key(self) -> bool:
         """Check if any LLM API key is available."""
-        return self.has_openai_key or self.has_anthropic_key or self.has_huggingface_key
+        return (
+            self.has_openai_key
+            or self.has_anthropic_key
+            or self.has_huggingface_key
+            or self.has_gemini_key
+        )
 
 
 def get_settings() -> Settings:

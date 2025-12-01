@@ -5,25 +5,15 @@ from collections.abc import AsyncGenerator
 from typing import Any, Literal
 
 import gradio as gr
-from pydantic_ai.models.anthropic import AnthropicModel
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.anthropic import AnthropicProvider
-from pydantic_ai.providers.openai import OpenAIProvider
 
-from src.agent_factory.judges import HFInferenceJudgeHandler, JudgeHandler, MockJudgeHandler
 from src.config.domain import ResearchDomain
 from src.orchestrators import create_orchestrator
-from src.tools.clinicaltrials import ClinicalTrialsTool
-from src.tools.europepmc import EuropePMCTool
-from src.tools.openalex import OpenAlexTool
-from src.tools.pubmed import PubMedTool
-from src.tools.search_handler import SearchHandler
 from src.utils.config import settings
 from src.utils.exceptions import ConfigurationError
 from src.utils.models import OrchestratorConfig
 from src.utils.service_loader import warmup_services
 
-OrchestratorMode = Literal["simple", "magentic", "advanced", "hierarchical"]
+OrchestratorMode = Literal["advanced", "hierarchical"]  # Unified Architecture (SPEC-16)
 
 
 # CSS to force dark mode on API key input
@@ -55,16 +45,19 @@ CUSTOM_CSS = """
 
 def configure_orchestrator(
     use_mock: bool = False,
-    mode: OrchestratorMode = "simple",
+    mode: OrchestratorMode = "advanced",
     user_api_key: str | None = None,
     domain: str | ResearchDomain | None = None,
 ) -> tuple[Any, str]:
     """
     Create an orchestrator instance.
 
+    Unified Architecture (SPEC-16): All users get Advanced Mode.
+    Backend auto-selects: OpenAI (if key) → HuggingFace (free fallback).
+
     Args:
         use_mock: If True, use MockJudgeHandler (no API key needed)
-        mode: Orchestrator mode ("simple" or "advanced")
+        mode: Orchestrator mode (default "advanced", "hierarchical" for sub-iteration)
         user_api_key: Optional user-provided API key (BYOK) - auto-detects provider
         domain: Research domain (defaults to "sexual_health")
 
@@ -77,58 +70,35 @@ def configure_orchestrator(
         max_results_per_tool=10,
     )
 
-    # Create search tools
-    search_handler = SearchHandler(
-        tools=[PubMedTool(), ClinicalTrialsTool(), EuropePMCTool(), OpenAlexTool()],
-        timeout=config.search_timeout,
-    )
-
-    # Create judge (mock, real, or free tier)
-    judge_handler: JudgeHandler | MockJudgeHandler | HFInferenceJudgeHandler
     backend_info = "Unknown"
 
     # 1. Forced Mock (Unit Testing)
     if use_mock:
-        judge_handler = MockJudgeHandler(domain=domain)
         backend_info = "Mock (Testing)"
 
     # 2. Paid API Key (User provided or Env)
     elif user_api_key and user_api_key.strip():
-        # Auto-detect provider from key prefix
-        model: AnthropicModel | OpenAIChatModel
         if user_api_key.startswith("sk-ant-"):
-            # Anthropic key
-            anthropic_provider = AnthropicProvider(api_key=user_api_key)
-            model = AnthropicModel(settings.anthropic_model, provider=anthropic_provider)
             backend_info = "Paid API (Anthropic)"
         elif user_api_key.startswith("sk-"):
-            # OpenAI key
-            openai_provider = OpenAIProvider(api_key=user_api_key)
-            model = OpenAIChatModel(settings.openai_model, provider=openai_provider)
             backend_info = "Paid API (OpenAI)"
         else:
             raise ConfigurationError(
                 "Invalid API key format. Expected sk-... (OpenAI) or sk-ant-... (Anthropic)"
             )
-        judge_handler = JudgeHandler(model=model, domain=domain)
 
     # 3. Environment API Keys (fallback)
     elif settings.has_openai_key:
-        judge_handler = JudgeHandler(model=None, domain=domain)  # Uses env key
         backend_info = "Paid API (OpenAI from env)"
 
     elif settings.has_anthropic_key:
-        judge_handler = JudgeHandler(model=None, domain=domain)  # Uses env key
         backend_info = "Paid API (Anthropic from env)"
 
     # 4. Free Tier (HuggingFace Inference)
     else:
-        judge_handler = HFInferenceJudgeHandler(domain=domain)
         backend_info = "Free Tier (Llama 3.1 / Mistral)"
 
     orchestrator = create_orchestrator(
-        search_handler=search_handler,
-        judge_handler=judge_handler,
         config=config,
         mode=mode,
         api_key=user_api_key,
@@ -139,41 +109,31 @@ def configure_orchestrator(
 
 
 def _validate_inputs(
-    mode: str,
     api_key: str | None,
     api_key_state: str | None,
-) -> tuple[OrchestratorMode, str | None, bool]:
-    """Validate inputs and determine mode/key status.
+) -> tuple[str | None, bool]:
+    """Validate inputs and determine key status.
+
+    Unified Architecture (SPEC-16): Mode is always "advanced".
+    Backend auto-selects based on available API keys.
 
     Returns:
-        Tuple of (validated_mode, effective_user_key, has_paid_key)
+        Tuple of (effective_user_key, has_paid_key)
     """
-    # Validate mode
-    valid_modes: set[str] = {"simple", "magentic", "advanced", "hierarchical"}
-    mode_validated: OrchestratorMode = mode if mode in valid_modes else "simple"  # type: ignore[assignment]
-
     # Determine effective key
     user_api_key = (api_key or api_key_state or "").strip() or None
 
     # Check available keys
     has_openai = settings.has_openai_key
     has_anthropic = settings.has_anthropic_key
-    is_openai_user_key = (
-        user_api_key and user_api_key.startswith("sk-") and not user_api_key.startswith("sk-ant-")
-    )
     has_paid_key = has_openai or has_anthropic or bool(user_api_key)
 
-    # Fallback logic for Advanced mode
-    if mode_validated == "advanced" and not (has_openai or is_openai_user_key):
-        mode_validated = "simple"
-
-    return mode_validated, user_api_key, has_paid_key
+    return user_api_key, has_paid_key
 
 
 async def research_agent(
     message: str,
     history: list[dict[str, Any]],
-    mode: str = "simple",  # Gradio passes strings; validated below
     domain: str = "sexual_health",
     api_key: str = "",
     api_key_state: str = "",
@@ -182,10 +142,12 @@ async def research_agent(
     """
     Gradio chat function that runs the research agent.
 
+    Unified Architecture (SPEC-16): Always uses Advanced Mode.
+    Backend auto-selects: OpenAI (if key) → HuggingFace (free fallback).
+
     Args:
         message: User's research question
         history: Chat history (Gradio format)
-        mode: Orchestrator mode ("simple" or "advanced")
         domain: Research domain
         api_key: Optional user-provided API key (BYOK - auto-detects provider)
         api_key_state: Persistent API key state (survives example clicks)
@@ -201,15 +163,8 @@ async def research_agent(
     # BUG FIX: Handle None values from Gradio example caching
     domain_str = domain or "sexual_health"
 
-    # Validate inputs using helper to reduce complexity
-    mode_validated, user_api_key, has_paid_key = _validate_inputs(mode, api_key, api_key_state)
-
-    # Inform user about fallback/tier status
-    if mode == "advanced" and mode_validated == "simple":
-        yield (
-            "⚠️ **Warning**: Advanced mode currently requires OpenAI API key. "
-            "Anthropic keys only work in Simple mode. Falling back to Simple.\n\n"
-        )
+    # Validate inputs (SPEC-16: mode is always "advanced")
+    user_api_key, has_paid_key = _validate_inputs(api_key, api_key_state)
 
     if not has_paid_key:
         yield (
@@ -223,9 +178,10 @@ async def research_agent(
 
     try:
         # use_mock=False - let configure_orchestrator decide based on available keys
+        # SPEC-16: mode is always "advanced" (unified architecture)
         orchestrator, backend_name = configure_orchestrator(
             use_mock=False,
-            mode=mode_validated,
+            mode="advanced",
             user_api_key=user_api_key,
             domain=domain_str,
         )
@@ -297,9 +253,7 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
     Returns:
         Configured Gradio Blocks interface with MCP server enabled
     """
-    additional_inputs_accordion = gr.Accordion(
-        label="⚙️ Mode & API Key (Free tier works!)", open=False
-    )
+    additional_inputs_accordion = gr.Accordion(label="⚙️ API Key (Free tier works!)", open=False)
 
     # BUG FIX: Add gr.State for API key persistence across example clicks
     api_key_state = gr.State("")
@@ -327,23 +281,22 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
         title="🍆 DeepBoner",
         description=description,
         examples=[
+            # SPEC-16: Mode is always "advanced" (unified architecture)
+            # Examples now only need: [question, domain, api_key, api_key_state]
             [
                 "What drugs improve female libido post-menopause?",
-                "simple",
                 "sexual_health",
                 None,
                 None,
             ],
             [
                 "Testosterone therapy for hypoactive sexual desire disorder?",
-                "simple",
                 "sexual_health",
                 None,
                 None,
             ],
             [
                 "Clinical trials for PDE5 inhibitors alternatives?",
-                "advanced",
                 "sexual_health",
                 None,
                 None,
@@ -351,12 +304,8 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
         ],
         additional_inputs_accordion=additional_inputs_accordion,
         additional_inputs=[
-            gr.Radio(
-                choices=["simple", "advanced"],
-                value="simple",
-                label="Orchestrator Mode",
-                info="⚡ Simple: Free/Any | 🔬 Advanced: OpenAI (Deep Research)",
-            ),
+            # SPEC-16: Mode toggle removed - everyone gets Advanced Mode
+            # Backend auto-selects: OpenAI (if key) → HuggingFace (free fallback)
             gr.Dropdown(
                 choices=[d.value for d in ResearchDomain],
                 value="sexual_health",

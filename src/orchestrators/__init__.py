@@ -1,27 +1,32 @@
-"""Orchestrators package - provides different orchestration strategies.
+"""Orchestrators package - Unified Architecture (SPEC-16).
 
-This package implements the Strategy Pattern, allowing the application
-to switch between different orchestration approaches:
+This package implements the Strategy Pattern with a unified orchestration approach:
 
-- Simple: Basic search-judge loop using pydantic-ai (free tier compatible)
-- Advanced: Multi-agent coordination using Microsoft Agent Framework
+- Advanced: Multi-agent coordination using Microsoft Agent Framework (DEFAULT)
+  - Backend auto-selects: OpenAI (if key) → HuggingFace (free fallback)
 - Hierarchical: Sub-iteration middleware with fine-grained control
 
+Unified Architecture (SPEC-16):
+  All users get Advanced Mode. The chat client factory auto-selects the backend:
+  - With OpenAI key → OpenAIChatClient (GPT-5)
+  - Without key → HuggingFaceChatClient (Llama 3.1 70B, free tier)
+
 Usage:
-    from src.orchestrators import create_orchestrator, Orchestrator
+    from src.orchestrators import create_orchestrator
 
-    # Auto-detect mode based on available API keys
-    orchestrator = create_orchestrator(search_handler, judge_handler)
+    # Creates AdvancedOrchestrator with auto-selected backend
+    orchestrator = create_orchestrator()
 
-    # Or explicitly specify mode
-    orchestrator = create_orchestrator(mode="advanced", api_key="sk-...")
+    # Or with explicit API key
+    orchestrator = create_orchestrator(api_key="sk-...")
 
 Protocols:
     from src.orchestrators import SearchHandlerProtocol, JudgeHandlerProtocol, OrchestratorProtocol
 
 Design Patterns Applied:
 - Factory Pattern: create_orchestrator() creates appropriate orchestrator
-- Strategy Pattern: Different orchestrators implement different strategies
+- Adapter Pattern: HuggingFaceChatClient adapts HF API to BaseChatClient
+- Strategy Pattern: Different backends (OpenAI, HuggingFace) via ChatClientFactory
 - Facade Pattern: This __init__.py provides a clean public API
 """
 
@@ -39,9 +44,6 @@ from src.orchestrators.base import (
 
 # Factory (creational pattern)
 from src.orchestrators.factory import create_orchestrator
-
-# Orchestrators (Strategy Pattern implementations)
-from src.orchestrators.simple import Orchestrator
 
 if TYPE_CHECKING:
     from src.orchestrators.advanced import AdvancedOrchestrator
@@ -101,7 +103,6 @@ def get_magentic_orchestrator() -> type[AdvancedOrchestrator]:
 
 __all__ = [
     "JudgeHandlerProtocol",
-    "Orchestrator",
     "OrchestratorProtocol",
     "SearchHandlerProtocol",
     "create_orchestrator",

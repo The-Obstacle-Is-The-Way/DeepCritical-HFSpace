@@ -18,4 +18,5 @@ repos:
           - pydantic-settings>=2.2
           - tenacity>=8.2
           - pydantic-ai>=0.0.16
+          - agent-framework-core>=1.0.0b251120
         args: [--ignore-missing-imports]
