@@ -2,11 +2,11 @@
 
 import structlog
 from agent_framework import ChatAgent, ai_function
-from agent_framework.openai import OpenAIChatClient
 
+from src.clients.base import BaseChatClient
+from src.clients.factory import get_chat_client
 from src.state import get_magentic_state
 from src.tools.web_search import WebSearchTool
-from src.utils.config import settings
 
 logger = structlog.get_logger()
 
@@ -50,7 +50,7 @@ async def search_web(query: str, max_results: int = 10) -> str:
     return "\n".join(output)
 
 
-def create_retrieval_agent(chat_client: OpenAIChatClient | None = None) -> ChatAgent:
+def create_retrieval_agent(chat_client: BaseChatClient | None = None) -> ChatAgent:
     """Create a retrieval agent.
 
     Args:
@@ -59,10 +59,7 @@ def create_retrieval_agent(chat_client: OpenAIChatClient | None = None) -> ChatA
     Returns:
         ChatAgent configured for retrieval.
     """
-    client = chat_client or OpenAIChatClient(
-        model_id=settings.openai_model,
-        api_key=settings.openai_api_key,
-    )
+    client = chat_client or get_chat_client()
 
     return ChatAgent(
         name="RetrievalAgent",

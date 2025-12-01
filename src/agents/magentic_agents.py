@@ -1,7 +1,6 @@
 """Magentic-compatible agents using ChatAgent pattern."""
 
 from agent_framework import ChatAgent
-from agent_framework.openai import OpenAIChatClient
 
 from src.agents.tools import (
     get_bibliography,
@@ -9,12 +8,13 @@ from src.agents.tools import (
     search_preprints,
     search_pubmed,
 )
+from src.clients.base import BaseChatClient
+from src.clients.factory import get_chat_client
 from src.config.domain import ResearchDomain, get_domain_config
-from src.utils.config import settings
 
 
 def create_search_agent(
-    chat_client: OpenAIChatClient | None = None,
+    chat_client: BaseChatClient | None = None,
     domain: ResearchDomain | str | None = None,
 ) -> ChatAgent:
     """Create a search agent with internal LLM and search tools.
@@ -26,10 +26,7 @@ def create_search_agent(
     Returns:
         ChatAgent configured for biomedical search
     """
-    client = chat_client or OpenAIChatClient(
-        model_id=settings.openai_model,  # Use configured model
-        api_key=settings.openai_api_key,
-    )
+    client = chat_client or get_chat_client()
     config = get_domain_config(domain)
 
     return ChatAgent(
@@ -55,7 +52,7 @@ related to {config.name}.""",
 
 
 def create_judge_agent(
-    chat_client: OpenAIChatClient | None = None,
+    chat_client: BaseChatClient | None = None,
     domain: ResearchDomain | str | None = None,
 ) -> ChatAgent:
     """Create a judge agent that evaluates evidence quality.
@@ -67,10 +64,7 @@ def create_judge_agent(
     Returns:
         ChatAgent configured for evidence assessment
     """
-    client = chat_client or OpenAIChatClient(
-        model_id=settings.openai_model,
-        api_key=settings.openai_api_key,
-    )
+    client = chat_client or get_chat_client()
     config = get_domain_config(domain)
 
     return ChatAgent(
@@ -114,7 +108,7 @@ Be rigorous but fair. Look for:
 
 
 def create_hypothesis_agent(
-    chat_client: OpenAIChatClient | None = None,
+    chat_client: BaseChatClient | None = None,
     domain: ResearchDomain | str | None = None,
 ) -> ChatAgent:
     """Create a hypothesis generation agent.
@@ -126,10 +120,7 @@ def create_hypothesis_agent(
     Returns:
         ChatAgent configured for hypothesis generation
     """
-    client = chat_client or OpenAIChatClient(
-        model_id=settings.openai_model,
-        api_key=settings.openai_api_key,
-    )
+    client = chat_client or get_chat_client()
     config = get_domain_config(domain)
 
     return ChatAgent(
@@ -158,7 +149,7 @@ Focus on mechanistic plausibility and existing evidence.""",
 
 
 def create_report_agent(
-    chat_client: OpenAIChatClient | None = None,
+    chat_client: BaseChatClient | None = None,
     domain: ResearchDomain | str | None = None,
 ) -> ChatAgent:
     """Create a report synthesis agent.
@@ -170,10 +161,7 @@ def create_report_agent(
     Returns:
         ChatAgent configured for report generation
     """
-    client = chat_client or OpenAIChatClient(
-        model_id=settings.openai_model,
-        api_key=settings.openai_api_key,
-    )
+    client = chat_client or get_chat_client()
     config = get_domain_config(domain)
 
     return ChatAgent(
