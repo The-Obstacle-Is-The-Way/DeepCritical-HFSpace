@@ -1,8 +1,9 @@
 # P0 Bug: AIFunction Not JSON Serializable (Free Tier Broken)
 
 **Severity**: P0 (Critical) - Free Tier cannot perform research
-**Status**: In Progress
+**Status**: RESOLVED
 **Discovered**: 2025-12-01
+**Resolved**: 2025-12-01
 **Reporter**: Production user via HuggingFace Spaces
 
 ## Symptom
@@ -200,6 +201,22 @@ asyncio.run(test())
 # Expected BEFORE fix: TypeError: Object of type AIFunction is not JSON serializable
 # Expected AFTER fix: Research completes with tool calls working
 ```
+
+## Resolution
+
+Implemented full function calling support for HuggingFace client:
+
+1.  **Request Serialization**: Added `_convert_tools` to map `AIFunction` schemas to OpenAI-compatible JSON.
+2.  **Response Parsing (Sync)**: Added `_parse_tool_calls` to convert HF `tool_calls` to `FunctionCallContent`.
+3.  **Response Parsing (Async)**: Implemented tool call accumulator in `_inner_get_streaming_response` to handle partial tool call deltas and yield valid `FunctionCallContent` objects.
+
+## Verification
+
+Verified with unit tests and manual simulation:
+
+1.  **Serialization**: Confirmed `AIFunction` -> JSON conversion works for `search_pubmed`.
+2.  **Streaming**: Verified that fragmented tool call deltas (e.g., `{"query":` then `"testosterone"}`) are correctly reassembled into a single `FunctionCallContent`.
+3.  **Integration**: Passed project-level `make check`.
 
 ## References
 

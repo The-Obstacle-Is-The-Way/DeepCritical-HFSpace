@@ -240,6 +240,10 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
 
             stream = await asyncio.to_thread(call_fn)
 
+            # Accumulator for tool calls (index -> dict)
+            # We need to accumulate because deltas are partial
+            tool_call_accumulator: dict[int, dict[str, Any]] = {}
+
             for chunk in stream:
                 # Chunk is ChatCompletionStreamOutput
                 if not chunk.choices:
@@ -247,14 +251,55 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
                 choice = chunk.choices[0]
                 delta = choice.delta
 
-                # Convert to ChatResponseUpdate
-                yield ChatResponseUpdate(
-                    role=cast(Any, delta.role) if delta.role else None,
-                    content=delta.content,
-                )
+                # 1. Handle Text Content
+                if delta.content:
+                    yield ChatResponseUpdate(
+                        role=cast(Any, delta.role) if delta.role else None,
+                        text=delta.content,
+                    )
+
+                # 2. Handle Tool Calls (Accumulate)
+                if hasattr(delta, "tool_calls") and delta.tool_calls:
+                    for tc in delta.tool_calls:
+                        idx = tc.index
+                        if idx not in tool_call_accumulator:
+                            tool_call_accumulator[idx] = {
+                                "id": "",
+                                "name": "",
+                                "arguments": "",
+                            }
+
+                        # Merge fields
+                        if tc.id:
+                            tool_call_accumulator[idx]["id"] += tc.id
+                        if tc.function:
+                            if tc.function.name:
+                                tool_call_accumulator[idx]["name"] += tc.function.name
+                            if tc.function.arguments:
+                                tool_call_accumulator[idx]["arguments"] += tc.function.arguments
 
                 # Yield control to event loop
                 await asyncio.sleep(0)
+
+            # 3. Yield Accumulated Tool Calls
+            if tool_call_accumulator:
+                contents: list[FunctionCallContent] = []
+                for idx in sorted(tool_call_accumulator.keys()):
+                    tc_data = tool_call_accumulator[idx]
+                    # Only yield if ID and Name are present (required by FunctionCallContent)
+                    if tc_data["id"] and tc_data["name"]:
+                        contents.append(
+                            FunctionCallContent(
+                                call_id=tc_data["id"],
+                                name=tc_data["name"],
+                                arguments=tc_data["arguments"],
+                            )
+                        )
+
+                if contents:
+                    yield ChatResponseUpdate(
+                        contents=contents,
+                    )
 
         except Exception as e:
             logger.error("HuggingFace Streaming error", error=str(e))

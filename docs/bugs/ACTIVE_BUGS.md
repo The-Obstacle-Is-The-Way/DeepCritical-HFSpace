@@ -7,81 +7,24 @@
 
 ## P0 - Critical
 
-### P0 - AIFunction Not JSON Serializable (Free Tier Broken)
-**File:** `docs/bugs/P0_AIFUNCTION_NOT_JSON_SERIALIZABLE.md`
-**Found:** 2025-12-01 (HuggingFace Spaces)
-
-**Problem:** Every search round fails with "Object of type AIFunction is not JSON serializable".
-
-**Error:**
-```
-📚 SEARCH_COMPLETE: searcher: Agent searcher: Error processing request -
-Object of type AIFunction is not JSON serializable
-```
-
-**Root Cause:** `HuggingFaceChatClient` passes raw `AIFunction` objects to `InferenceClient.chat_completion()`. When `requests` tries to serialize them to JSON, it fails.
-
-**Impact:** Free Tier cannot do any research. 5 rounds of errors, no results.
-
-**Proposed Fix:** Either:
-1. **Quick**: Disable tools with `tools=None` (agents use natural language)
-2. **Proper**: Convert `AIFunction` to JSON schema before passing to HF API
+(No active P0 bugs)
 
 ---
 
 ## P3 - UX Polish
-
-### P3 - Progress Bar Positioning/Overlap in ChatInterface
-**File:** `docs/bugs/P3_PROGRESS_BAR_POSITIONING.md`
-**Found:** 2025-12-01 (HuggingFace Spaces)
-
-**Problem:** `gr.Progress()` bar renders in strange position inside ChatInterface - floats mid-chat, overlaps text.
-
-**Root Cause:** Mixing two progress mechanisms:
-1. `gr.Progress()` - general purpose, not designed for ChatInterface
-2. `ChatInterface.show_progress` - built-in chat progress
-
-**Recommended Fix:** Remove `gr.Progress()`, rely on emoji status text we already emit. Low priority - UX polish only.
-
----
-
-## P2 - UX Friction
-
-### P2 - Advanced Mode Cold Start Has No User Feedback (✅ FIXED)
-**File:** `docs/bugs/P2_ADVANCED_MODE_COLD_START_NO_FEEDBACK.md`
-**Issue:** [#108](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/issues/108)
-**Found:** 2025-12-01 (Gradio Testing)
-
-**Problem:** Three "dead zones" with no visual feedback during Advanced Mode startup:
-1. **Dead Zone #1** (5-15s): Between STARTED → THINKING ✅ FIXED (granular events)
-2. **Dead Zone #2** (10-30s): Between THINKING → PROGRESS (first LLM call) ✅ FIXED (Progress Bar)
-3. **Dead Zone #3** (30-90s): After PROGRESS (SearchAgent executing) ✅ FIXED (Pre-warming + Progress Bar)
-
-**Phase 1 Fix (commit dbf888c):**
-- Added granular progress events during initialization
-- Users now see "Loading embedding service...", "Initializing research memory...", "Building agent team..."
-- Significantly improves perceived responsiveness
-
-**Phase 2/3 Fix (Latest):**
-- Implemented service pre-warming (`service_loader.warmup_services`)
-- Added native Gradio progress bar (`gr.Progress`) to `research_agent`
-- Visual feedback is now continuous throughout the entire lifecycle
-
----
-
-## P1 - Important
-
-### P1 - Memory Layer Not Integrated (Post-Hackathon)
-**Issue:** [#73](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/issues/73)
-**Spec:** [SPEC_08_INTEGRATE_MEMORY_LAYER.md](../specs/SPEC_08_INTEGRATE_MEMORY_LAYER.md)
-
-**Problem:** Structured memory (hypotheses, conflicts) is isolated in "God Mode" only.
-**Solution:** Extract memory into shared service, integrate into Simple and Advanced modes.
-**Status:** Spec written. Blocked until post-hackathon.
-
----
-
+...
 ## Resolved Bugs
+
+### ~~P0 - AIFunction Not JSON Serializable~~ FIXED
+**File:** `docs/bugs/P0_AIFUNCTION_NOT_JSON_SERIALIZABLE.md`
+**Found:** 2025-12-01
+**Resolved:** 2025-12-01
+
+- Problem: `HuggingFaceChatClient` crashed with "Object of type AIFunction is not JSON serializable".
+- Fix: Implemented full bi-directional tool support:
+    1. **Serialization**: Added `_convert_tools` (AIFunction → OpenAI JSON)
+    2. **Parsing (Sync/Async)**: Added `_parse_tool_calls` and streaming accumulator
+- Result: Free Tier now supports full function calling capabilities with Qwen2.5-72B.
 
 ### ~~P1 - HuggingFace Router 401 Unauthorized~~ FIXED
 **File:** `docs/bugs/P1_HUGGINGFACE_ROUTER_401_HYPERBOLIC.md`
