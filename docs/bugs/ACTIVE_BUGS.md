@@ -11,6 +11,23 @@ _No active P0 bugs._
 
 ---
 
+## P2 - UX Friction
+
+### P2 - Advanced Mode Cold Start Has No User Feedback
+**File:** `docs/bugs/P2_ADVANCED_MODE_COLD_START_NO_FEEDBACK.md`
+**Issue:** [#108](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/issues/108)
+**Found:** 2025-12-01 (Gradio Testing)
+
+**Problem:** Three "dead zones" with no visual feedback during Advanced Mode startup:
+1. **Dead Zone #1** (5-15s): Between STARTED → THINKING (initialization)
+2. **Dead Zone #2** (10-30s): Between THINKING → PROGRESS (first LLM call)
+3. **Dead Zone #3** (30-90s): After PROGRESS (SearchAgent executing)
+
+**Impact:** Users think app is frozen, unclear if working.
+**Solution:** Add granular progress events, potentially parallelize initialization, add Gradio progress bar.
+
+---
+
 ## P1 - Important
 
 ### P1 - Memory Layer Not Integrated (Post-Hackathon)
