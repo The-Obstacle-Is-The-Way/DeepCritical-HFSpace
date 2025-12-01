@@ -1,31 +1,23 @@
 # Active Bugs
 
-> Last updated: 2025-12-01 (14:30 PST)
+> Last updated: 2025-12-01 (16:15 PST)
 >
 > **Note:** Completed bug docs archived to `docs/bugs/archive/`
 > **See also:** [Code Quality Audit Findings (2025-11-30)](AUDIT_FINDINGS_2025_11_30.md)
 
-## P1 - Important
+## P3 - UX Polish
 
-### P1 - HuggingFace Router 401 Unauthorized (Hyperbolic)
-**File:** `docs/bugs/P1_HUGGINGFACE_ROUTER_401_HYPERBOLIC.md`
+### P3 - Progress Bar Positioning/Overlap in ChatInterface
+**File:** `docs/bugs/P3_PROGRESS_BAR_POSITIONING.md`
 **Found:** 2025-12-01 (HuggingFace Spaces)
 
-**Problem:** HuggingFace changed their Inference API infrastructure. Large models like `meta-llama/Llama-3.1-70B-Instruct` are now routed to partner provider "Hyperbolic" which requires authentication even for previously "free" models.
+**Problem:** `gr.Progress()` bar renders in strange position inside ChatInterface - floats mid-chat, overlaps text.
 
-**Error:**
-```
-401 Client Error: Unauthorized for url:
-https://router.huggingface.co/hyperbolic/v1/chat/completions
-```
+**Root Cause:** Mixing two progress mechanisms:
+1. `gr.Progress()` - general purpose, not designed for ChatInterface
+2. `ChatInterface.show_progress` - built-in chat progress
 
-**Impact:** Free Tier (no API key) is **COMPLETELY BROKEN**.
-
-**Root Cause:** NOT our code. HuggingFace infrastructure change:
-- Old: `api-inference.huggingface.co` (deprecated)
-- New: `router.huggingface.co/{provider}/...` (routes to partners)
-
-**Proposed Fix:** Add `HF_TOKEN` as a secret in HuggingFace Spaces settings, OR switch to a smaller model that's still on HF native infrastructure.
+**Recommended Fix:** Remove `gr.Progress()`, rely on emoji status text we already emit. Low priority - UX polish only.
 
 ---
 
@@ -66,6 +58,16 @@ https://router.huggingface.co/hyperbolic/v1/chat/completions
 ---
 
 ## Resolved Bugs
+
+### ~~P1 - HuggingFace Router 401 Unauthorized~~ FIXED
+**File:** `docs/bugs/P1_HUGGINGFACE_ROUTER_401_HYPERBOLIC.md`
+**Found:** 2025-12-01
+**Resolved:** 2025-12-01
+
+- Problem: 401 errors from HuggingFace Router (Hyperbolic/Novita providers)
+- **Actual Root Cause:** HF_TOKEN in `.env` and Spaces secrets was **invalid/expired**
+- Fix: Generated new valid HF_TOKEN, updated `.env` and Spaces secrets
+- Also switched default model to `Qwen/Qwen2.5-72B-Instruct` for better reliability
 
 ### ~~P0 - Simple Mode Ignores Forced Synthesis~~ FIXED
 **File:** `docs/bugs/P0_SIMPLE_MODE_FORCED_SYNTHESIS_BYPASS.md`
