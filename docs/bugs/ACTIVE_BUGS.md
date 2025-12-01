@@ -7,7 +7,26 @@
 
 ## P0 - Blocker
 
-_No active P0 bugs._
+### P0 - Simple Mode Ignores Forced Synthesis (Issue #113)
+**File:** `docs/bugs/P0_SIMPLE_MODE_FORCED_SYNTHESIS_BYPASS.md`
+**Issue:** [#113](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/issues/113)
+**Found:** 2025-12-01 (Free Tier Testing)
+
+**Problem:** When HuggingFace Inference fails 3 times, the Judge returns `recommendation="synthesize"` but Simple Mode's `_should_synthesize()` ignores it due to strict score thresholds (requires `combined_score >= 10` but forced synthesis has score 0).
+
+**Impact:** Free tier users see 10 iterations of "Gathering more evidence" despite Judge saying "synthesize".
+
+**Root Cause:** Coordination bug between two fixes:
+- **PR #71 (SPEC_06):** Added `_should_synthesize()` with strict thresholds
+- **Commit 5e761eb:** Added `_create_forced_synthesis_assessment()` with `score=0, confidence=0.1`
+- These don't work together - forced synthesis bypasses nothing.
+
+**Strategic Fix:** [SPEC_16: Unified Chat Client Architecture](../specs/SPEC_16_UNIFIED_CHAT_CLIENT_ARCHITECTURE.md) - **INTEGRATION, NOT DELETION**
+- Create `HuggingFaceChatClient` adapter for Microsoft Agent Framework
+- **INTEGRATE** Simple Mode's free-tier capability into Advanced Mode
+- Users without API keys → Advanced Mode with HuggingFace backend (capability PRESERVED)
+- Retire Simple Mode's redundant orchestration CODE (not the capability!)
+- Bug disappears because Advanced Mode handles termination correctly (Manager agent signals)
 
 ---
 

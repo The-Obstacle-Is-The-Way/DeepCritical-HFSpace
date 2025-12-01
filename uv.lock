@@ -1184,7 +1184,7 @@ requires-dist = [
     { name = "duckduckgo-search", specifier = ">=5.0" },
     { name = "gradio", extras = ["mcp"], specifier = ">=6.0.0" },
     { name = "httpx", specifier = ">=0.27" },
-    { name = "huggingface-hub", specifier = ">=0.20.0" },
+    { name = "huggingface-hub", specifier = ">=0.24.0" },
     { name = "langchain", specifier = ">=0.3.9,<1.0" },
     { name = "langchain-core", specifier = ">=0.3.21,<1.0" },
     { name = "langchain-huggingface", specifier = ">=0.1.2,<1.0" },

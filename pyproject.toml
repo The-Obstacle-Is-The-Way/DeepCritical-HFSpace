@@ -17,7 +17,7 @@ dependencies = [
     "httpx>=0.27", # Async HTTP client (PubMed)
     "beautifulsoup4>=4.12", # HTML parsing
     "xmltodict>=0.13", # PubMed XML -> dict
-    "huggingface-hub>=0.20.0", # Hugging Face Inference API
+    "huggingface-hub>=0.24.0", # Hugging Face Inference API - 0.24.0 required for stable chat_completion with tools
     # UI
     "gradio[mcp]>=6.0.0", # Chat interface with MCP server support (6.0 required for css in launch())
     # Utils
