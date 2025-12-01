@@ -18,6 +18,7 @@ from agent_framework import (
     ChatResponse,
     ChatResponseUpdate,
 )
+from agent_framework._types import FunctionCallContent
 from huggingface_hub import InferenceClient
 
 from src.utils.config import settings
@@ -26,7 +27,7 @@ logger = structlog.get_logger()
 
 
 class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
-    """Adapter for HuggingFace Inference API."""
+    """Adapter for HuggingFace Inference API with full function calling support."""
 
     def __init__(
         self,
@@ -69,6 +70,69 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
             hf_messages.append({"role": role_str, "content": content})
         return hf_messages
 
+    def _convert_tools(self, tools: list[Any] | None) -> list[dict[str, Any]] | None:
+        """Convert AIFunction objects to OpenAI-compatible tool definitions.
+
+        AIFunction.to_dict() returns:
+            {'type': 'ai_function', 'name': '...', 'input_model': {...}}
+
+        OpenAI/HuggingFace expects:
+            {'type': 'function', 'function': {'name': '...', 'parameters': {...}}}
+        """
+        if not tools:
+            return None
+
+        json_tools = []
+        for tool in tools:
+            if hasattr(tool, "to_dict"):
+                try:
+                    t_dict = tool.to_dict()
+                    json_tools.append(
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": t_dict["name"],
+                                "description": t_dict.get("description", ""),
+                                "parameters": t_dict["input_model"],
+                            },
+                        }
+                    )
+                except (KeyError, TypeError) as e:
+                    logger.warning("Failed to convert tool", tool=str(tool), error=str(e))
+            elif isinstance(tool, dict):
+                # Already a dict - assume correct format
+                json_tools.append(tool)
+            else:
+                logger.warning("Skipping non-serializable tool", tool_type=str(type(tool)))
+
+        return json_tools if json_tools else None
+
+    def _parse_tool_calls(self, message: Any) -> list[FunctionCallContent]:
+        """Parse HuggingFace tool_calls into framework FunctionCallContent.
+
+        HF returns tool_calls as:
+            [ChatCompletionOutputToolCall(id='...', function=ChatCompletionOutputFunctionDefinition(
+                name='...', arguments='{"key": "value"}'), type='function')]
+        """
+        contents: list[FunctionCallContent] = []
+
+        if not hasattr(message, "tool_calls") or not message.tool_calls:
+            return contents
+
+        for tc in message.tool_calls:
+            try:
+                contents.append(
+                    FunctionCallContent(
+                        call_id=tc.id,
+                        name=tc.function.name,
+                        arguments=tc.function.arguments,  # JSON string or dict
+                    )
+                )
+            except (AttributeError, TypeError) as e:
+                logger.warning("Failed to parse tool call", error=str(e))
+
+        return contents
+
     async def _inner_get_response(
         self,
         *,
@@ -79,12 +143,13 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
         """Synchronous response generation using chat_completion."""
         hf_messages = self._convert_messages(messages)
 
-        # Extract tool configuration
-        tools = chat_options.tools if chat_options.tools else None
+        # Convert AIFunction objects to OpenAI-compatible JSON
+        tools = self._convert_tools(chat_options.tools if chat_options.tools else None)
+
         # HF expects 'tool_choice' to be 'auto', 'none', or specific tool
         # Framework uses ToolMode enum or dict
         hf_tool_choice: str | None = None
-        if chat_options.tool_choice is not None:
+        if tools and chat_options.tool_choice is not None:
             tool_choice_str = str(chat_options.tool_choice)
             if "AUTO" in tool_choice_str:
                 hf_tool_choice = "auto"
@@ -116,12 +181,17 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
                 return ChatResponse(messages=[], response_id="error-no-choices")
 
             choice = choices[0]
-            message_content = choice.message.content or ""
+            message = choice.message
+            message_content = message.content or ""
 
-            # Construct response message with proper kwargs
+            # Parse tool calls if present
+            tool_call_contents = self._parse_tool_calls(message)
+
+            # Construct response message with tool calls in contents
             response_msg = ChatMessage(
-                role=cast(Any, choice.message.role),
+                role=cast(Any, message.role),
                 text=message_content,
+                contents=tool_call_contents if tool_call_contents else None,
             )
 
             return ChatResponse(
@@ -143,9 +213,11 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
         """Streaming response generation."""
         hf_messages = self._convert_messages(messages)
 
-        tools = chat_options.tools if chat_options.tools else None
+        # Convert AIFunction objects to OpenAI-compatible JSON
+        tools = self._convert_tools(chat_options.tools if chat_options.tools else None)
+
         hf_tool_choice: str | None = None
-        if chat_options.tool_choice is not None:
+        if tools and chat_options.tool_choice is not None:
             if "AUTO" in str(chat_options.tool_choice):
                 hf_tool_choice = "auto"
 

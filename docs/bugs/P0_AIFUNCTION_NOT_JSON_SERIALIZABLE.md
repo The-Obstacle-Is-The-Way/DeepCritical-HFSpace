@@ -1,7 +1,7 @@
 # P0 Bug: AIFunction Not JSON Serializable (Free Tier Broken)
 
 **Severity**: P0 (Critical) - Free Tier cannot perform research
-**Status**: Open
+**Status**: In Progress
 **Discovered**: 2025-12-01
 **Reporter**: Production user via HuggingFace Spaces
 
@@ -47,14 +47,6 @@ TypeError: Object of type AIFunction is not JSON serializable
 4. `requests.post()` internally calls `json.dumps()` on the request body
 5. `AIFunction` has no `__json__()` method or isn't a dict → TypeError
 
-### The Warning We Ignored
-
-The agent framework already warned us:
-```
-[WARNING] The provided chat client does not support function invoking,
-this might limit agent capabilities.
-```
-
 ## Impact
 
 | Component | Impact |
@@ -63,104 +55,107 @@ this might limit agent capabilities.
 | Advanced Mode without API key | **Cannot do research** |
 | Paid Tier (OpenAI) | Unaffected (OpenAI handles AIFunction) |
 
-## Proposed Solutions
+## Professional Fix (Full Implementation)
 
-### Option 1: Disable Tools for HuggingFace (QUICK FIX)
+Qwen2.5-72B-Instruct **SUPPORTS** function calling via HuggingFace. The fix requires:
 
-Pass `tools=None` to disable function calling entirely:
+1. **Request Serialization**: Convert `AIFunction` → OpenAI-compatible JSON
+2. **Response Parsing**: Convert HuggingFace `tool_calls` → Framework `FunctionCallContent`
 
-```python
-# src/clients/huggingface.py
-
-async def _inner_get_response(self, ...):
-    hf_messages = self._convert_messages(messages)
-
-    # QUICK FIX: Disable tools - HuggingFace free tier doesn't reliably support them
-    # The agents will use natural language instructions instead
-    tools = None  # Was: chat_options.tools if chat_options.tools else None
-    hf_tool_choice = None
-    ...
-```
-
-**Pros**:
-- 5-minute fix
-- No serialization errors
-- Agents still work via natural language instructions
-
-**Cons**:
-- Agents can't use structured tool calls
-- Less precise than function calling
-- Qwen2.5-72B DOES support function calling (we're not using it)
-
-### Option 2: Convert AIFunction to JSON Schema (PROPER FIX)
-
-Serialize `AIFunction` objects to OpenAI-compatible tool format:
+### Part 1: Tool Serialization (`_convert_tools`)
 
 ```python
 def _convert_tools(self, tools: list[Any] | None) -> list[dict[str, Any]] | None:
-    """Convert AIFunction objects to JSON-serializable tool definitions."""
+    """Convert AIFunction objects to OpenAI-compatible tool definitions.
+
+    AIFunction.to_dict() returns:
+        {'type': 'ai_function', 'name': '...', 'description': '...', 'input_model': {...}}
+
+    OpenAI/HuggingFace expects:
+        {'type': 'function', 'function': {'name': '...', 'description': '...', 'parameters': {...}}}
+    """
     if not tools:
         return None
 
     json_tools = []
     for tool in tools:
         if hasattr(tool, 'to_dict'):
-            # AIFunction.to_dict() returns JSON-serializable dict
-            json_tools.append(tool.to_dict())
-        elif hasattr(tool, 'schema'):
-            # Alternative: use schema property
+            t_dict = tool.to_dict()
             json_tools.append({
                 "type": "function",
                 "function": {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": tool.schema,
+                    "name": t_dict["name"],
+                    "description": t_dict.get("description", ""),
+                    "parameters": t_dict["input_model"]
                 }
             })
+        elif isinstance(tool, dict):
+            json_tools.append(tool)
         else:
-            # Fallback: skip unknown tool types
             logger.warning(f"Skipping non-serializable tool: {type(tool)}")
 
     return json_tools if json_tools else None
 ```
 
-**Pros**:
-- Proper function calling with Qwen2.5
-- Structured tool invocation
-- Better agent capabilities
+### Part 2: Response Parsing (Tool Calls → FunctionCallContent)
 
-**Cons**:
-- More complex
-- Need to handle tool call responses
-- May require testing with different HF models
-
-### Option 3: Hybrid Approach (RECOMMENDED)
-
-Try to convert tools, fall back to None if it fails:
+When HuggingFace returns tool calls, we must convert them to the framework's format:
 
 ```python
-def _convert_tools(self, tools: list[Any] | None) -> list[dict[str, Any]] | None:
-    """Attempt to convert tools to JSON, disable if conversion fails."""
-    if not tools:
-        return None
+from agent_framework._types import FunctionCallContent
 
-    try:
-        json_tools = []
-        for tool in tools:
-            if hasattr(tool, 'to_dict'):
-                json_tools.append(tool.to_dict())
-            elif isinstance(tool, dict):
-                json_tools.append(tool)
-        return json_tools if json_tools else None
-    except Exception as e:
-        logger.warning(f"Tool conversion failed, disabling function calling: {e}")
-        return None
+# In _inner_get_response, after getting the response:
+choice = choices[0]
+message = choice.message
+message_content = message.content or ""
+
+# Parse tool calls if present
+contents: list[Any] = []
+if hasattr(message, 'tool_calls') and message.tool_calls:
+    for tc in message.tool_calls:
+        # HF returns: tc.id, tc.function.name, tc.function.arguments
+        contents.append(FunctionCallContent(
+            call_id=tc.id,
+            name=tc.function.name,
+            arguments=tc.function.arguments  # JSON string or dict
+        ))
+
+response_msg = ChatMessage(
+    role=cast(Any, message.role),
+    text=message_content,
+    contents=contents if contents else None
+)
 ```
 
-## Recommended Fix
+### Verified Schema Mapping
 
-**Immediate (P0)**: Option 1 - Disable tools with `tools=None`
-**Follow-up**: Option 3 - Implement proper conversion with fallback
+```python
+# AIFunction.to_dict() output (verified 2025-12-01):
+{
+  "type": "ai_function",
+  "name": "search_pubmed",
+  "description": "Search PubMed for biomedical research papers...",
+  "input_model": {
+    "properties": {"query": {"title": "Query", "type": "string"}, ...},
+    "required": ["query"],
+    "type": "object"
+  }
+}
+
+# Mapped to OpenAI format:
+{
+  "type": "function",
+  "function": {
+    "name": "search_pubmed",
+    "description": "Search PubMed for biomedical research papers...",
+    "parameters": {
+      "properties": {"query": {"title": "Query", "type": "string"}, ...},
+      "required": ["query"],
+      "type": "object"
+    }
+  }
+}
+```
 
 ## Call Stack Trace
 
@@ -197,18 +192,17 @@ from src.orchestrators.advanced import AdvancedOrchestrator
 async def test():
     orch = AdvancedOrchestrator(max_rounds=2)
     async for event in orch.run('testosterone benefits'):
-        print(f'[{event.type}] {event.message[:50]}...')
+        print(f'[{event.type}] {str(event.message)[:50]}...')
 
 asyncio.run(test())
 "
 
-# Expected: TypeError: Object of type AIFunction is not JSON serializable
-# After fix: Should complete without serialization errors
+# Expected BEFORE fix: TypeError: Object of type AIFunction is not JSON serializable
+# Expected AFTER fix: Research completes with tool calls working
 ```
 
 ## References
 
-- [Microsoft Agent Framework - AIFunction](https://learn.microsoft.com/en-us/python/api/agent-framework-core/agent_framework.aifunction)
-- [HuggingFace Chat Completion API](https://huggingface.co/docs/api-inference/en/tasks/chat-completion)
+- [HuggingFace Chat Completion - Function Calling](https://huggingface.co/docs/inference-providers/tasks/chat-completion)
 - [Qwen Function Calling](https://qwen.readthedocs.io/en/latest/framework/function_call.html)
-- [huggingface_hub chat_completion](https://github.com/huggingface/huggingface_hub/releases/tag/v0.22.0)
+- [Microsoft Agent Framework - AIFunction](https://learn.microsoft.com/en-us/python/api/agent-framework-core/agent_framework.aifunction)
