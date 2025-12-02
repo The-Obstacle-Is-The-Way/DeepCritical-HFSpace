@@ -71,6 +71,11 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
     def _convert_messages(self, messages: MutableSequence[ChatMessage]) -> list[dict[str, Any]]:
         """Convert framework messages to HuggingFace format."""
         hf_messages: list[dict[str, Any]] = []
+
+        # Track call_id -> tool_name mapping for tool result messages
+        # Assistant messages with tool_calls come before tool result messages
+        call_id_to_name: dict[str, str] = {}
+
         for msg in messages:
             # msg.role can be string or enum - extract .value for enums
             if hasattr(msg.role, "value"):
@@ -81,12 +86,15 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
             content_str = msg.text or ""
             tool_calls = []
             tool_call_id = None
+            tool_name = None
 
             # Process contents for tool calls and results
             if msg.contents:
                 for item in msg.contents:
                     if isinstance(item, FunctionCallContent):
                         # This is an assistant message invoking a tool
+                        # Track call_id -> name for later tool result messages
+                        call_id_to_name[item.call_id] = item.name
                         tool_calls.append(
                             {
                                 "id": item.call_id,
@@ -105,8 +113,16 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
                         # This is a tool result message
                         role_str = "tool"
                         tool_call_id = item.call_id
-                        # For tool results, the content is the result string
-                        content_str = str(item.result) if item.result is not None else ""
+                        # Look up tool name from prior FunctionCallContent
+                        tool_name = call_id_to_name.get(item.call_id)
+                        # For tool results, JSON-encode structured data
+                        # HuggingFace/OpenAI expects string content
+                        if item.result is None:
+                            content_str = ""
+                        elif isinstance(item.result, str):
+                            content_str = item.result
+                        else:
+                            content_str = json.dumps(item.result)
 
             message_dict: dict[str, Any] = {"role": role_str, "content": content_str}
 
@@ -115,6 +131,9 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
 
             if tool_call_id:
                 message_dict["tool_call_id"] = tool_call_id
+                # Add name field if we tracked it (required by some APIs)
+                if tool_name:
+                    message_dict["name"] = tool_name
 
             hf_messages.append(message_dict)
 

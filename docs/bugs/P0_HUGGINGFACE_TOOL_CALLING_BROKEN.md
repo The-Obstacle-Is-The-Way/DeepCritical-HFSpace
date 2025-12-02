@@ -52,7 +52,7 @@ Updated `_convert_messages()` in `src/clients/huggingface.py:71-121` to:
 
 ### Symptom
 `MagenticAgentMessageEvent.message.text` contains:
-```
+```text
 '<agent_framework._types.ChatMessage object at 0x10c394210>'
 ```
 
@@ -89,19 +89,19 @@ async def _invoke_agent(self, ctx, ...) -> ChatMessage:
 3. Unrelated orchestration issue
 
 ### Upstream Issue Filed
-**GitHub Issue**: https://github.com/microsoft/agent-framework/issues/2562
+**GitHub Issue**: [microsoft/agent-framework#2562](https://github.com/microsoft/agent-framework/issues/2562)
 
 **Suggested fixes in issue**:
 1. **Minimal**: `text = last.text or ""`
 2. **Better UX**: Format tool calls for display
 3. **Best**: Add `__str__` to `ChatMessage` class
 
-### Workaround (Not Implemented)
-We COULD modify `_extract_text()` in `advanced.py` to extract tool call names from `.contents` when text is empty/repr:
+### Workaround (Implemented in `advanced.py`)
+We modified `_extract_text()` in `advanced.py` to extract tool call names from `.contents` when text is empty or looks like a repr:
 
 ```python
 def _extract_text(self, message: Any) -> str:
-    # ... existing logic ...
+    # ... existing logic with repr filtering ...
 
     # Workaround: Extract tool call info when text is repr/empty
     if hasattr(message, "contents") and message.contents:
@@ -116,7 +116,7 @@ def _extract_text(self, message: Any) -> str:
     return ""
 ```
 
-**Decision**: Not implementing until we confirm whether Bug #2 affects research completion or just display.
+**Decision**: Implemented locally to fix display and logging while we wait for upstream fix.
 
 ---
 
@@ -141,8 +141,8 @@ def _extract_text(self, message: Any) -> str:
   - Added `@use_function_invocation`, `@use_observability`, `@use_chat_middleware` decorators
   - Added `__function_invoking_chat_client__ = True` marker
 
-### No Changes Needed
-- `src/orchestrators/advanced.py` - `_extract_text()` already filters repr strings
+### Also Fixed
+- `src/orchestrators/advanced.py` - `_extract_text()` now filters repr strings AND extracts tool call names
 
 ---
 

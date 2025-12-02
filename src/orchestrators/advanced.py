@@ -339,8 +339,16 @@ The final output should be a structured research report."""
 
         Handles ChatMessage objects from both OpenAI and HuggingFace clients.
         ChatMessage has: .text (str), .contents (list of content objects)
+        Also handles plain string messages (e.g., WorkflowOutputEvent.data).
         """
         if not message:
+            return ""
+
+        # Priority 0: Handle plain string messages (e.g., WorkflowOutputEvent.data)
+        if isinstance(message, str):
+            # Filter out obvious repr-style noise
+            if not (message.startswith("<") and "object at" in message):
+                return message
             return ""
 
         # Priority 1: .text (standard ChatMessage text content)
