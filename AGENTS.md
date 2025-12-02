@@ -100,20 +100,44 @@ DeepBonerError (base)
 └── EmbeddingError
 ```
 
-## LLM Model Defaults (November 2025)
+## LLM Model Defaults (December 2025)
 
-Given the rapid advancements, as of November 29, 2025, the DeepBoner project uses the following default LLM models in its configuration (`src/utils/config.py`):
+Default models in `src/utils/config.py`:
 
-- **OpenAI:** `gpt-5`
-  - Current flagship model (November 2025). Requires Tier 5 access.
-- **Anthropic:** `claude-sonnet-4-5-20250929`
-  - This is the mid-range Claude 4.5 model, released on September 29, 2025.
-  - The flagship `Claude Opus 4.5` (released November 24, 2025) is also available and can be configured by advanced users for enhanced capabilities.
-- **HuggingFace (Free Tier):** `Qwen/Qwen2.5-72B-Instruct`
-  - Changed from Llama-3.1-70B (Dec 2025) due to HuggingFace routing Llama to Hyperbolic provider which has unreliable "staging mode" auth.
-  - Qwen 2.5 72B offers comparable quality and works reliably via HuggingFace's native infrastructure.
+- **OpenAI:** `gpt-5` - Flagship model (requires Tier 5 access)
+- **Anthropic:** `claude-sonnet-4-5-20250929` - Mid-range Claude 4.5
+- **HuggingFace (Free Tier):** `Qwen/Qwen2.5-7B-Instruct` - See critical note below
 
-It is crucial to keep these defaults updated as the LLM landscape evolves.
+---
+
+## ⚠️ CRITICAL: HuggingFace Free Tier Architecture
+
+**THIS IS IMPORTANT - READ BEFORE CHANGING THE FREE TIER MODEL**
+
+HuggingFace has TWO execution paths for inference:
+
+| Path | Host | Reliability | Model Size |
+|------|------|-------------|------------|
+| **Native Serverless** | HuggingFace infrastructure | ✅ High | < 30B params |
+| **Inference Providers** | Third-party (Novita, Hyperbolic) | ❌ Unreliable | 70B+ params |
+
+**The Trap:** When you request a large model (70B+) without a paid API key, HuggingFace **silently routes** the request to third-party providers. These providers have:
+- 500 Internal Server Errors (Novita - current)
+- 401 "Staging Mode" auth failures (Hyperbolic - past)
+
+**The Rule:** Free Tier MUST use models < 30B to stay on native infrastructure.
+
+**Current Safe Models (Dec 2025):**
+| Model | Size | Status |
+|-------|------|--------|
+| `Qwen/Qwen2.5-7B-Instruct` | 7B | ✅ **DEFAULT** - Native, reliable |
+| `mistralai/Mistral-Nemo-Instruct-2407` | 12B | ✅ Native, reliable |
+| `Qwen/Qwen2.5-72B-Instruct` | 72B | ❌ Routed to Novita (500 errors) |
+| `meta-llama/Llama-3.1-70B-Instruct` | 70B | ❌ Routed to Hyperbolic (401 errors) |
+
+**See:** `HF_FREE_TIER_ANALYSIS.md` for full analysis.
+
+---
 
 ## Testing
 
