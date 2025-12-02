@@ -6,6 +6,7 @@ an OpenAI API key.
 """
 
 import asyncio
+import json
 from collections.abc import AsyncIterable, MutableSequence
 from functools import partial
 from typing import Any, cast
@@ -17,8 +18,13 @@ from agent_framework import (
     ChatOptions,
     ChatResponse,
     ChatResponseUpdate,
+    FinishReason,
+    Role,
 )
-from agent_framework._types import FunctionCallContent
+from agent_framework._middleware import use_chat_middleware
+from agent_framework._tools import use_function_invocation
+from agent_framework._types import FunctionCallContent, FunctionResultContent
+from agent_framework.observability import use_observability
 from huggingface_hub import InferenceClient
 
 from src.utils.config import settings
@@ -26,6 +32,9 @@ from src.utils.config import settings
 logger = structlog.get_logger()
 
 
+@use_function_invocation
+@use_observability
+@use_chat_middleware
 class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
     """Adapter for HuggingFace Inference API with full function calling support."""
 
@@ -63,15 +72,52 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
         """Convert framework messages to HuggingFace format."""
         hf_messages: list[dict[str, Any]] = []
         for msg in messages:
-            # Basic conversion - extend as needed for multi-modal
-            content = msg.text or ""
             # msg.role can be string or enum - extract .value for enums
-            # str(Role.USER) -> "Role.USER" (wrong), Role.USER.value -> "user" (correct)
             if hasattr(msg.role, "value"):
                 role_str = str(msg.role.value)
             else:
                 role_str = str(msg.role)
-            hf_messages.append({"role": role_str, "content": content})
+
+            content_str = msg.text or ""
+            tool_calls = []
+            tool_call_id = None
+
+            # Process contents for tool calls and results
+            if msg.contents:
+                for item in msg.contents:
+                    if isinstance(item, FunctionCallContent):
+                        # This is an assistant message invoking a tool
+                        tool_calls.append(
+                            {
+                                "id": item.call_id,
+                                "type": "function",
+                                "function": {
+                                    "name": item.name,
+                                    "arguments": (
+                                        item.arguments
+                                        if isinstance(item.arguments, str)
+                                        else json.dumps(item.arguments)
+                                    ),
+                                },
+                            }
+                        )
+                    elif isinstance(item, FunctionResultContent):
+                        # This is a tool result message
+                        role_str = "tool"
+                        tool_call_id = item.call_id
+                        # For tool results, the content is the result string
+                        content_str = str(item.result) if item.result is not None else ""
+
+            message_dict: dict[str, Any] = {"role": role_str, "content": content_str}
+
+            if tool_calls:
+                message_dict["tool_calls"] = tool_calls
+
+            if tool_call_id:
+                message_dict["tool_call_id"] = tool_call_id
+
+            hf_messages.append(message_dict)
+
         return hf_messages
 
     def _convert_tools(self, tools: list[Any] | None) -> list[dict[str, Any]] | None:
@@ -112,12 +158,7 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
         return json_tools if json_tools else None
 
     def _parse_tool_calls(self, message: Any) -> list[FunctionCallContent]:
-        """Parse HuggingFace tool_calls into framework FunctionCallContent.
-
-        HF returns tool_calls as:
-            [ChatCompletionOutputToolCall(id='...', function=ChatCompletionOutputFunctionDefinition(
-                name='...', arguments='{"key": "value"}'), type='function')]
-        """
+        """Parse HuggingFace tool_calls into framework FunctionCallContent."""
         contents: list[FunctionCallContent] = []
 
         if not hasattr(message, "tool_calls") or not message.tool_calls:
@@ -303,6 +344,8 @@ class HuggingFaceChatClient(BaseChatClient):  # type: ignore[misc]
                 if contents:
                     yield ChatResponseUpdate(
                         contents=contents,
+                        role=Role.ASSISTANT,
+                        finish_reason=FinishReason.TOOL_CALLS,
                     )
 
         except Exception as e:
