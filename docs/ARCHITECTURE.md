@@ -6,7 +6,7 @@
 
 ## How It Works (Simple Version)
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    UNIFIED ARCHITECTURE                      │
 │                                                              │

@@ -9,7 +9,7 @@
 
 ## The Architecture (No Bullshit Version)
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    UNIFIED ARCHITECTURE                      │
 │                                                              │

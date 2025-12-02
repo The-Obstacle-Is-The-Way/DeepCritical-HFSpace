@@ -521,17 +521,8 @@ The final output should be a structured research report."""
                 iteration=iteration,
             )
 
-        elif isinstance(event, MagenticAgentMessageEvent):
-            agent_name = event.agent_id or "unknown"
-            text = self._extract_text(event.message)
-            event_type = self._get_event_type_for_agent(agent_name)
-
-            # All returned types are valid AgentEvent.type literals
-            return AgentEvent(
-                type=event_type,  # type: ignore[arg-type]
-                message=f"{agent_name}: {self._smart_truncate(text)}",
-                iteration=iteration + 1,
-            )
+        # NOTE: MagenticAgentMessageEvent is handled in run() loop with Accumulator Pattern
+        # (see lines 322-335) and never reaches this method due to `continue` statement.
 
         elif isinstance(event, MagenticFinalResultEvent):
             text = self._extract_text(event.message) if event.message else "No result"
@@ -542,14 +533,8 @@ The final output should be a structured research report."""
                 iteration=iteration,
             )
 
-        elif isinstance(event, MagenticAgentDeltaEvent):
-            if event.text:
-                return AgentEvent(
-                    type="streaming",
-                    message=event.text,
-                    data={"agent_id": event.agent_id},
-                    iteration=iteration,
-                )
+        # NOTE: MagenticAgentDeltaEvent is handled in run() loop with Accumulator Pattern
+        # (see lines 306-320) and never reaches this method due to `continue` statement.
 
         elif isinstance(event, WorkflowOutputEvent):
             if event.data:

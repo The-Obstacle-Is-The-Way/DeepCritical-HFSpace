@@ -23,7 +23,7 @@ User suspected divergent code paths from vestigial Simple Mode deletion.
 
 Both Example Click and Chat Arrow use **the exact same code path**:
 
-```
+```text
 User Action (Example OR Chat Arrow)
          ↓
 app.py:research_agent()         ← SAME FUNCTION
@@ -132,7 +132,7 @@ def _extract_text(self, message: Any) -> str:
 
 ## Next Steps
 
-1. **Wait for upstream fix** - [PR #2566](https://togithub.com/microsoft/agent-framework/pull/2566)
+1. **Wait for upstream fix** - [PR #2566](https://github.com/microsoft/agent-framework/pull/2566)
 2. **Once merged**: `uv add agent-framework@latest`
 3. **Test**: Verify both Example Click and Chat Arrow work identically
 
