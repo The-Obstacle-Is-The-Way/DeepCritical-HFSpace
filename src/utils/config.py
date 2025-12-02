@@ -36,10 +36,11 @@ class Settings(BaseSettings):
         default="claude-sonnet-4-5-20250929", description="Anthropic model"
     )
     # HuggingFace (free tier)
-    # NOTE: Llama-3.1-70B is routed to Hyperbolic (partner) which has unreliable "staging mode"
-    # Qwen2.5-72B works reliably via HuggingFace's native infrastructure
+    # NOTE: Large models (70B+) are routed to third-party providers (Novita, Hyperbolic) which are
+    # unreliable (500/401 errors). We use Qwen2.5-7B-Instruct as it is small enough to run on
+    # Hugging Face's native serverless infrastructure.
     huggingface_model: str | None = Field(
-        default="Qwen/Qwen2.5-72B-Instruct", description="HuggingFace model name"
+        default="Qwen/Qwen2.5-7B-Instruct", description="HuggingFace model name"
     )
     hf_token: str | None = Field(
         default=None, alias="HF_TOKEN", description="HuggingFace API token"
