@@ -41,8 +41,11 @@ async def test_timeout_synthesizes_evidence():
         mock_get_state.return_value = mock_state
 
         # Setup mock ReportAgent
+        # ChatAgent.run() returns AgentRunResponse with .text property
         mock_report_agent = AsyncMock()
-        mock_report_agent.run.return_value = "Final Synthesized Report"
+        mock_response = MagicMock()
+        mock_response.text = "Final Synthesized Report"
+        mock_report_agent.run.return_value = mock_response
         mock_create_agent.return_value = mock_report_agent
 
         events = []

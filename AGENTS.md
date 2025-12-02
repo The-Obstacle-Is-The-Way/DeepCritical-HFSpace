@@ -50,10 +50,13 @@ Research Report with Citations
 
 **Key Components**:
 
-- `src/orchestrators/` - Orchestrator package (simple, advanced, langgraph modes)
-  - `simple.py` - Main search-and-judge loop
-  - `advanced.py` - Multi-agent Magentic mode
-  - `langgraph_orchestrator.py` - LangGraph-based workflow
+- `src/orchestrators/` - Unified orchestrator package
+  - `advanced.py` - Main orchestrator (handles both Free and Paid tiers)
+  - `factory.py` - Auto-selects backend based on API key presence
+  - `langgraph_orchestrator.py` - LangGraph-based workflow (experimental)
+- `src/clients/` - LLM backend adapters
+  - `factory.py` - Auto-selects: OpenAI (if key) or HuggingFace (free)
+  - `huggingface.py` - HuggingFace adapter for free tier
 - `src/tools/pubmed.py` - PubMed E-utilities search
 - `src/tools/clinicaltrials.py` - ClinicalTrials.gov API
 - `src/tools/europepmc.py` - Europe PMC search

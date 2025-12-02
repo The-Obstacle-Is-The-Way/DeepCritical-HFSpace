@@ -50,6 +50,8 @@ reference_repos/pydanticai-research-agent/
 reference_repos/pubmed-mcp-server/
 reference_repos/DeepCritical/
 reference_repos/GradioDemo/
+reference_repos/deepboner-hf-space/
+reference_repos/microsoft-agent-framework/
 
 # Keep the README in reference_repos
 !reference_repos/README.md

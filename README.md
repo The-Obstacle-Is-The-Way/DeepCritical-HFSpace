@@ -55,8 +55,9 @@ Sexual health is health. Period. Yet it remains one of the most under-researched
 - 🤖 **MCP Integration**: Use our tools from Claude Desktop or any MCP client
 - 🔒 **Modal Sandbox**: Secure execution of AI-generated statistical analysis
 - 🧠 **Smart Evidence Synthesis**: LLM-powered judge evaluates and synthesizes findings
-- ⚡ **Two Modes**: Simple (fast) or Advanced (multi-agent deep dive)
-- 🆓 **Free Tier Available**: Works without API keys (HuggingFace Inference)
+- ⚡ **Unified Architecture**: Same powerful multi-agent orchestration for everyone
+- 🆓 **Free Tier**: Works without API keys (HuggingFace Inference)
+- 🚀 **Paid Tier**: Unlocks GPT-5 automatically when OpenAI key is provided
 
 ## Example Queries
 

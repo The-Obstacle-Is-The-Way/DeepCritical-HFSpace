@@ -1,21 +1,36 @@
 # Active Bugs
 
-> Last updated: 2025-12-01 (16:30 PST)
+> Last updated: 2025-12-01 (21:00 PST)
 >
 > **Note:** Completed bug docs archived to `docs/bugs/archive/`
 > **See also:** [Code Quality Audit Findings (2025-11-30)](AUDIT_FINDINGS_2025_11_30.md)
+> **See also:** [ARCHITECTURE.md](../ARCHITECTURE.md) for unified architecture plan
 
-## P0 - Critical
+## P0 - Critical (BLOCKED)
 
-(No active P0 bugs)
+### Free Tier Broken (Upstream #2562)
+
+**Issue:** [#105](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/issues/105), [#113](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/issues/113)
+**Status:** BLOCKED - Waiting for upstream PR #2566
+
+**Problem:** Free tier (Advanced Mode + HuggingFace) shows repr garbage output.
+
+**Cause:** Microsoft Agent Framework upstream bug #2562.
+
+**Fix:** Upstream PR #2566 will fix this. Once merged:
+1. Update `agent-framework` dependency
+2. Verify Advanced + HuggingFace works
+3. Unified architecture complete
+
+**Architecture Note:** We have ONE unified architecture. `simple.py` is deleted.
+Simple Mode behavior is INTEGRATED via `HuggingFaceChatClient`, not a parallel orchestrator.
 
 ---
 
-## P3 - UX Polish
-...
 ## Resolved Bugs
 
 ### ~~P0 - AIFunction Not JSON Serializable~~ FIXED
+
 **File:** `docs/bugs/P0_AIFUNCTION_NOT_JSON_SERIALIZABLE.md`
 **Found:** 2025-12-01
 **Resolved:** 2025-12-01
@@ -27,6 +42,7 @@
 - Result: Free Tier now supports full function calling capabilities with Qwen2.5-72B.
 
 ### ~~P1 - HuggingFace Router 401 Unauthorized~~ FIXED
+
 **File:** `docs/bugs/P1_HUGGINGFACE_ROUTER_401_HYPERBOLIC.md`
 **Found:** 2025-12-01
 **Resolved:** 2025-12-01
@@ -36,18 +52,8 @@
 - Fix: Generated new valid HF_TOKEN, updated `.env` and Spaces secrets
 - Also switched default model to `Qwen/Qwen2.5-72B-Instruct` for better reliability
 
-### ~~P0 - Simple Mode Ignores Forced Synthesis~~ FIXED
-**File:** `docs/bugs/P0_SIMPLE_MODE_FORCED_SYNTHESIS_BYPASS.md`
-**Issue:** [#113](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/issues/113)
-**PR:** [#115](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/pull/115) (SPEC-16)
-**Found:** 2025-12-01
-**Resolved:** 2025-12-01
-
-- Problem: Simple Mode ignored forced synthesis signals from Judge.
-- Fix: SPEC-16 unified architecture - removed Simple Mode entirely, integrated HuggingFace into Advanced Mode.
-- Simple Mode code deleted, capability preserved via `HuggingFaceChatClient` adapter.
-
 ### ~~P1 - Advanced Mode Exposes Uninterpretable Chain-of-Thought~~ FIXED
+
 **File:** `docs/bugs/P1_ADVANCED_MODE_UNINTERPRETABLE_CHAIN_OF_THOUGHT.md`
 **PR:** [#107](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/pull/107)
 **Found:** 2025-12-01
@@ -59,6 +65,7 @@
 - CodeRabbit review addressed: test markers, edge case handling, truncation test coverage.
 
 ### ~~P0 - Advanced Mode Timeout Yields No Synthesis~~ FIXED
+
 **File:** `docs/bugs/P0_ADVANCED_MODE_TIMEOUT_NO_SYNTHESIS.md`
 **Found:** 2025-11-30 (Manual Testing)
 **Resolved:** 2025-12-01
@@ -75,38 +82,35 @@
 - Tests: `tests/unit/orchestrators/test_advanced_timeout.py`
 - Key files: `src/orchestrators/advanced.py`, `src/orchestrators/factory.py`, `src/services/research_memory.py`
 
-### ~~P0 - Free Tier Synthesis Incorrectly Uses Server-Side API Keys~~ FIXED
+### ~~P0 - Free Tier Synthesis Incorrectly Uses Server-Side API Keys~~ FIXED (Historical)
+
 **File:** `docs/bugs/P1_SYNTHESIS_BROKEN_KEY_FALLBACK.md`
 **PR:** [#103](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/pull/103)
 **Found:** 2025-11-30 (Testing)
 **Resolved:** 2025-11-30
-**Verified:** Free Tier now produces full LLM-synthesized research reports ✅
 
-- Problem: Simple Mode crashed with "OpenAIError" on HuggingFace Spaces when user provided no key but admin key was invalid.
-- Root Cause: Synthesis logic bypassed the Free Tier judge and incorrectly used server-side keys via `get_model()`.
-- Fix: Implemented `synthesize()` in `HFInferenceJudgeHandler` to use free HuggingFace Inference, ensuring consistency with the judge phase.
-- Key files: `src/agent_factory/judges.py`, `src/orchestrators/simple.py`
+- Problem: Simple Mode crashed with "OpenAIError" on HuggingFace Spaces.
+- Note: This was in the OLD Simple Mode. Now we use Unified Architecture.
 
-### ~~P0 - Synthesis Fails with OpenAIError in Free Mode~~ FIXED
+### ~~P0 - Synthesis Fails with OpenAIError in Free Mode~~ FIXED (Historical)
+
 **File:** `docs/bugs/P0_SYNTHESIS_PROVIDER_MISMATCH.md`
 **Found:** 2025-11-30 (Code Audit)
 **Resolved:** 2025-11-30
 
 - Problem: "Simple Mode" (Free Tier) crashed with `OpenAIError`.
-- Root Cause: `get_model()` defaulted to OpenAI regardless of available keys.
-- Fix: Implemented auto-detection in `judges.py` (OpenAI > Anthropic > HuggingFace).
-- Added extensive unit tests and regression tests.
+- Note: This was in the OLD Simple Mode. Now we use Unified Architecture.
 
-### ~~P0 - Simple Mode Never Synthesizes~~ FIXED
+### ~~P0 - Simple Mode Never Synthesizes~~ FIXED (Historical)
+
 **PR:** [#71](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/pull/71) (SPEC_06)
 **Commit**: `5cac97d` (2025-11-29)
 
 - Root cause: LLM-as-Judge recommendations were being IGNORED
-- Fix: Code-enforced termination criteria (`_should_synthesize()`)
-- Added combined score thresholds, late-iteration logic, emergency fallback
-- Simple mode now synthesizes instead of spinning forever
+- Note: This was in the OLD Simple Mode. Now we use Unified Architecture.
 
 ### ~~P3 - Magentic Mode Missing Termination Guarantee~~ FIXED
+
 **Commit**: `d36ce3c` (2025-11-29)
 
 - Added `final_event_received` tracking in `orchestrator_magentic.py`
@@ -114,6 +118,7 @@
 - Verified with `test_magentic_termination.py`
 
 ### ~~P0 - Magentic Mode Report Generation~~ FIXED
+
 **Commit**: `9006d69` (2025-11-29)
 
 - Fixed `_extract_text()` to handle various message object formats
@@ -122,6 +127,7 @@
 - Advanced mode now produces full research reports
 
 ### ~~P1 - Streaming Spam + API Key Persistence~~ FIXED
+
 **Commit**: `0c9be4a` (2025-11-29)
 
 - Streaming events now buffered (not token-by-token spam)
@@ -129,6 +135,7 @@
 - Examples use explicit `None` values to avoid overwriting keys
 
 ### ~~P2 - Missing "Thinking" State~~ FIXED
+
 **Commit**: `9006d69` (2025-11-29)
 
 - Added `"thinking"` event type with hourglass icon
@@ -136,6 +143,7 @@
 - Users now see feedback during 2-5 minute initial processing
 
 ### ~~P2 - Gradio Example Not Filling Chat Box~~ FIXED
+
 **Commit**: `2ea01fd` (2025-11-29)
 
 - Third example (HSDD) wasn't populating chat box when clicked

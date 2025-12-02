@@ -17,7 +17,7 @@ Design Patterns:
 
 import asyncio
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import structlog
 from agent_framework import (
@@ -181,6 +181,69 @@ The final output should be a structured research report."""
 
         return f"Round {iteration}/{self._max_rounds} (~{est_display} remaining)"
 
+    async def _init_workflow_events(self, query: str) -> AsyncGenerator[AgentEvent, None]:
+        """Yield initialization events."""
+        yield AgentEvent(
+            type="started",
+            message=f"Starting research (Advanced mode): {query}",
+            iteration=0,
+        )
+
+        yield AgentEvent(
+            type="progress",
+            message="Loading embedding service (LlamaIndex/ChromaDB)...",
+            iteration=0,
+        )
+
+    async def _handle_timeout(self, iteration: int) -> AsyncGenerator[AgentEvent, None]:
+        """Handle workflow timeout by attempting synthesis."""
+        logger.warning("Workflow timed out", iterations=iteration)
+
+        # ACTUALLY synthesize from gathered evidence
+        try:
+            from src.agents.magentic_agents import create_report_agent
+            from src.agents.state import get_magentic_state
+
+            state = get_magentic_state()
+            memory = state.memory
+
+            # Get evidence summary from memory
+            evidence_summary = await memory.get_context_summary()
+
+            # Create and invoke ReportAgent for synthesis
+            report_agent = create_report_agent(self._chat_client, domain=self.domain)
+
+            yield AgentEvent(
+                type="synthesizing",
+                message="Workflow timed out. Synthesizing available evidence...",
+                iteration=iteration,
+            )
+
+            # Invoke ReportAgent directly
+            # Note: ChatAgent.run() returns AgentRunResponse; access text via .text
+            synthesis_result = await report_agent.run(
+                "Synthesize research report from this evidence. "
+                f"If evidence is sparse, say so.\n\n{evidence_summary}"
+            )
+
+            yield AgentEvent(
+                type="complete",
+                message=synthesis_result.text,
+                data={"reason": "timeout_synthesis", "iterations": iteration},
+                iteration=iteration,
+            )
+        except Exception as synth_error:
+            logger.error("Timeout synthesis failed", error=str(synth_error))
+            yield AgentEvent(
+                type="complete",
+                message=(
+                    f"Research timed out after {iteration} rounds. "
+                    f"Evidence gathered but synthesis failed: {synth_error}"
+                ),
+                data={"reason": "timeout_synthesis_failed", "iterations": iteration},
+                iteration=iteration,
+            )
+
     async def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:
         """
         Run the workflow.
@@ -193,18 +256,10 @@ The final output should be a structured research report."""
         """
         logger.info("Starting Advanced orchestrator", query=query)
 
-        yield AgentEvent(
-            type="started",
-            message=f"Starting research (Advanced mode): {query}",
-            iteration=0,
-        )
+        async for event in self._init_workflow_events(query):
+            yield event
 
         # Initialize context state
-        yield AgentEvent(
-            type="progress",
-            message="Loading embedding service (LlamaIndex/ChromaDB)...",
-            iteration=0,
-        )
         embedding_service = self._init_embedding_service()
 
         yield AgentEvent(
@@ -238,25 +293,52 @@ The final output should be a structured research report."""
         iteration = 0
         final_event_received = False
 
+        # ACCUMULATOR PATTERN: Track streaming content to bypass upstream Repr Bug
+        # Upstream bug in _magentic.py flattens message.contents and sets message.text
+        # to repr(message) if text is empty. We must reconstruct text from Deltas.
+        current_message_buffer: str = ""
+        current_agent_id: str | None = None
+
         try:
             async with asyncio.timeout(self._timeout_seconds):
                 async for event in workflow.run_stream(task):
-                    agent_event = self._process_event(event, iteration)
-                    if agent_event:
-                        if isinstance(event, MagenticAgentMessageEvent):
-                            iteration += 1
-                            progress_msg = self._get_progress_message(iteration)
+                    # 1. Handle Streaming (Source of Truth for Content)
+                    if isinstance(event, MagenticAgentDeltaEvent):
+                        # Detect agent switch to clear buffer
+                        if event.agent_id != current_agent_id:
+                            current_message_buffer = ""
+                            current_agent_id = event.agent_id
 
-                            # Yield progress update before the agent action
+                        if event.text:
+                            current_message_buffer += event.text
                             yield AgentEvent(
-                                type="progress",
-                                message=progress_msg,
+                                type="streaming",
+                                message=event.text,
+                                data={"agent_id": event.agent_id},
                                 iteration=iteration,
                             )
+                        continue
 
+                    # 2. Handle Completion Signal
+                    # We use our accumulated buffer instead of the corrupted event.message
+                    if isinstance(event, MagenticAgentMessageEvent):
+                        iteration += 1
+
+                        comp_event, prog_event = self._handle_completion_event(
+                            event, current_message_buffer, iteration
+                        )
+                        yield comp_event
+                        yield prog_event
+
+                        # Clear buffer after consuming
+                        current_message_buffer = ""
+                        continue
+
+                    # 3. Handle other events normally
+                    agent_event = self._process_event(event, iteration)
+                    if agent_event:
                         if agent_event.type == "complete":
                             final_event_received = True
-
                         yield agent_event
 
             # GUARANTEE: Always emit termination event if stream ends without one
@@ -278,52 +360,8 @@ The final output should be a structured research report."""
                 )
 
         except TimeoutError:
-            logger.warning("Workflow timed out", iterations=iteration)
-
-            # ACTUALLY synthesize from gathered evidence
-            try:
-                from src.agents.magentic_agents import create_report_agent
-                from src.agents.state import get_magentic_state
-
-                state = get_magentic_state()
-                memory = state.memory
-
-                # Get evidence summary from memory
-                evidence_summary = await memory.get_context_summary()
-
-                # Create and invoke ReportAgent for synthesis
-                report_agent = create_report_agent(self._chat_client, domain=self.domain)
-
-                yield AgentEvent(
-                    type="synthesizing",
-                    message="Workflow timed out. Synthesizing available evidence...",
-                    iteration=iteration,
-                )
-
-                # Invoke ReportAgent directly
-                # Note: ChatAgent.run() returns the final response string
-                synthesis_result = await report_agent.run(
-                    "Synthesize research report from this evidence. "
-                    f"If evidence is sparse, say so.\n\n{evidence_summary}"
-                )
-
-                yield AgentEvent(
-                    type="complete",
-                    message=str(synthesis_result),
-                    data={"reason": "timeout_synthesis", "iterations": iteration},
-                    iteration=iteration,
-                )
-            except Exception as synth_error:
-                logger.error("Timeout synthesis failed", error=str(synth_error))
-                yield AgentEvent(
-                    type="complete",
-                    message=(
-                        f"Research timed out after {iteration} rounds. "
-                        f"Evidence gathered but synthesis failed: {synth_error}"
-                    ),
-                    data={"reason": "timeout_synthesis_failed", "iterations": iteration},
-                    iteration=iteration,
-                )
+            async for event in self._handle_timeout(iteration):
+                yield event
 
         except Exception as e:
             logger.error("Workflow failed", error=str(e))
@@ -332,6 +370,45 @@ The final output should be a structured research report."""
                 message=f"Workflow error: {e!s}",
                 iteration=iteration,
             )
+
+    def _handle_completion_event(
+        self, event: MagenticAgentMessageEvent, buffer: str, iteration: int
+    ) -> tuple[AgentEvent, AgentEvent]:
+        """Handle an agent completion event using the accumulated buffer."""
+        # Use buffer if available, otherwise fall back cautiously
+        # (Only fall back if buffer empty, which implies tool-only turn)
+        text_content = buffer
+        if not text_content:
+            # Try extraction but ignore repr strings AND empty strings
+            raw_text = self._extract_text(event.message)
+            if raw_text and not (raw_text.startswith("<") and "object at" in raw_text):
+                text_content = raw_text
+            else:
+                text_content = "Action completed (Tool Call)"
+
+        agent_name = event.agent_id or "unknown"
+        event_type = self._get_event_type_for_agent(agent_name)
+
+        completion_event = AgentEvent(
+            type=event_type,
+            message=f"{agent_name}: {text_content[:200]}...",
+            iteration=iteration,
+        )
+
+        # Progress update
+        rounds_remaining = max(self._max_rounds - iteration, 0)
+        est_seconds = rounds_remaining * 45
+        est_display = (
+            f"{est_seconds // 60}m {est_seconds % 60}s" if est_seconds >= 60 else f"{est_seconds}s"
+        )
+
+        progress_event = AgentEvent(
+            type="progress",
+            message=f"Round {iteration}/{self._max_rounds} (~{est_display} remaining)",
+            iteration=iteration,
+        )
+
+        return completion_event, progress_event
 
     def _extract_text(self, message: Any) -> str:
         """
@@ -384,7 +461,9 @@ The final output should be a structured research report."""
         # The repr is useless for display purposes
         return ""
 
-    def _get_event_type_for_agent(self, agent_name: str) -> str:
+    def _get_event_type_for_agent(
+        self, agent_name: str
+    ) -> Literal["search_complete", "judge_complete", "hypothesizing", "synthesizing", "judging"]:
         """Map agent name to appropriate event type.
 
         Args:
@@ -444,17 +523,8 @@ The final output should be a structured research report."""
                 iteration=iteration,
             )
 
-        elif isinstance(event, MagenticAgentMessageEvent):
-            agent_name = event.agent_id or "unknown"
-            text = self._extract_text(event.message)
-            event_type = self._get_event_type_for_agent(agent_name)
-
-            # All returned types are valid AgentEvent.type literals
-            return AgentEvent(
-                type=event_type,  # type: ignore[arg-type]
-                message=f"{agent_name}: {self._smart_truncate(text)}",
-                iteration=iteration + 1,
-            )
+        # NOTE: MagenticAgentMessageEvent is handled in run() loop with Accumulator Pattern
+        # (see lines 322-335) and never reaches this method due to `continue` statement.
 
         elif isinstance(event, MagenticFinalResultEvent):
             text = self._extract_text(event.message) if event.message else "No result"
@@ -465,14 +535,8 @@ The final output should be a structured research report."""
                 iteration=iteration,
             )
 
-        elif isinstance(event, MagenticAgentDeltaEvent):
-            if event.text:
-                return AgentEvent(
-                    type="streaming",
-                    message=event.text,
-                    data={"agent_id": event.agent_id},
-                    iteration=iteration,
-                )
+        # NOTE: MagenticAgentDeltaEvent is handled in run() loop with Accumulator Pattern
+        # (see lines 306-320) and never reaches this method due to `continue` statement.
 
         elif isinstance(event, WorkflowOutputEvent):
             if event.data:
