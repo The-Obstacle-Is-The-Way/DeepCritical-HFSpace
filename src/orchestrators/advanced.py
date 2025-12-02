@@ -337,32 +337,52 @@ The final output should be a structured research report."""
         """
         Defensively extract text from a message object.
 
-        Fixes bug where message.text might return the object itself or its repr.
+        Handles ChatMessage objects from both OpenAI and HuggingFace clients.
+        ChatMessage has: .text (str), .contents (list of content objects)
+        Also handles plain string messages (e.g., WorkflowOutputEvent.data).
         """
         if not message:
             return ""
 
-        # Priority 1: .content (often the raw string or list of content)
-        if hasattr(message, "content") and message.content:
-            content = message.content
-            # If it's a list (e.g., Multi-modal), join text parts
-            if isinstance(content, list):
-                return " ".join([str(c.text) for c in content if hasattr(c, "text")])
-            return str(content)
+        # Priority 0: Handle plain string messages (e.g., WorkflowOutputEvent.data)
+        if isinstance(message, str):
+            # Filter out obvious repr-style noise
+            if not (message.startswith("<") and "object at" in message):
+                return message
+            return ""
 
-        # Priority 2: .text (standard, but sometimes buggy/missing)
+        # Priority 1: .text (standard ChatMessage text content)
         if hasattr(message, "text") and message.text:
-            # Verify it's not the object itself or a repr string
-            text = str(message.text)
-            if text.startswith("<") and "object at" in text:
-                # Likely a repr string, ignore if possible
-                pass
-            else:
+            text = message.text
+            # Verify it's actually a string, not the object itself
+            if isinstance(text, str) and not (text.startswith("<") and "object at" in text):
                 return text
 
-        # Fallback: If we can't find clean text, return str(message)
-        # taking care to avoid infinite recursion if str() calls .text
-        return str(message)
+        # Priority 2: .contents (list of FunctionCallContent, TextContent, etc.)
+        # This handles tool call responses from HuggingFace
+        if hasattr(message, "contents") and message.contents:
+            parts = []
+            for content in message.contents:
+                # TextContent has .text
+                if hasattr(content, "text") and content.text:
+                    parts.append(str(content.text))
+                # FunctionCallContent has .name and .arguments
+                elif hasattr(content, "name"):
+                    parts.append(f"[Tool: {content.name}]")
+            if parts:
+                return " ".join(parts)
+
+        # Priority 3: .content (legacy - some frameworks use singular)
+        if hasattr(message, "content") and message.content:
+            content = message.content
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                return " ".join([str(c.text) for c in content if hasattr(c, "text")])
+
+        # Fallback: Return empty string instead of repr
+        # The repr is useless for display purposes
+        return ""
 
     def _get_event_type_for_agent(self, agent_name: str) -> str:
         """Map agent name to appropriate event type.
@@ -456,9 +476,11 @@ The final output should be a structured research report."""
 
         elif isinstance(event, WorkflowOutputEvent):
             if event.data:
+                # Use _extract_text to properly handle ChatMessage objects
+                text = self._extract_text(event.data)
                 return AgentEvent(
                     type="complete",
-                    message=str(event.data),
+                    message=text if text else "Research complete (no synthesis)",
                     iteration=iteration,
                 )
 

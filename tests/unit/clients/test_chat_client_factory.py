@@ -154,10 +154,10 @@ class TestHuggingFaceChatClient:
 
             client = HuggingFaceChatClient()
 
-            # Create mock messages
+            # Create mock messages (include contents=None for tool call processing)
             messages = [
-                MagicMock(spec=ChatMessage, role="user", text="Hello"),
-                MagicMock(spec=ChatMessage, role="assistant", text="Hi there!"),
+                MagicMock(spec=ChatMessage, role="user", text="Hello", contents=None),
+                MagicMock(spec=ChatMessage, role="assistant", text="Hi there!", contents=None),
             ]
 
             result = client._convert_messages(messages)
@@ -189,6 +189,7 @@ class TestHuggingFaceChatClient:
             mock_msg = MagicMock(spec=ChatMessage)
             mock_msg.role = Role.USER  # Enum, not string
             mock_msg.text = "Hello"
+            mock_msg.contents = None  # Required for tool call processing
 
             result = client._convert_messages([mock_msg])
 
