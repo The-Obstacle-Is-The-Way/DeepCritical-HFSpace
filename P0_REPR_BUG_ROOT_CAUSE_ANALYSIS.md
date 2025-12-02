@@ -73,6 +73,7 @@ if isinstance(event, MagenticFinalResultEvent):
 ## Why This Eliminates the Repr Bug
 
 The repr bug occurs at `_magentic.py:1730`:
+
 ```python
 text = last.text or str(last)  # Falls back to repr() for tool-only messages
 ```
