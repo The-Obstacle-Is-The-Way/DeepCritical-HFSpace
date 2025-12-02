@@ -1,17 +1,21 @@
 # P1 Bug: Simple Mode Removal Breaks Free Tier UX
 
-**Severity**: P1 (High) - Free Tier shows garbage repr output instead of clean Simple mode
-**Status**: OPEN - **PREMATURE DELETION** of Simple Mode
+**Severity**: P1 (High) - Free Tier shows garbage repr output
+**Status**: OPEN - Blocked by upstream bug #2562
 **Discovered**: 2025-12-01
 **Investigator**: Claude Code
 
 ## Executive Summary
 
-SPEC-16 "Unified Architecture" **correctly** integrated Simple Mode's HuggingFace capability into Advanced Mode. However, **Simple Mode code was deleted prematurely** before verifying that Advanced Mode + HuggingFace actually worked.
+We want **UNIFIED ARCHITECTURE with Simple Mode INTEGRATED** - not two parallel universes.
 
-**The Problem**: The upstream agent-framework has a repr bug (#2562) that breaks Advanced Mode when using HuggingFace. We deleted Simple Mode (the working fallback) before this was fixed.
+**The Goal**: ONE codebase that handles both free tier (HuggingFace) and paid tier (OpenAI).
 
-**The Result**: Free tier users now see garbage repr output instead of the clean Simple Mode experience.
+**Current Blocker**: Upstream bug #2562 prevents HuggingFace from working in the unified architecture. PR #2566 will fix this.
+
+**The Mistake**: We deleted the old Simple Mode code BEFORE the upstream bug was fixed, leaving free-tier users with broken output.
+
+**The Fix**: Wait for upstream PR #2566 to merge, then complete the unified architecture.
 
 ## Observed Behavior
 

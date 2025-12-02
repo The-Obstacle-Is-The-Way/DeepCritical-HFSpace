@@ -1,58 +1,68 @@
 # SPEC_16: Unified Chat Client Architecture
 
-**Status**: ON HOLD - **Simple Mode Must Be Restored First**
-**Priority**: P2 (Deferred until upstream bug is fixed)
+**Status**: IN PROGRESS - Blocked by upstream bug #2562
+**Priority**: P0
 **Issue**: Updates [#105](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/issues/105), [#109](https://github.com/The-Obstacle-Is-The-Way/DeepBoner/issues/109)
 **Created**: 2025-12-01
 **Last Updated**: 2025-12-01
 
 ---
 
-## ⛔ SIMPLE MODE IS NOT BEING DELETED
+## 🎯 THE GOAL: Unified Architecture WITH Simple Mode Integrated
 
-> **This is NON-NEGOTIABLE. Simple Mode MUST remain in the codebase.**
+> **ONE unified architecture. Simple Mode INTEGRATED. NOT two parallel universes.**
 
-### The Rule
+### The Vision
 
-| Tier | Mode | Backend |
-|------|------|---------|
-| **Free (no API key)** | **Simple Mode** | HuggingFace via Pydantic AI |
-| **Paid (OpenAI key)** | Advanced Mode | OpenAI via Agent Framework |
-| **Paid (Anthropic key)** | Advanced Mode | Anthropic via Agent Framework |
+```
+Unified Architecture (ONE codebase)
+├── Free Tier (no API key) → Simple Mode behavior → HuggingFace backend
+└── Paid Tier (API key) → Advanced Mode behavior → OpenAI/Anthropic backend
+```
 
-### Why Simple Mode Cannot Be Deleted
+**NOT** two separate orchestrators with duplicate code. **ONE system** that handles both tiers.
 
-1. **Upstream Bug #2562**: Advanced Mode + HuggingFace shows repr garbage
-2. **No Fallback**: If Simple Mode is deleted, free-tier users have no working option
-3. **Different Stacks**: Simple Mode uses Pydantic AI (works), Advanced uses Agent Framework (has bug)
+### Current Blocker
 
-### What Went Wrong (Lesson Learned)
+**Upstream bug #2562** prevents Advanced Mode from working with HuggingFace.
+Once PR #2566 merges, we can complete the unified architecture.
+
+### What We Want
+
+| Tier | Behavior | Backend | Architecture |
+|------|----------|---------|--------------|
+| **Free (no API key)** | Simple Mode | HuggingFace | **UNIFIED** |
+| **Paid (OpenAI key)** | Advanced Mode | OpenAI | **UNIFIED** |
+| **Paid (Anthropic key)** | Advanced Mode | Anthropic | **UNIFIED** |
+
+**All tiers use the SAME unified codebase** - just different backends.
+
+### What Went Wrong
+
+We tried to unify too early. The upstream bug broke HuggingFace support in Advanced Mode.
 
 | Date | Action | Result |
 |------|--------|--------|
-| Nov 2025 | Deleted `simple.py` (778 lines) | ❌ PREMATURE |
-| Dec 1, 2025 | Discovered upstream repr bug | Free tier broken |
-| Dec 1, 2025 | No Simple Mode to fall back to | Users see garbage |
+| Nov 2025 | Started unification | ✅ Good intent |
+| Nov 2025 | Deleted `simple.py` | ❌ PREMATURE - upstream bug not fixed |
+| Dec 1, 2025 | Discovered upstream repr bug #2562 | Free tier broken |
+| Dec 1, 2025 | PR #2566 submitted to fix upstream | ⏳ Waiting for merge |
 
-**Simple Mode was deleted BEFORE verifying Advanced+HuggingFace worked.**
+### Path Forward
 
-### Required Action
+1. **WAIT** for upstream PR #2566 to merge (fixes repr bug)
+2. **THEN** complete unified architecture with HuggingFace support
+3. **Simple Mode behavior INTEGRATED** into unified system (not a parallel universe)
+4. **ONE codebase** handles all tiers
 
-1. **IMPLEMENT** Simple Mode cleanly (DO NOT blindly restore old buggy code)
-2. **CONSIDER** git revert in this repo - MAY be possible but review for bugs first
-3. **DO NOT** use MCP reference repo - that implementation has known bugs
-4. **UPDATE** factory to auto-detect mode (Simple for free tier)
-5. **KEEP** Simple Mode indefinitely until upstream is verified fixed
-
-> ⚠️ **WARNING**: The MCP reference repo (`reference_repos/mcp-deepboner`) contains buggy
-> implementation code. Do NOT copy from there. If restoring, use git history from THIS
-> repo only, and carefully review for bugs before merging.
+> ⚠️ **WARNING**: Do NOT create two parallel orchestrators. The goal is UNIFIED architecture
+> with Simple Mode behavior cleanly integrated for free-tier users.
 
 ---
 
-## ⚠️ SPEC INTENT: Integration, Not Deletion
+## ⚠️ CLARIFICATION: Integration, Not Parallel Universes
 
-**This spec was SUPPOSED to integrate Simple Mode's capability, NOT delete it.**
+**This spec INTEGRATES Simple Mode into a unified architecture.**
 
 | What We're Doing | What We're NOT Doing |
 |------------------|----------------------|
