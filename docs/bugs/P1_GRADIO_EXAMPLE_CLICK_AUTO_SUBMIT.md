@@ -119,7 +119,7 @@ We can clean it up in a separate PR after the fix is verified working.
 
 The unified architecture (SPEC-16) relies on API key auto-detection:
 
-```
+```text
 User provides key?
 ├── YES → OpenAI backend (sk-...) or Anthropic backend (sk-ant-...)
 └── NO  → HuggingFace Free Tier
