@@ -38,8 +38,12 @@ class ResearchTeam(SubIterationTeam):
     sub-iteration middleware framework.
     """
 
-    def __init__(self, domain: ResearchDomain | str | None = None) -> None:
-        self.agent = create_search_agent(domain=domain)
+    def __init__(
+        self,
+        domain: ResearchDomain | str | None = None,
+        api_key: str | None = None,
+    ) -> None:
+        self.agent = create_search_agent(domain=domain, api_key=api_key)
 
     async def execute(self, task: str) -> str:
         """Execute a research task.
@@ -73,6 +77,7 @@ class HierarchicalOrchestrator(OrchestratorProtocol):
         config: OrchestratorConfig | None = None,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         domain: ResearchDomain | str | None = None,
+        api_key: str | None = None,
     ) -> None:
         """Initialize the hierarchical orchestrator.
 
@@ -80,12 +85,14 @@ class HierarchicalOrchestrator(OrchestratorProtocol):
             config: Optional configuration (uses defaults if not provided)
             timeout_seconds: Maximum workflow duration (default: 5 minutes)
             domain: Research domain for customization
+            api_key: Optional BYOK key (auto-detects provider from prefix)
         """
         self.config = config or OrchestratorConfig()
         self._timeout_seconds = timeout_seconds
         self.domain = domain
-        self.team = ResearchTeam(domain=domain)
-        self.judge = LLMSubIterationJudge()
+        self._api_key = api_key
+        self.team = ResearchTeam(domain=domain, api_key=api_key)
+        self.judge = LLMSubIterationJudge(api_key=api_key)
         self.middleware = SubIterationMiddleware(
             self.team, self.judge, max_iterations=self.config.max_iterations
         )
@@ -101,7 +108,7 @@ class HierarchicalOrchestrator(OrchestratorProtocol):
         """
         logger.info("Starting hierarchical orchestrator", query=query)
 
-        service = get_embedding_service_if_available()
+        service = get_embedding_service_if_available(api_key=self._api_key)
         init_magentic_state(query, service)
 
         yield AgentEvent(type="started", message=f"Starting research: {query}")

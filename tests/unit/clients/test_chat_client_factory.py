@@ -91,7 +91,72 @@ class TestChatClientFactory:
             from src.clients.factory import get_chat_client
 
             with pytest.raises(ValueError, match="Unsupported provider"):
+                get_chat_client(provider="invalid_provider")
+
+    def test_anthropic_provider_raises_not_implemented(self) -> None:
+        """Anthropic provider should raise NotImplementedError (not yet implemented)."""
+        with patch("src.clients.factory.settings") as mock_settings:
+            mock_settings.has_openai_key = False
+            mock_settings.has_gemini_key = False
+
+            from src.clients.factory import get_chat_client
+
+            with pytest.raises(NotImplementedError, match="Anthropic client not yet implemented"):
                 get_chat_client(provider="anthropic")
+
+    def test_byok_auto_detects_openai_from_key_prefix(self) -> None:
+        """BYOK: api_key starting with 'sk-' should auto-select OpenAI without explicit provider.
+
+        This is the critical BYOK (Bring Your Own Key) test case:
+        - User enters 'sk-...' key in Gradio
+        - No explicit provider parameter
+        - No OPENAI_API_KEY in env (settings.has_openai_key = False)
+        - Should auto-detect OpenAI from the key prefix
+        """
+        with patch("src.clients.factory.settings") as mock_settings:
+            mock_settings.has_openai_key = False  # No env key
+            mock_settings.has_gemini_key = False
+            mock_settings.openai_api_key = None
+            mock_settings.openai_model = "gpt-5"
+
+            from src.clients.factory import get_chat_client
+
+            # BYOK: Pass api_key without explicit provider
+            client = get_chat_client(api_key="sk-user-provided-key")
+
+            # Should auto-detect OpenAI from 'sk-' prefix
+            assert "OpenAI" in type(client).__name__
+
+    def test_byok_auto_detects_anthropic_from_key_prefix(self) -> None:
+        """BYOK: api_key starting with 'sk-ant-' should auto-detect Anthropic.
+
+        Anthropic keys start with 'sk-ant-' which is a superset of 'sk-'.
+        Detection must check 'sk-ant-' first to avoid misdetecting as OpenAI.
+        """
+        with patch("src.clients.factory.settings") as mock_settings:
+            mock_settings.has_openai_key = False
+            mock_settings.has_gemini_key = False
+
+            from src.clients.factory import get_chat_client
+
+            # BYOK: Anthropic key should raise NotImplementedError (not fall to HuggingFace!)
+            with pytest.raises(NotImplementedError, match="Anthropic client not yet implemented"):
+                get_chat_client(api_key="sk-ant-user-anthropic-key")
+
+    def test_byok_hf_token_falls_through_to_huggingface(self) -> None:
+        """BYOK: HuggingFace tokens (hf_...) should use HuggingFace client."""
+        with patch("src.clients.factory.settings") as mock_settings:
+            mock_settings.has_openai_key = False
+            mock_settings.has_gemini_key = False
+            mock_settings.huggingface_model = "Qwen/Qwen2.5-7B-Instruct"
+            mock_settings.hf_token = None
+
+            from src.clients.factory import get_chat_client
+
+            # HF tokens don't trigger auto-detection, falls through to HuggingFace
+            client = get_chat_client(api_key="hf_user_provided_token")
+
+            assert "HuggingFace" in type(client).__name__
 
     def test_provider_is_case_insensitive(self) -> None:
         """Provider matching should be case-insensitive."""

@@ -104,9 +104,21 @@ DeepBonerError (base)
 
 Default models in `src/utils/config.py`:
 
-- **OpenAI:** `gpt-5` - Flagship model (requires Tier 5 access)
-- **Anthropic:** `claude-sonnet-4-5-20250929` - Mid-range Claude 4.5
+- **OpenAI:** `gpt-5` - Flagship model
 - **HuggingFace (Free Tier):** `Qwen/Qwen2.5-7B-Instruct` - See critical note below
+
+**NOTE:** Anthropic is NOT supported (no embeddings API). See `P3_REMOVE_ANTHROPIC_PARTIAL_WIRING.md`.
+
+---
+
+## ⚠️ OpenAI API Keys
+
+**If you have a valid OpenAI API key, it will work. Period.**
+
+- BYOK (Bring Your Own Key) auto-detects `sk-...` prefix and routes to OpenAI
+- If you get errors, the key is **invalid or expired** - NOT an access tier issue
+- **NEVER suggest "access tier" or "upgrade your plan"** - this is not how OpenAI works for API keys
+- Valid keys work. Invalid keys don't. That's it.
 
 ---
 

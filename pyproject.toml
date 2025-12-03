@@ -20,6 +20,8 @@ dependencies = [
     "huggingface-hub>=0.24.0", # Hugging Face Inference API - 0.24.0 required for stable chat_completion with tools
     # UI
     "gradio[mcp]>=6.0.0", # Chat interface with MCP server support (6.0 required for css in launch())
+    # Security: Pin mcp to fix GHSA-9h52-p55h-vw2f
+    "mcp>=1.23.0",
     # Utils
     "python-dotenv>=1.0", # .env loading
     "tenacity>=8.2", # Retry logic

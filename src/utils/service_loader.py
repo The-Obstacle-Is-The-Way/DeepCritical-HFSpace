@@ -45,7 +45,7 @@ def warmup_services() -> None:
     thread.start()
 
 
-def get_embedding_service() -> "EmbeddingServiceProtocol":
+def get_embedding_service(api_key: str | None = None) -> "EmbeddingServiceProtocol":
     """Get the best available embedding service.
 
     Strategy selection (ordered by preference):
@@ -56,31 +56,41 @@ def get_embedding_service() -> "EmbeddingServiceProtocol":
     - Factory Method: Creates service instance
     - Strategy Pattern: Selects between implementations at runtime
 
+    Args:
+        api_key: Optional BYOK key. If starts with 'sk-', enables Premium tier.
+
     Returns:
         EmbeddingServiceProtocol: Either LlamaIndexRAGService or EmbeddingService
 
     Raises:
         ImportError: If no embedding service dependencies are available
-
-    Example:
-        ```python
-        service = get_embedding_service()
-        await service.add_evidence("id", "content", {"source": "pubmed"})
-        results = await service.search_similar("query", n_results=5)
-        unique = await service.deduplicate(evidence_list)
-        ```
     """
+    # Determine if we have a valid OpenAI key (BYOK or Env)
+    # Note: Must check sk-ant- BEFORE sk- since Anthropic keys start with sk-ant-
+    has_openai = False
+    if api_key:
+        if api_key.startswith("sk-ant-"):
+            # Anthropic key - not supported for embeddings
+            logger.warning("Anthropic keys don't support embeddings, falling back to free tier")
+        elif api_key.startswith("sk-"):
+            # OpenAI BYOK
+            has_openai = True
+    elif settings.has_openai_key:
+        has_openai = True
+
     # Try premium tier first (OpenAI + persistence)
-    if settings.has_openai_key:
+    if has_openai:
         try:
             from src.services.llamaindex_rag import get_rag_service
 
-            service = get_rag_service()
+            # Pass api_key to service (it handles precedence: api_key > env)
+            service = get_rag_service(api_key=api_key)
             logger.info(
                 "Using LlamaIndex RAG service",
                 tier="premium",
                 persistence="enabled",
                 embeddings="openai",
+                byok=bool(api_key),
             )
             return service
         except ImportError as e:
@@ -119,17 +129,22 @@ def get_embedding_service() -> "EmbeddingServiceProtocol":
         ) from e
 
 
-def get_embedding_service_if_available() -> "EmbeddingServiceProtocol | None":
+def get_embedding_service_if_available(
+    api_key: str | None = None,
+) -> "EmbeddingServiceProtocol | None":
     """Safely attempt to load and initialize an embedding service.
 
     Unlike get_embedding_service(), this function returns None instead of
     raising ImportError when no service is available.
 
+    Args:
+        api_key: Optional BYOK key to pass to service factory.
+
     Returns:
         EmbeddingServiceProtocol instance if dependencies are met, else None.
     """
     try:
-        return get_embedding_service()
+        return get_embedding_service(api_key=api_key)
     except ImportError as e:
         logger.info(
             "Embedding service not available (optional dependencies missing)",

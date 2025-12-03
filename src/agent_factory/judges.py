@@ -2,16 +2,15 @@
 
 import asyncio
 import json
+import os
 from functools import partial
 from typing import Any, ClassVar
 
 import structlog
 from huggingface_hub import InferenceClient
 from pydantic_ai import Agent
-from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.huggingface import HuggingFaceModel
 from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.huggingface import HuggingFaceProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
@@ -54,41 +53,61 @@ def _extract_titles_from_evidence(
     return findings
 
 
-def get_model() -> Any:
+def get_model(api_key: str | None = None) -> Any:
     """Get the LLM model based on available API keys.
 
     Priority order:
-    1. OpenAI (if OPENAI_API_KEY set)
-    2. Anthropic (if ANTHROPIC_API_KEY set)
-    3. HuggingFace (if HF_TOKEN set)
+    1. BYOK api_key parameter (auto-detects provider from prefix)
+    2. OpenAI (if OPENAI_API_KEY set in env)
+    3. HuggingFace (free fallback)
+
+    Args:
+        api_key: Optional BYOK key. Auto-detects provider from prefix:
+                 - "sk-ant-..." → Anthropic (NOT SUPPORTED - raises error)
+                 - "sk-..." → OpenAI
+                 - Other → Falls through to env vars
 
     Raises:
-        ConfigurationError: If no API keys are configured.
+        NotImplementedError: If Anthropic key detected (no embeddings support).
 
-    Note: settings.llm_provider is ignored in favor of actual key availability.
-    This ensures the model matches what app.py selected for JudgeHandler.
+    Note: Anthropic is NOT supported because it lacks embeddings API.
+    See P3_REMOVE_ANTHROPIC_PARTIAL_WIRING.md.
     """
-    from src.utils.exceptions import ConfigurationError
+    # Priority 1: BYOK - Auto-detect provider from key prefix
+    if api_key:
+        if api_key.startswith("sk-ant-"):
+            # Anthropic not supported - no embeddings API
+            raise NotImplementedError(
+                "Anthropic is not supported (no embeddings API). "
+                "Use OpenAI key (sk-...) or leave empty for free HuggingFace tier."
+            )
+        if api_key.startswith("sk-"):
+            # OpenAI BYOK
+            openai_provider = OpenAIProvider(api_key=api_key)
+            return OpenAIChatModel(settings.openai_model, provider=openai_provider)
 
-    # Priority 1: OpenAI (most common, best tool calling)
+    # Priority 2: OpenAI from env (most common, best tool calling)
     if settings.has_openai_key:
         openai_provider = OpenAIProvider(api_key=settings.openai_api_key)
         return OpenAIChatModel(settings.openai_model, provider=openai_provider)
 
-    # Priority 2: Anthropic
-    if settings.has_anthropic_key:
-        provider = AnthropicProvider(api_key=settings.anthropic_api_key)
-        return AnthropicModel(settings.anthropic_model, provider=provider)
+    # Priority 3: HuggingFace (free fallback)
+    # Use 7B model to stay on HuggingFace native infrastructure (avoid Novita 500s)
+    model_name = settings.huggingface_model or "Qwen/Qwen2.5-7B-Instruct"
 
-    # Priority 3: HuggingFace (requires HF_TOKEN)
-    if settings.has_huggingface_key:
-        model_name = settings.huggingface_model or "Qwen/Qwen2.5-72B-Instruct"
-        hf_provider = HuggingFaceProvider(api_key=settings.hf_token)
+    # Try settings.hf_token first, then fall back to HF_TOKEN env var
+    # HuggingFaceProvider requires a token - it won't work without one
+    hf_token = settings.hf_token or os.environ.get("HF_TOKEN")
+    if hf_token:
+        hf_provider = HuggingFaceProvider(api_key=hf_token)
         return HuggingFaceModel(model_name, provider=hf_provider)
 
-    # No keys configured - fail fast with clear error
-    raise ConfigurationError(
-        "No LLM API key configured. Set one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, or HF_TOKEN"
+    # No HF token available - raise clear error
+    raise RuntimeError(
+        "No LLM API key available. Either:\n"
+        "  1. Set OPENAI_API_KEY for premium tier, or\n"
+        "  2. Set HF_TOKEN for free HuggingFace tier\n"
+        "Get a free HF token at: https://huggingface.co/settings/tokens"
     )
 
 
@@ -103,6 +122,7 @@ class JudgeHandler:
         self,
         model: Any = None,
         domain: ResearchDomain | str | None = None,
+        api_key: str | None = None,
     ) -> None:
         """
         Initialize the JudgeHandler.
@@ -110,8 +130,9 @@ class JudgeHandler:
         Args:
             model: Optional PydanticAI model. If None, uses config default.
             domain: Research domain for prompt customization.
+            api_key: Optional BYOK key (auto-detects provider from prefix).
         """
-        self.model = model or get_model()
+        self.model = model or get_model(api_key=api_key)
         self.domain = domain
         self.agent = Agent(
             model=self.model,
@@ -506,7 +527,7 @@ IMPORTANT: Respond with ONLY valid JSON matching this schema:
                 "The HuggingFace Inference API free tier limit has been reached. "
                 "The search results listed below were retrieved but could not be "
                 "analyzed by the AI. "
-                "Please try again later, or add an OpenAI/Anthropic API key above "
+                "Please try again later, or add an OpenAI API key above "
                 "for unlimited access."
             ),
         )
@@ -542,7 +563,7 @@ IMPORTANT: Respond with ONLY valid JSON matching this schema:
                 f"Search found {len(evidence)} sources (listed below) but they could not "
                 "be analyzed by AI.\n\n"
                 "**Options:**\n"
-                "- Add an OpenAI or Anthropic API key for reliable analysis\n"
+                "- Add an OpenAI API key for reliable analysis\n"
                 "- Try again later when HF Inference is available\n"
                 "- Review the raw search results below"
             ),
@@ -571,7 +592,7 @@ IMPORTANT: Respond with ONLY valid JSON matching this schema:
                 f"{question} clinical trials",
                 f"{question} drug candidates",
             ],
-            reasoning=f"HF Inference failed: {error}. Recommend configuring OpenAI/Anthropic key.",
+            reasoning=f"HF Inference failed: {error}. Recommend configuring OpenAI API key.",
         )
 
     async def synthesize(self, system_prompt: str, user_prompt: str) -> str:
@@ -728,6 +749,6 @@ class MockJudgeHandler:
             reasoning=(
                 f"Demo mode assessment based on {evidence_count} real search results. "
                 "For AI-powered analysis with drug candidate identification and "
-                "evidence synthesis, configure OPENAI_API_KEY or ANTHROPIC_API_KEY."
+                "evidence synthesis, configure OPENAI_API_KEY."
             ),
         )

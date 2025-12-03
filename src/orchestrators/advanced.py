@@ -99,6 +99,9 @@ class AdvancedOrchestrator(OrchestratorProtocol):
             api_key=api_key,
         )
 
+        # Store API key for service initialization
+        self._api_key = api_key
+
         # Event stream for UI updates
         self._events: list[AgentEvent] = []
 
@@ -116,7 +119,7 @@ class AdvancedOrchestrator(OrchestratorProtocol):
 
     def _init_embedding_service(self) -> "EmbeddingServiceProtocol | None":
         """Initialize embedding service if available."""
-        return get_embedding_service_if_available()
+        return get_embedding_service_if_available(api_key=self._api_key)
 
     def _build_workflow(self) -> Any:
         """Build the workflow with ChatAgent participants."""

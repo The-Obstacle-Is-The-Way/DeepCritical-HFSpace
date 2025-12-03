@@ -26,9 +26,7 @@ def get_pydantic_ai_model() -> Any:
     Get the appropriate model for pydantic-ai based on configuration.
     Used by legacy Simple Mode components.
     """
-    from pydantic_ai.models.anthropic import AnthropicModel
     from pydantic_ai.models.openai import OpenAIChatModel
-    from pydantic_ai.providers.anthropic import AnthropicProvider
     from pydantic_ai.providers.openai import OpenAIProvider
 
     # Normalize provider for case-insensitive matching
@@ -41,10 +39,7 @@ def get_pydantic_ai_model() -> Any:
         return OpenAIChatModel(settings.openai_model, provider=provider)
 
     if provider_lower == "anthropic":
-        if not settings.anthropic_api_key:
-            raise ConfigurationError("ANTHROPIC_API_KEY not set for pydantic-ai")
-        anthropic_provider = AnthropicProvider(api_key=settings.anthropic_api_key)
-        return AnthropicModel(settings.anthropic_model, provider=anthropic_provider)
+        raise ConfigurationError("Anthropic is not supported (no embeddings API). See P3 doc.")
 
     raise ConfigurationError(f"Unknown LLM provider for simple mode: {settings.llm_provider}")
 

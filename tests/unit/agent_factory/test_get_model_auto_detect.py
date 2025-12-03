@@ -1,59 +1,73 @@
 import pytest
-from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.huggingface import HuggingFaceModel
 from pydantic_ai.models.openai import OpenAIChatModel
 
 from src.agent_factory.judges import get_model
 from src.utils.config import settings
-from src.utils.exceptions import ConfigurationError
 
 
 class TestGetModelAutoDetect:
-    """Test that get_model() auto-detects available providers."""
+    """Test that get_model() auto-detects available providers.
+
+    NOTE: Anthropic is NOT supported (no embeddings API).
+    See P3_REMOVE_ANTHROPIC_PARTIAL_WIRING.md.
+    """
 
     def test_returns_openai_when_key_present(self, monkeypatch):
         """OpenAI key present → OpenAI model."""
         # Mock the settings properties (settings is a singleton)
         monkeypatch.setattr(settings, "openai_api_key", "sk-test")
-        monkeypatch.setattr(settings, "anthropic_api_key", None)
         monkeypatch.setattr(settings, "hf_token", None)
 
         model = get_model()
         assert isinstance(model, OpenAIChatModel)
 
-    def test_returns_anthropic_when_only_anthropic_key(self, monkeypatch):
-        """Only Anthropic key → Anthropic model."""
+    def test_byok_openai_key_returns_openai_model(self, monkeypatch):
+        """BYOK: api_key='sk-...' → OpenAI model (regardless of env vars)."""
         monkeypatch.setattr(settings, "openai_api_key", None)
-        monkeypatch.setattr(settings, "anthropic_api_key", "sk-ant-test")
         monkeypatch.setattr(settings, "hf_token", None)
 
-        model = get_model()
-        assert isinstance(model, AnthropicModel)
+        model = get_model(api_key="sk-byok-test-key")
+        assert isinstance(model, OpenAIChatModel)
+
+    def test_byok_anthropic_key_raises_not_implemented(self, monkeypatch):
+        """BYOK: api_key='sk-ant-...' → NotImplementedError (Anthropic not supported)."""
+        monkeypatch.setattr(settings, "openai_api_key", None)
+        monkeypatch.setattr(settings, "hf_token", None)
+
+        with pytest.raises(NotImplementedError) as exc_info:
+            get_model(api_key="sk-ant-test-key")
+
+        assert "Anthropic is not supported" in str(exc_info.value)
 
     def test_returns_huggingface_when_hf_token_present(self, monkeypatch):
         """HF_TOKEN present (no paid keys) → HuggingFace model."""
         monkeypatch.setattr(settings, "openai_api_key", None)
-        monkeypatch.setattr(settings, "anthropic_api_key", None)
         monkeypatch.setattr(settings, "hf_token", "hf_test_token")
 
         model = get_model()
         assert isinstance(model, HuggingFaceModel)
 
-    def test_raises_error_when_no_keys(self, monkeypatch):
-        """No keys at all → ConfigurationError."""
+    def test_raises_when_no_api_keys_available(self, monkeypatch):
+        """No keys at all → RuntimeError with helpful message."""
         monkeypatch.setattr(settings, "openai_api_key", None)
-        monkeypatch.setattr(settings, "anthropic_api_key", None)
         monkeypatch.setattr(settings, "hf_token", None)
+        monkeypatch.setattr(settings, "huggingface_model", "Qwen/Qwen2.5-7B-Instruct")
+        # Also ensure HF_TOKEN env var is not set
+        monkeypatch.delenv("HF_TOKEN", raising=False)
 
-        with pytest.raises(ConfigurationError) as exc_info:
+        # Should raise clear error when no tokens available
+        import pytest
+
+        with pytest.raises(RuntimeError) as exc_info:
             get_model()
+        assert "No LLM API key available" in str(exc_info.value)
+        assert "HF_TOKEN" in str(exc_info.value)
 
-        assert "No LLM API key configured" in str(exc_info.value)
-
-    def test_openai_takes_priority_over_anthropic(self, monkeypatch):
-        """Both keys present → OpenAI wins."""
+    def test_openai_env_takes_priority_over_huggingface(self, monkeypatch):
+        """OpenAI env key present → OpenAI wins over HuggingFace."""
         monkeypatch.setattr(settings, "openai_api_key", "sk-test")
-        monkeypatch.setattr(settings, "anthropic_api_key", "sk-ant-test")
+        monkeypatch.setattr(settings, "hf_token", "hf_test_token")
 
         model = get_model()
         assert isinstance(model, OpenAIChatModel)
