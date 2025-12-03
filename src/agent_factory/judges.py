@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 from functools import partial
 from typing import Any, ClassVar
 
@@ -93,14 +94,21 @@ def get_model(api_key: str | None = None) -> Any:
     # Priority 3: HuggingFace (free fallback)
     # Use 7B model to stay on HuggingFace native infrastructure (avoid Novita 500s)
     model_name = settings.huggingface_model or "Qwen/Qwen2.5-7B-Instruct"
-    hf_token = settings.hf_token
+
+    # Try settings.hf_token first, then fall back to HF_TOKEN env var
+    # HuggingFaceProvider requires a token - it won't work without one
+    hf_token = settings.hf_token or os.environ.get("HF_TOKEN")
     if hf_token:
         hf_provider = HuggingFaceProvider(api_key=hf_token)
         return HuggingFaceModel(model_name, provider=hf_provider)
 
-    # HuggingFace without token (public models only)
-    hf_provider = HuggingFaceProvider()
-    return HuggingFaceModel(model_name, provider=hf_provider)
+    # No HF token available - raise clear error
+    raise RuntimeError(
+        "No LLM API key available. Either:\n"
+        "  1. Set OPENAI_API_KEY for premium tier, or\n"
+        "  2. Set HF_TOKEN for free HuggingFace tier\n"
+        "Get a free HF token at: https://huggingface.co/settings/tokens"
+    )
 
 
 class JudgeHandler:
@@ -519,7 +527,7 @@ IMPORTANT: Respond with ONLY valid JSON matching this schema:
                 "The HuggingFace Inference API free tier limit has been reached. "
                 "The search results listed below were retrieved but could not be "
                 "analyzed by the AI. "
-                "Please try again later, or add an OpenAI/Anthropic API key above "
+                "Please try again later, or add an OpenAI API key above "
                 "for unlimited access."
             ),
         )
@@ -555,7 +563,7 @@ IMPORTANT: Respond with ONLY valid JSON matching this schema:
                 f"Search found {len(evidence)} sources (listed below) but they could not "
                 "be analyzed by AI.\n\n"
                 "**Options:**\n"
-                "- Add an OpenAI or Anthropic API key for reliable analysis\n"
+                "- Add an OpenAI API key for reliable analysis\n"
                 "- Try again later when HF Inference is available\n"
                 "- Review the raw search results below"
             ),
@@ -584,7 +592,7 @@ IMPORTANT: Respond with ONLY valid JSON matching this schema:
                 f"{question} clinical trials",
                 f"{question} drug candidates",
             ],
-            reasoning=f"HF Inference failed: {error}. Recommend configuring OpenAI/Anthropic key.",
+            reasoning=f"HF Inference failed: {error}. Recommend configuring OpenAI API key.",
         )
 
     async def synthesize(self, system_prompt: str, user_prompt: str) -> str:
@@ -741,6 +749,6 @@ class MockJudgeHandler:
             reasoning=(
                 f"Demo mode assessment based on {evidence_count} real search results. "
                 "For AI-powered analysis with drug candidate identification and "
-                "evidence synthesis, configure OPENAI_API_KEY or ANTHROPIC_API_KEY."
+                "evidence synthesis, configure OPENAI_API_KEY."
             ),
         )

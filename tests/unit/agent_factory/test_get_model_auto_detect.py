@@ -48,15 +48,21 @@ class TestGetModelAutoDetect:
         model = get_model()
         assert isinstance(model, HuggingFaceModel)
 
-    def test_falls_through_to_huggingface_when_no_keys(self, monkeypatch):
-        """No keys at all → Falls through to HuggingFace (free tier)."""
+    def test_raises_when_no_api_keys_available(self, monkeypatch):
+        """No keys at all → RuntimeError with helpful message."""
         monkeypatch.setattr(settings, "openai_api_key", None)
-        monkeypatch.setattr(settings, "hf_token", "hf_test_token")
+        monkeypatch.setattr(settings, "hf_token", None)
         monkeypatch.setattr(settings, "huggingface_model", "Qwen/Qwen2.5-7B-Instruct")
+        # Also ensure HF_TOKEN env var is not set
+        monkeypatch.delenv("HF_TOKEN", raising=False)
 
-        # Should return HuggingFace model (free tier)
-        model = get_model()
-        assert isinstance(model, HuggingFaceModel)
+        # Should raise clear error when no tokens available
+        import pytest
+
+        with pytest.raises(RuntimeError) as exc_info:
+            get_model()
+        assert "No LLM API key available" in str(exc_info.value)
+        assert "HF_TOKEN" in str(exc_info.value)
 
     def test_openai_env_takes_priority_over_huggingface(self, monkeypatch):
         """OpenAI env key present → OpenAI wins over HuggingFace."""
