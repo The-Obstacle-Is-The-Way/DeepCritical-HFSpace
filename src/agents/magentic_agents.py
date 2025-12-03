@@ -16,17 +16,19 @@ from src.config.domain import ResearchDomain, get_domain_config
 def create_search_agent(
     chat_client: BaseChatClient | None = None,
     domain: ResearchDomain | str | None = None,
+    api_key: str | None = None,
 ) -> ChatAgent:
     """Create a search agent with internal LLM and search tools.
 
     Args:
         chat_client: Optional custom chat client. If None, uses default.
         domain: Research domain for customization.
+        api_key: Optional BYOK key (auto-detects provider from prefix).
 
     Returns:
         ChatAgent configured for biomedical search
     """
-    client = chat_client or get_chat_client()
+    client = chat_client or get_chat_client(api_key=api_key)
     config = get_domain_config(domain)
 
     return ChatAgent(
@@ -54,17 +56,19 @@ related to {config.name}.""",
 def create_judge_agent(
     chat_client: BaseChatClient | None = None,
     domain: ResearchDomain | str | None = None,
+    api_key: str | None = None,
 ) -> ChatAgent:
     """Create a judge agent that evaluates evidence quality.
 
     Args:
         chat_client: Optional custom chat client. If None, uses default.
         domain: Research domain for customization.
+        api_key: Optional BYOK key (auto-detects provider from prefix).
 
     Returns:
         ChatAgent configured for evidence assessment
     """
-    client = chat_client or get_chat_client()
+    client = chat_client or get_chat_client(api_key=api_key)
     config = get_domain_config(domain)
 
     return ChatAgent(
@@ -110,17 +114,19 @@ Be rigorous but fair. Look for:
 def create_hypothesis_agent(
     chat_client: BaseChatClient | None = None,
     domain: ResearchDomain | str | None = None,
+    api_key: str | None = None,
 ) -> ChatAgent:
     """Create a hypothesis generation agent.
 
     Args:
         chat_client: Optional custom chat client. If None, uses default.
         domain: Research domain for customization.
+        api_key: Optional BYOK key (auto-detects provider from prefix).
 
     Returns:
         ChatAgent configured for hypothesis generation
     """
-    client = chat_client or get_chat_client()
+    client = chat_client or get_chat_client(api_key=api_key)
     config = get_domain_config(domain)
 
     return ChatAgent(
@@ -151,17 +157,19 @@ Focus on mechanistic plausibility and existing evidence.""",
 def create_report_agent(
     chat_client: BaseChatClient | None = None,
     domain: ResearchDomain | str | None = None,
+    api_key: str | None = None,
 ) -> ChatAgent:
     """Create a report synthesis agent.
 
     Args:
         chat_client: Optional custom chat client. If None, uses default.
         domain: Research domain for customization.
+        api_key: Optional BYOK key (auto-detects provider from prefix).
 
     Returns:
         ChatAgent configured for report generation
     """
-    client = chat_client or get_chat_client()
+    client = chat_client or get_chat_client(api_key=api_key)
     config = get_domain_config(domain)
 
     return ChatAgent(

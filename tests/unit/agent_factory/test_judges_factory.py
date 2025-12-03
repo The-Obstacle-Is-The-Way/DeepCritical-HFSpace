@@ -1,14 +1,14 @@
-"""Unit tests for Judge Factory and Model Selection."""
+"""Unit tests for Judge Factory and Model Selection.
+
+NOTE: Anthropic is NOT supported (no embeddings API).
+See P3_REMOVE_ANTHROPIC_PARTIAL_WIRING.md.
+"""
 
 from unittest.mock import patch
 
 import pytest
 
 pytestmark = pytest.mark.unit
-from pydantic_ai.models.anthropic import AnthropicModel
-
-# We expect this import to exist after we implement it, or we mock it if it's not there yet
-# For TDD, we assume we will use the library class
 from pydantic_ai.models.huggingface import HuggingFaceModel
 from pydantic_ai.models.openai import OpenAIChatModel
 
@@ -23,7 +23,6 @@ def mock_settings():
 
 def test_get_model_openai(mock_settings):
     """Test that OpenAI model is returned when provider is openai."""
-    mock_settings.llm_provider = "openai"
     mock_settings.has_openai_key = True
     mock_settings.openai_api_key = "sk-test"
     mock_settings.openai_model = "gpt-5"
@@ -33,39 +32,43 @@ def test_get_model_openai(mock_settings):
     assert model.model_name == "gpt-5"
 
 
-def test_get_model_anthropic(mock_settings):
-    """Test that Anthropic model is returned when provider is anthropic."""
-    mock_settings.llm_provider = "anthropic"
+def test_get_model_byok_openai(mock_settings):
+    """Test that BYOK OpenAI key returns OpenAI model."""
     mock_settings.has_openai_key = False
-    mock_settings.has_anthropic_key = True
-    mock_settings.anthropic_api_key = "sk-ant-test"
-    mock_settings.anthropic_model = "claude-sonnet-4-5-20250929"
+    mock_settings.openai_model = "gpt-5"
 
-    model = get_model()
-    assert isinstance(model, AnthropicModel)
-    assert model.model_name == "claude-sonnet-4-5-20250929"
+    # BYOK takes priority over env vars
+    model = get_model(api_key="sk-byok-test")
+    assert isinstance(model, OpenAIChatModel)
+
+
+def test_get_model_byok_anthropic_raises(mock_settings):
+    """Test that BYOK Anthropic key raises NotImplementedError."""
+    mock_settings.has_openai_key = False
+
+    with pytest.raises(NotImplementedError) as exc_info:
+        get_model(api_key="sk-ant-test")
+
+    assert "Anthropic is not supported" in str(exc_info.value)
 
 
 def test_get_model_huggingface(mock_settings):
-    """Test that HuggingFace model is returned when provider is huggingface."""
-    mock_settings.llm_provider = "huggingface"
+    """Test that HuggingFace model is returned when no paid keys."""
     mock_settings.has_openai_key = False
-    mock_settings.has_anthropic_key = False
-    mock_settings.has_huggingface_key = True  # CodeRabbit: explicitly set for auto-detect
     mock_settings.hf_token = "hf_test_token"
-    mock_settings.huggingface_model = "meta-llama/Llama-3.1-70B-Instruct"
+    mock_settings.huggingface_model = "Qwen/Qwen2.5-7B-Instruct"
 
     model = get_model()
     assert isinstance(model, HuggingFaceModel)
-    assert model.model_name == "meta-llama/Llama-3.1-70B-Instruct"
+    assert model.model_name == "Qwen/Qwen2.5-7B-Instruct"
 
 
-def test_get_model_default_fallback(mock_settings):
-    """Test fallback to OpenAI if provider is unknown."""
-    mock_settings.llm_provider = "unknown_provider"
+def test_get_model_openai_priority(mock_settings):
+    """Test OpenAI takes priority when both keys present."""
     mock_settings.has_openai_key = True
     mock_settings.openai_api_key = "sk-test"
     mock_settings.openai_model = "gpt-5"
+    mock_settings.hf_token = "hf_test_token"
 
     model = get_model()
     assert isinstance(model, OpenAIChatModel)

@@ -1,9 +1,10 @@
 # P2 Architectural: BYOK Gaps in Non-Critical Paths
 
 **Date**: 2025-12-03
-**Status**: OPEN - Latent (Not Blocking)
+**Status**: ✅ RESOLVED
 **Severity**: P2 (Architectural Debt)
 **Component**: LLM Routing / BYOK Support
+**Resolution**: Fixed end-to-end BYOK support in this PR
 
 ---
 

@@ -25,12 +25,29 @@ class TestGetEmbeddingService:
                 create=True,
             ):
                 # Also need to prevent the actual import from failing
-                mock_module = MagicMock(get_rag_service=lambda: mock_rag_service)
+                # Update lambda to accept **kwargs (api_key)
+                mock_module = MagicMock(get_rag_service=lambda **kwargs: mock_rag_service)
                 with patch.dict("sys.modules", {"src.services.llamaindex_rag": mock_module}):
                     from src.utils.service_loader import get_embedding_service
 
                     service = get_embedding_service()
                     assert service is mock_rag_service
+
+    def test_uses_llamaindex_when_byok_key_present(self):
+        """Should return LlamaIndexRAGService when valid BYOK key passed."""
+        mock_rag_service = MagicMock()
+
+        with patch("src.utils.service_loader.settings") as mock_settings:
+            mock_settings.has_openai_key = False  # Env key missing
+
+            # Update lambda to accept **kwargs
+            mock_module = MagicMock(get_rag_service=lambda **kwargs: mock_rag_service)
+            with patch.dict("sys.modules", {"src.services.llamaindex_rag": mock_module}):
+                from src.utils.service_loader import get_embedding_service
+
+                # Pass valid BYOK key
+                service = get_embedding_service(api_key="sk-test-key")
+                assert service is mock_rag_service
 
     def test_falls_back_to_local_when_no_openai_key(self):
         """Should return EmbeddingService when no OpenAI key."""

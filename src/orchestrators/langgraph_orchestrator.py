@@ -32,9 +32,11 @@ class LangGraphOrchestrator(OrchestratorProtocol):
         self,
         max_iterations: int = 10,
         checkpoint_path: str | None = None,
+        api_key: str | None = None,
     ):
         self._max_iterations = max_iterations
         self._checkpoint_path = checkpoint_path
+        self._api_key = api_key
 
         # Initialize the LLM (Qwen 2.5 via HF Inference)
         # We use the serverless API by default
@@ -42,9 +44,21 @@ class LangGraphOrchestrator(OrchestratorProtocol):
         # Large models (70B+) route to Novita/Hyperbolic providers (500/401 errors)
         repo_id = settings.huggingface_model or "Qwen/Qwen2.5-7B-Instruct"
 
-        # Ensure we have an API key
-        api_key = settings.hf_token
-        if not api_key:
+        # Determine HF Token (BYOK > Env)
+        # Note: If api_key starts with 'sk-', it's likely OpenAI, which isn't supported here
+        # for the LLM, but we store it for the embedding service.
+        hf_token = settings.hf_token
+        if api_key and not api_key.startswith("sk-"):
+            hf_token = api_key
+
+        if not hf_token:
+            # If we have an OpenAI key but no HF token, we can't run the HF LLM
+            if api_key and api_key.startswith("sk-"):
+                raise ValueError(
+                    "LangGraphOrchestrator currently requires a Hugging Face token (HF_TOKEN) "
+                    "for the LLM, even if using OpenAI for embeddings. "
+                    "Please use Advanced Mode for OpenAI support."
+                )
             raise ValueError(
                 "HF_TOKEN (Hugging Face API Token) is required for LangGraph orchestrator."
             )
@@ -54,7 +68,7 @@ class LangGraphOrchestrator(OrchestratorProtocol):
             task="text-generation",
             max_new_tokens=1024,
             temperature=0.1,
-            huggingfacehub_api_token=api_key,
+            huggingfacehub_api_token=hf_token,
         )
         self.chat_model = ChatHuggingFace(llm=self.llm_endpoint)
 
@@ -62,7 +76,7 @@ class LangGraphOrchestrator(OrchestratorProtocol):
         """Execute research workflow with structured state."""
         # Initialize embedding service using tiered selection (service_loader)
         # Returns LlamaIndexRAGService if OpenAI key available, else local EmbeddingService
-        embedding_service = get_embedding_service()
+        embedding_service = get_embedding_service(api_key=self._api_key)
 
         # Setup checkpointer (SQLite for dev)
         if self._checkpoint_path:

@@ -14,8 +14,13 @@ logger = structlog.get_logger()
 class LLMSubIterationJudge:
     """Judge that uses an LLM to assess sub-iteration results."""
 
-    def __init__(self) -> None:
-        self.model = get_model()
+    def __init__(self, api_key: str | None = None) -> None:
+        """Initialize the judge with optional BYOK key.
+
+        Args:
+            api_key: Optional BYOK key (auto-detects provider from prefix).
+        """
+        self.model = get_model(api_key=api_key)
         self.agent = Agent(
             model=self.model,
             output_type=JudgeAssessment,

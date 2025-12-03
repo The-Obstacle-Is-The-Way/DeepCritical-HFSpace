@@ -42,16 +42,17 @@ class LlamaIndexRAGService:
         persist_dir: str | None = None,
         embedding_model: str | None = None,
         similarity_top_k: int = 5,
+        api_key: str | None = None,
     ) -> None:
         """
         Initialize LlamaIndex RAG service.
 
         Args:
-            collection_name: Name of the ChromaDB collection (default changed from
-                "deepcritical_evidence" to "deepboner_evidence" in v1.0 rebrand)
+            collection_name: Name of the ChromaDB collection
             persist_dir: Directory to persist ChromaDB data
             embedding_model: OpenAI embedding model (defaults to settings.openai_embedding_model)
             similarity_top_k: Number of top results to retrieve
+            api_key: Optional BYOK OpenAI key. Prioritized over env var.
         """
         # Lazy import - only when instantiated
         try:
@@ -80,18 +81,23 @@ class LlamaIndexRAGService:
         self.similarity_top_k = similarity_top_k
         self.embedding_model = embedding_model or settings.openai_embedding_model
 
+        # Determine API key (BYOK > Env Var)
+        self.api_key = api_key
+        if not self.api_key and settings.has_openai_key:
+            self.api_key = settings.openai_api_key
+
         # Validate API key before use
-        if not settings.openai_api_key:
+        if not self.api_key:
             raise ConfigurationError("OPENAI_API_KEY required for LlamaIndex RAG service")
 
         # Configure LlamaIndex settings (use centralized config)
         self._Settings.llm = OpenAI(
             model=settings.openai_model,
-            api_key=settings.openai_api_key,
+            api_key=self.api_key,
         )
         self._Settings.embed_model = OpenAIEmbedding(
             model=self.embedding_model,
-            api_key=settings.openai_api_key,
+            api_key=self.api_key,
         )
 
         # Initialize ChromaDB client
@@ -428,6 +434,7 @@ class LlamaIndexRAGService:
 
 def get_rag_service(
     collection_name: str = "deepboner_evidence",
+    api_key: str | None = None,
     **kwargs: Any,
 ) -> LlamaIndexRAGService:
     """
@@ -435,9 +442,10 @@ def get_rag_service(
 
     Args:
         collection_name: Name of the ChromaDB collection
+        api_key: Optional BYOK OpenAI key
         **kwargs: Additional arguments for LlamaIndexRAGService
 
     Returns:
         Configured LlamaIndexRAGService instance
     """
-    return LlamaIndexRAGService(collection_name=collection_name, **kwargs)
+    return LlamaIndexRAGService(collection_name=collection_name, api_key=api_key, **kwargs)

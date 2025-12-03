@@ -61,7 +61,7 @@ def create_orchestrator(
     if effective_mode == "hierarchical":
         from src.orchestrators.hierarchical import HierarchicalOrchestrator
 
-        return HierarchicalOrchestrator(config=effective_config, domain=domain)
+        return HierarchicalOrchestrator(config=effective_config, domain=domain, api_key=api_key)
 
     # Default: Advanced Mode (Unified)
     # Handles both Paid (OpenAI) and Free (HuggingFace) tiers

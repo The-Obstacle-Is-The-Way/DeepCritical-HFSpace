@@ -8,10 +8,8 @@ from typing import Any, ClassVar
 import structlog
 from huggingface_hub import InferenceClient
 from pydantic_ai import Agent
-from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.huggingface import HuggingFaceModel
 from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.huggingface import HuggingFaceProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
@@ -54,43 +52,55 @@ def _extract_titles_from_evidence(
     return findings
 
 
-def get_model() -> Any:
+def get_model(api_key: str | None = None) -> Any:
     """Get the LLM model based on available API keys.
 
     Priority order:
-    1. OpenAI (if OPENAI_API_KEY set)
-    2. Anthropic (if ANTHROPIC_API_KEY set)
-    3. HuggingFace (if HF_TOKEN set)
+    1. BYOK api_key parameter (auto-detects provider from prefix)
+    2. OpenAI (if OPENAI_API_KEY set in env)
+    3. HuggingFace (free fallback)
+
+    Args:
+        api_key: Optional BYOK key. Auto-detects provider from prefix:
+                 - "sk-ant-..." → Anthropic (NOT SUPPORTED - raises error)
+                 - "sk-..." → OpenAI
+                 - Other → Falls through to env vars
 
     Raises:
-        ConfigurationError: If no API keys are configured.
+        NotImplementedError: If Anthropic key detected (no embeddings support).
 
-    Note: settings.llm_provider is ignored in favor of actual key availability.
-    This ensures the model matches what app.py selected for JudgeHandler.
+    Note: Anthropic is NOT supported because it lacks embeddings API.
+    See P3_REMOVE_ANTHROPIC_PARTIAL_WIRING.md.
     """
-    from src.utils.exceptions import ConfigurationError
+    # Priority 1: BYOK - Auto-detect provider from key prefix
+    if api_key:
+        if api_key.startswith("sk-ant-"):
+            # Anthropic not supported - no embeddings API
+            raise NotImplementedError(
+                "Anthropic is not supported (no embeddings API). "
+                "Use OpenAI key (sk-...) or leave empty for free HuggingFace tier."
+            )
+        if api_key.startswith("sk-"):
+            # OpenAI BYOK
+            openai_provider = OpenAIProvider(api_key=api_key)
+            return OpenAIChatModel(settings.openai_model, provider=openai_provider)
 
-    # Priority 1: OpenAI (most common, best tool calling)
+    # Priority 2: OpenAI from env (most common, best tool calling)
     if settings.has_openai_key:
         openai_provider = OpenAIProvider(api_key=settings.openai_api_key)
         return OpenAIChatModel(settings.openai_model, provider=openai_provider)
 
-    # Priority 2: Anthropic
-    if settings.has_anthropic_key:
-        provider = AnthropicProvider(api_key=settings.anthropic_api_key)
-        return AnthropicModel(settings.anthropic_model, provider=provider)
-
-    # Priority 3: HuggingFace (requires HF_TOKEN)
-    if settings.has_huggingface_key:
-        # FIX: Use 7B model to stay on HuggingFace native infrastructure (avoid Novita 500s)
-        model_name = settings.huggingface_model or "Qwen/Qwen2.5-7B-Instruct"
-        hf_provider = HuggingFaceProvider(api_key=settings.hf_token)
+    # Priority 3: HuggingFace (free fallback)
+    # Use 7B model to stay on HuggingFace native infrastructure (avoid Novita 500s)
+    model_name = settings.huggingface_model or "Qwen/Qwen2.5-7B-Instruct"
+    hf_token = settings.hf_token
+    if hf_token:
+        hf_provider = HuggingFaceProvider(api_key=hf_token)
         return HuggingFaceModel(model_name, provider=hf_provider)
 
-    # No keys configured - fail fast with clear error
-    raise ConfigurationError(
-        "No LLM API key configured. Set one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, or HF_TOKEN"
-    )
+    # HuggingFace without token (public models only)
+    hf_provider = HuggingFaceProvider()
+    return HuggingFaceModel(model_name, provider=hf_provider)
 
 
 class JudgeHandler:
@@ -104,6 +114,7 @@ class JudgeHandler:
         self,
         model: Any = None,
         domain: ResearchDomain | str | None = None,
+        api_key: str | None = None,
     ) -> None:
         """
         Initialize the JudgeHandler.
@@ -111,8 +122,9 @@ class JudgeHandler:
         Args:
             model: Optional PydanticAI model. If None, uses config default.
             domain: Research domain for prompt customization.
+            api_key: Optional BYOK key (auto-detects provider from prefix).
         """
-        self.model = model or get_model()
+        self.model = model or get_model(api_key=api_key)
         self.domain = domain
         self.agent = Agent(
             model=self.model,
