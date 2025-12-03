@@ -9,6 +9,29 @@
 
 ## Currently Active Bugs
 
+### P1 - Gradio Example Click Auto-Submits Instead of Loading
+
+**File:** `docs/bugs/P1_GRADIO_EXAMPLE_CLICK_AUTO_SUBMIT.md`
+**Status:** OPEN - Simple Fix Available
+
+**Problem:** Clicking on example questions immediately starts the research agent instead of loading the text into the input field. This breaks the BYOK (Bring Your Own Key) flow because:
+1. User clicks example → chat starts with Free Tier
+2. User then tries to enter API key → already too late
+3. Session state becomes confused
+
+**Root Cause:**
+1. Missing `run_examples_on_click=False` in ChatInterface
+2. HuggingFace Spaces defaults `cache_examples=True`, which overrides `run_examples_on_click`
+3. Examples pass `None` for api_key, overwriting user settings
+
+**Fix:** Add two parameters to `gr.ChatInterface()` in `src/app.py`:
+```python
+cache_examples=False,
+run_examples_on_click=False,
+```
+
+---
+
 ### P2 - 7B Model Produces Garbage Streaming Output
 
 **File:** `docs/bugs/P2_7B_MODEL_GARBAGE_OUTPUT.md`
