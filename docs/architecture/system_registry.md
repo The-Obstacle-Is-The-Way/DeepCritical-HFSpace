@@ -115,9 +115,9 @@ class NewProviderChatClient(BaseChatClient):
 
 ## 5. Known Issues & Gotchas
 
-*   **P1 Bug - Premature Marker Setting (OPEN):** See `docs/bugs/P1_FREE_TIER_TOOL_EXECUTION_FAILURE.md`. The `HuggingFaceChatClient` sets `__function_invoking_chat_client__ = True` in the class body, causing `@use_function_invocation` to skip wrapping. Tools are never executed.
-*   **HuggingFace Provider Routing:** Qwen2.5-7B-Instruct routes to Together.ai (not native HF). Tool call parsing may be inconsistent.
-*   **Model Hallucination:** If tool execution fails (due to missing decorator), models like Qwen2.5-7B will often **hallucinate** fake tool results as text. Always verify `AgentRunResponse` contains actual `FunctionResultContent`.
+*   **~~P1 Bug - Premature Marker Setting~~ (FIXED):** The `HuggingFaceChatClient` previously set `__function_invoking_chat_client__ = True` in the class body, which caused `@use_function_invocation` to skip wrapping. **Resolution:** Marker removed; decorator now sets it correctly. See `docs/bugs/P1_FREE_TIER_TOOL_EXECUTION_FAILURE.md`.
+*   **HuggingFace Provider Routing:** Qwen2.5-7B-Instruct routes to Together.ai (not native HF). Tool call parsing may be inconsistent with complex multi-agent prompts.
+*   **Model Hallucination:** If tool execution fails (due to incorrect wiring), models like Qwen2.5-7B will often **hallucinate** fake tool results as text. Always verify `AgentRunResponse` contains actual `FunctionResultContent`.
 
 ---
 

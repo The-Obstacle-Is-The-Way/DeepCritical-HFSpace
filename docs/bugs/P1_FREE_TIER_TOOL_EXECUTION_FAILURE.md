@@ -1,9 +1,10 @@
 # P1 Bug: Free Tier Tool Execution Failure
 
 **Date**: 2025-12-03
-**Status**: OPEN - Root Cause Identified
+**Status**: FIXED (PR fix/P1-free-tier-tool-execution)
 **Severity**: P1 (Critical - Free Tier Completely Broken)
 **Component**: HuggingFaceChatClient + Together.ai Routing + Tool Calling
+**Resolution**: Removed premature `__function_invoking_chat_client__ = True` marker from class body
 
 ---
 

@@ -9,39 +9,6 @@
 
 ## Currently Active Bugs
 
-### P1 - Free Tier Tool Execution Failure (CRITICAL)
-
-**File:** `docs/bugs/P1_FREE_TIER_TOOL_EXECUTION_FAILURE.md`
-**Status:** OPEN - Root Cause Identified (2025-12-03)
-
-**Problem:** Free Tier (HuggingFace) is **completely broken**. Tools never execute, resulting in:
-1. **Garbage tokens**: "oleon", "UrlParser", "MemoryWarning"
-2. **Raw tool call JSON** as text: `{"name": "search_pubmed", ...}`
-3. **XML tags** in output: `<tool_call>`, `</tool_call>`
-4. **Hallucinated tool results** - model invents fake search results
-
-**Root Causes Identified:**
-1. **Provider Routing**: Qwen2.5-7B-Instruct routes to Together.ai (not native HF), serving a "Turbo" variant
-2. **Native HF Unsupported**: `hf-inference` provider returns 404 for this model
-3. **Possible Code Bug**: `__function_invoking_chat_client__ = True` marker may prevent tool execution wrapping
-4. **Model Hallucination**: When tool calls fail, model simulates fake results as text
-
-**Recommended Fix (Phase 1):**
-1. Remove premature `__function_invoking_chat_client__` marker from HuggingFaceChatClient
-2. Test if tool execution now works
-3. If not, evaluate alternative models with native HF support
-
----
-
-### P2 - 7B Model Garbage Output (SUPERSEDED)
-
-**File:** `docs/bugs/P2_7B_MODEL_GARBAGE_OUTPUT.md`
-**Status:** SUPERSEDED by P1_FREE_TIER_TOOL_EXECUTION_FAILURE
-
-**Note:** The P2 doc incorrectly blamed model capacity. The actual root causes are infrastructure (Together.ai routing) and potential code bug (premature marker). See P1 for complete analysis
-
----
-
 ### P3 - Progress Bar Positioning in ChatInterface
 
 **File:** `docs/bugs/P3_PROGRESS_BAR_POSITIONING.md`
@@ -79,6 +46,7 @@ All resolved bugs have been moved to `docs/bugs/archive/`. Summary:
 - **P0 Advanced Mode Timeout No Synthesis** - FIXED, actual synthesis on timeout
 
 ### P1 Bugs (All FIXED)
+- **P1 Free Tier Tool Execution Failure** - FIXED in PR fix/P1-free-tier-tool-execution, removed premature marker
 - **P1 Gradio Example Click Auto-Submits** - FIXED in PR #120, prevents auto-submit on example click
 - **P1 HuggingFace Router 401 Hyperbolic** - FIXED, invalid token was root cause
 - **P1 HuggingFace Novita 500 Error** - SUPERSEDED, switched to 7B model
@@ -87,6 +55,7 @@ All resolved bugs have been moved to `docs/bugs/archive/`. Summary:
 - **P1 Simple Mode Removed Breaks Free Tier UX** - FIXED via Accumulator Pattern (PR #117)
 
 ### P2 Bugs (All FIXED)
+- **P2 7B Model Garbage Output** - SUPERSEDED by P1 Free Tier fix (root cause was premature marker, not model capacity)
 - **P2 Advanced Mode Cold Start No Feedback** - FIXED, all phases complete
 - **P2 Architectural BYOK Gaps** - FIXED, end-to-end BYOK support in PR #119
 
