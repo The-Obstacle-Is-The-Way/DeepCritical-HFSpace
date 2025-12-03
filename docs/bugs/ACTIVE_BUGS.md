@@ -9,23 +9,36 @@
 
 ## Currently Active Bugs
 
-### P2 - 7B Model Produces Garbage Streaming Output
+### P1 - Free Tier Tool Execution Failure (CRITICAL)
+
+**File:** `docs/bugs/P1_FREE_TIER_TOOL_EXECUTION_FAILURE.md`
+**Status:** OPEN - Root Cause Identified (2025-12-03)
+
+**Problem:** Free Tier (HuggingFace) is **completely broken**. Tools never execute, resulting in:
+1. **Garbage tokens**: "oleon", "UrlParser", "MemoryWarning"
+2. **Raw tool call JSON** as text: `{"name": "search_pubmed", ...}`
+3. **XML tags** in output: `<tool_call>`, `</tool_call>`
+4. **Hallucinated tool results** - model invents fake search results
+
+**Root Causes Identified:**
+1. **Provider Routing**: Qwen2.5-7B-Instruct routes to Together.ai (not native HF), serving a "Turbo" variant
+2. **Native HF Unsupported**: `hf-inference` provider returns 404 for this model
+3. **Possible Code Bug**: `__function_invoking_chat_client__ = True` marker may prevent tool execution wrapping
+4. **Model Hallucination**: When tool calls fail, model simulates fake results as text
+
+**Recommended Fix (Phase 1):**
+1. Remove premature `__function_invoking_chat_client__` marker from HuggingFaceChatClient
+2. Test if tool execution now works
+3. If not, evaluate alternative models with native HF support
+
+---
+
+### P2 - 7B Model Garbage Output (SUPERSEDED)
 
 **File:** `docs/bugs/P2_7B_MODEL_GARBAGE_OUTPUT.md`
-**Status:** OPEN - Investigating (Updated 2025-12-03)
+**Status:** SUPERSEDED by P1_FREE_TIER_TOOL_EXECUTION_FAILURE
 
-**Problem:** When running Free Tier (Qwen2.5-7B-Instruct), the streaming output shows:
-1. **Garbage tokens** like "yarg", "PostalCodes", "oleon", "UrlParser"
-2. **Raw tool call JSON** output as text: `{"name": "search_pubmed", ...}`
-3. **XML-style tags** like `</tool_call>` (wrong format)
-
-**Root Cause:** The 7B model has insufficient reasoning capacity for the complex multi-agent framework prompts. It's attempting tool calls but outputting them as TEXT instead of using proper API structure.
-
-**Potential Fixes:**
-1. Switch to a better small model (Mistral-7B, Phi-3, Gemma-2-9B, Qwen2.5-14B)
-2. Simplify Free Tier architecture to single-agent mode
-3. Add streaming content filter for garbage/raw JSON
-4. Prompt engineering specifically for 7B models
+**Note:** The P2 doc incorrectly blamed model capacity. The actual root causes are infrastructure (Together.ai routing) and potential code bug (premature marker). See P1 for complete analysis
 
 ---
 
