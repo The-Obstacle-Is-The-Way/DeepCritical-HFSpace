@@ -283,6 +283,7 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
         examples=[
             # SPEC-16: Mode is always "advanced" (unified architecture)
             # Examples now only need: [question, domain, api_key, api_key_state]
+            # NOTE: None values preserve user's current input (not overwritten)
             [
                 "What drugs improve female libido post-menopause?",
                 "sexual_health",
@@ -302,6 +303,10 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
                 None,
             ],
         ],
+        # FIX: Prevent examples from auto-submitting (P1_GRADIO_EXAMPLE_CLICK_AUTO_SUBMIT)
+        # cache_examples must be False for run_examples_on_click to take effect on HF Spaces
+        cache_examples=False,
+        run_examples_on_click=False,
         additional_inputs_accordion=additional_inputs_accordion,
         additional_inputs=[
             # SPEC-16: Mode toggle removed - everyone gets Advanced Mode
