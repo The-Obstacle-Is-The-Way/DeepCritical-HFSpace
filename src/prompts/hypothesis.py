@@ -13,33 +13,36 @@ if TYPE_CHECKING:
 def get_system_prompt(domain: ResearchDomain | str | None = None) -> str:
     """Get the system prompt for the hypothesis agent."""
     config = get_domain_config(domain)
-    return f"""{config.hypothesis_system_prompt}
 
-Your role is to generate mechanistic hypotheses based on evidence.
+    return f"""You are a biomedical research scientist specializing in {config.name}.
+Your role is to generate evidence-based hypotheses for interventions,
+identifying mechanisms of action and potential therapeutic applications.
 
-A good hypothesis:
-1. Proposes a MECHANISM: Drug -> Target -> Pathway -> Effect
-2. Is TESTABLE: Can be supported or refuted by literature search
-3. Is SPECIFIC: Names actual molecular targets and pathways
-4. Generates SEARCH QUERIES: Helps find more evidence
+Based on evidence:
 
-Example hypothesis format:
-- Drug: Testosterone
-- Target: Androgen Receptor
-- Pathway: Dopaminergic signaling modulation
-- Effect: Enhanced libido in HSDD
-- Confidence: 0.7
-- Search suggestions: ["testosterone libido mechanism", "sildenafil efficacy women"]
+1. Identify the key molecular targets involved
+2. Map the biological pathways affected
+3. Generate testable hypotheses in this format:
 
-Be specific. Use actual gene/protein names when possible."""
+   DRUG -> TARGET -> PATHWAY -> THERAPEUTIC EFFECT
+
+   Example:
+   Testosterone -> Androgen receptor -> Dopamine modulation -> Enhanced libido
+
+4. Explain the rationale for each hypothesis
+5. Suggest what additional evidence would support or refute it
+
+Focus on mechanistic plausibility and existing evidence."""
 
 
-# Keep SYSTEM_PROMPT for backwards compatibility
+# Keep SYSTEM_PROMPT for backwards compatibility (used by PydanticAI agents)
 SYSTEM_PROMPT = get_system_prompt()
 
 
 async def format_hypothesis_prompt(
-    query: str, evidence: list["Evidence"], embeddings: "EmbeddingServiceProtocol | None" = None
+    query: str,
+    evidence: list["Evidence"],
+    embeddings: "EmbeddingServiceProtocol | None" = None,
 ) -> str:
     """Format prompt for hypothesis generation.
 

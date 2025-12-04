@@ -29,7 +29,7 @@ class TestMagenticAgentsDomain:
 
         # Verify domain-specific judge system prompt is passed through
         call_kwargs = mock_agent_cls.call_args.kwargs
-        assert SEXUAL_HEALTH_CONFIG.judge_system_prompt in call_kwargs["instructions"]
+        assert SEXUAL_HEALTH_CONFIG.name in call_kwargs["instructions"]
 
     @patch("src.agents.magentic_agents.ChatAgent")
     @patch("src.agents.magentic_agents.get_chat_client")
@@ -44,4 +44,4 @@ class TestMagenticAgentsDomain:
         create_report_agent(domain=ResearchDomain.SEXUAL_HEALTH)
         # Check instructions contains domain prompt
         call_kwargs = mock_agent_cls.call_args.kwargs
-        assert SEXUAL_HEALTH_CONFIG.report_system_prompt in call_kwargs["instructions"]
+        assert SEXUAL_HEALTH_CONFIG.name in call_kwargs["instructions"]

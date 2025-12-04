@@ -5,73 +5,49 @@ from src.utils.models import Evidence
 
 
 def get_system_prompt(domain: ResearchDomain | str | None = None) -> str:
-    """Get the system prompt for the judge agent."""
+    """Get the system prompt for the judge agent (Magentic/Advanced Mode)."""
     config = get_domain_config(domain)
-    return f"""{config.judge_system_prompt}
 
-Your task is to SCORE evidence from biomedical literature. You do NOT decide whether to
-continue searching or synthesize - that decision is made by the orchestration system
-based on your scores.
+    return f"""You are an expert research judge specializing in {config.name}.
+Your role is to evaluate evidence for interventions, assess efficacy and safety data,
+and determine clinical applicability.
 
-## Your Role: Scoring Only
+When asked to evaluate:
 
-You provide objective scores. The system decides next steps based on explicit thresholds.
-This separation prevents bias in the decision-making process.
+1. Review all evidence presented in the conversation
+2. Score on two dimensions (0-10 each):
+   - Mechanism Score: How well is the biological mechanism explained?
+   - Clinical Score: How strong is the clinical/preclinical evidence?
+3. Determine if evidence is SUFFICIENT for a final report:
+   - Sufficient: Clear mechanism + supporting clinical data
+   - Insufficient: Gaps in mechanism OR weak clinical evidence
+4. If insufficient, suggest specific search queries to fill gaps
 
-## Scoring Criteria
+## CRITICAL OUTPUT FORMAT
+To ensure the workflow terminates when appropriate, you MUST follow these rules:
 
-1. **Mechanism Score (0-10)**: How well does the evidence explain the biological mechanism?
-   - 0-3: No clear mechanism, speculative
-   - 4-6: Some mechanistic insight, but gaps exist
-   - 7-10: Clear, well-supported mechanism of action
+IF evidence is SUFFICIENT (confidence >= 70%):
+   Start your response with a line like:
+   "✅ SUFFICIENT EVIDENCE (confidence: 72%). STOP SEARCHING. Delegate to ReportAgent NOW."
+   Use your actual numeric confidence instead of 72.
+   Then explain why.
 
-2. **Clinical Evidence Score (0-10)**: Strength of clinical/preclinical support?
-   - 0-3: No clinical data, only theoretical
-   - 4-6: Preclinical or early clinical data
-   - 7-10: Strong clinical evidence (trials, meta-analyses)
+IF evidence is INSUFFICIENT:
+   Start with "❌ INSUFFICIENT: <Reason>."
+   Then provide scores and next queries.
 
-3. **Drug Candidates**: List SPECIFIC drug names mentioned in the evidence
-   - Only include drugs explicitly mentioned
-   - Do NOT hallucinate or infer drug names
-   - Include drug class if specific names aren't available (e.g., "SSRI antidepressants")
-
-4. **Key Findings**: Extract 3-5 key findings from the evidence
-   - Focus on findings relevant to the research question
-   - Include mechanism insights and clinical outcomes
-
-5. **Confidence (0.0-1.0)**: Your confidence in the scores
-   - Based on evidence quality and relevance
-   - Lower if evidence is tangential or low-quality
-
-## Output Format
-
-Return valid JSON with these fields:
-- details.mechanism_score (int 0-10)
-- details.mechanism_reasoning (string)
-- details.clinical_evidence_score (int 0-10)
-- details.clinical_reasoning (string)
-- details.drug_candidates (list of strings)
-- details.key_findings (list of strings)
-- sufficient (boolean) - TRUE if scores suggest enough evidence
-- confidence (float 0-1)
-- recommendation ("continue" or "synthesize") - Your suggestion (system may override)
-- next_search_queries (list) - If continuing, suggest FOCUSED queries
-- reasoning (string)
-
-## CRITICAL: Search Query Rules
-
-When suggesting next_search_queries:
-- STAY FOCUSED on the original research question
-- Do NOT drift to tangential topics
-- If question is about "female libido", do NOT suggest "bone health" or "muscle mass"
-- Refine existing terms, don't explore random medical associations
-"""
+Be rigorous but fair. Look for:
+- Molecular targets and pathways
+- Animal model studies
+- Human clinical trials
+- Safety data
+- Drug-drug interactions"""
 
 
 def get_scoring_prompt(domain: ResearchDomain | str | None = None) -> str:
     """Get the scoring instructions for the judge."""
-    config = get_domain_config(domain)
-    return config.judge_scoring_prompt
+    return """Score this evidence for relevance.
+Provide ONLY scores and extracted data."""
 
 
 # Keep SYSTEM_PROMPT for backwards compatibility
@@ -118,9 +94,6 @@ def format_user_prompt(
 ) -> str:
     """
     Format user prompt with selected evidence and iteration context.
-
-    NOTE: Evidence should be pre-selected using select_evidence_for_judge().
-    This function assumes evidence is already capped.
     """
     # Use explicit None check - 0 is a valid count (empty evidence)
     total_count = total_evidence_count if total_evidence_count is not None else len(evidence)
@@ -140,7 +113,6 @@ def format_user_prompt(
 
     evidence_text = "\n\n".join([format_single_evidence(i, e) for i, e in enumerate(evidence)])
 
-    # Lost-in-the-middle mitigation: put critical context at START and END
     return f"""## Research Question (IMPORTANT - stay focused on this)
 {question}
 
@@ -156,22 +128,12 @@ def format_user_prompt(
 ## Your Task
 
 {scoring_prompt}
-DO NOT decide "synthesize" vs "continue" - that decision is made by the system.
-
-## REMINDER: Original Question (stay focused)
-{question}
 """
 
 
 def format_empty_evidence_prompt(question: str) -> str:
     """
     Format prompt when no evidence was found.
-
-    Args:
-        question: The user's research question
-
-    Returns:
-        Formatted prompt string
     """
     return f"""## Research Question
 {question}
