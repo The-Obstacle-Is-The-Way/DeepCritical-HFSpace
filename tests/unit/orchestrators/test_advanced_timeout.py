@@ -27,11 +27,13 @@ async def test_timeout_synthesizes_evidence():
     mock_workflow.run_stream = slow_stream
 
     # Mock dependencies used inside the timeout block
+    # Note: get_magentic_state and create_report_agent are imported at module level in advanced.py
+    # so we must patch them in that module's namespace, not their original location
     with (
         patch.object(orchestrator, "_build_workflow", return_value=mock_workflow),
         patch("src.orchestrators.advanced.init_magentic_state"),
-        patch("src.agents.state.get_magentic_state") as mock_get_state,
-        patch("src.agents.magentic_agents.create_report_agent") as mock_create_agent,
+        patch("src.orchestrators.advanced.get_magentic_state") as mock_get_state,
+        patch("src.orchestrators.advanced.create_report_agent") as mock_create_agent,
     ):
         # Setup mock state and memory
         mock_memory = AsyncMock()

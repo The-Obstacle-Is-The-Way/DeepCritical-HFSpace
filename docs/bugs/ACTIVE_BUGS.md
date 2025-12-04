@@ -57,6 +57,7 @@ All resolved bugs have been moved to `docs/bugs/archive/`. Summary:
 - **P0 Advanced Mode Timeout No Synthesis** - FIXED, actual synthesis on timeout
 
 ### P1 Bugs (All FIXED)
+- **P1 No Synthesis Free Tier** - FIXED in PR fix/p1-forced-synthesis, forced synthesis safety net when ReportAgent doesn't run
 - **P1 Free Tier Tool Execution Failure** - FIXED in PR fix/P1-free-tier-tool-execution, removed premature marker
 - **P1 Gradio Example Click Auto-Submits** - FIXED in PR #120, prevents auto-submit on example click
 - **P1 HuggingFace Router 401 Hyperbolic** - FIXED, invalid token was root cause
