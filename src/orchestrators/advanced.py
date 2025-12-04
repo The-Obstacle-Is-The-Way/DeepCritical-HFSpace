@@ -301,6 +301,7 @@ The final output should be a structured research report."""
         # to repr(message) if text is empty. We must reconstruct text from Deltas.
         current_message_buffer: str = ""
         current_agent_id: str | None = None
+        last_streamed_length: int = 0  # Track for P2 Duplicate Report Bug Fix
 
         try:
             async with asyncio.timeout(self._timeout_seconds):
@@ -333,15 +334,21 @@ The final output should be a structured research report."""
                         yield comp_event
                         yield prog_event
 
+                        # P2 BUG FIX: Save length before clearing
+                        last_streamed_length = len(current_message_buffer)
                         # Clear buffer after consuming
                         current_message_buffer = ""
                         continue
 
-                    # 3. Handle other events normally
+                    # 3. Handle Final Events Inline (P2 Duplicate Report Fix)
+                    if isinstance(event, (MagenticFinalResultEvent, WorkflowOutputEvent)):
+                        final_event_received = True
+                        yield self._handle_final_event(event, iteration, last_streamed_length)
+                        continue
+
+                    # 4. Handle other events normally
                     agent_event = self._process_event(event, iteration)
                     if agent_event:
-                        if agent_event.type == "complete":
-                            final_event_received = True
                         yield agent_event
 
             # GUARANTEE: Always emit termination event if stream ends without one
@@ -412,6 +419,40 @@ The final output should be a structured research report."""
         )
 
         return completion_event, progress_event
+
+    def _handle_final_event(
+        self,
+        event: MagenticFinalResultEvent | WorkflowOutputEvent,
+        iteration: int,
+        last_streamed_length: int,
+    ) -> AgentEvent:
+        """Handle final workflow events with duplicate content suppression (P2 Bug Fix)."""
+        # DECISION: Did we stream substantial content?
+        if last_streamed_length > 100:
+            # YES: Final event is a SIGNAL, not a payload
+            return AgentEvent(
+                type="complete",
+                message="Research complete.",
+                data={
+                    "iterations": iteration,
+                    "streamed_chars": last_streamed_length,
+                },
+                iteration=iteration,
+            )
+
+        # NO: Final event must carry the payload (tool-only turn, cache hit)
+        text = ""
+        if isinstance(event, MagenticFinalResultEvent):
+            text = self._extract_text(event.message) if event.message else "No result"
+        elif isinstance(event, WorkflowOutputEvent):
+            text = self._extract_text(event.data) if event.data else "Research complete"
+
+        return AgentEvent(
+            type="complete",
+            message=text,
+            data={"iterations": iteration},
+            iteration=iteration,
+        )
 
     def _extract_text(self, message: Any) -> str:
         """

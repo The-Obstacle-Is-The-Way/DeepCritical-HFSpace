@@ -9,32 +9,6 @@
 
 ## Currently Active Bugs
 
-### P2 - Duplicate Report Content in Output
-
-**File:** `docs/bugs/P2_DUPLICATE_REPORT_CONTENT.md`
-**Status:** OPEN - UX Bug
-
-**Problem:** The final research report appears twice in the UI - once as streaming content, then again as a complete event. This is a **stack bug**, not a model issue.
-
-**Root Cause:** Both `MagenticFinalResultEvent` and `WorkflowOutputEvent` emit the full report content that was already streamed. No deduplication exists.
-
-**Recommended Fix:** Handle final events inline in `run()` loop where buffer context exists. Track `last_streamed_length`; if > 100 chars, emit "Research complete." instead of full content.
-
----
-
-### P2 - First Agent Turn Exceeds Workflow Timeout
-
-**File:** `docs/bugs/P2_FIRST_TURN_TIMEOUT.md`
-**Status:** OPEN - Performance Bug
-
-**Problem:** The search agent's first turn can exceed the 5-minute workflow timeout, causing `iterations=0` at timeout. Users get partial research results.
-
-**Root Cause:** Search agent does too much work in a single turn: 3 API searches → 30 results → 30 embedding calls → 30 ChromaDB stores. The timeout is on the WORKFLOW, not individual agent turns.
-
-**Recommended Fix:** Reduce `max_results_per_tool` from 10 to 5; increase `advanced_timeout` to 600s (10 min).
-
----
-
 ### P3 - Progress Bar Positioning in ChatInterface
 
 **File:** `docs/bugs/P3_PROGRESS_BAR_POSITIONING.md`
@@ -81,6 +55,8 @@ All resolved bugs have been moved to `docs/bugs/archive/`. Summary:
 - **P1 Simple Mode Removed Breaks Free Tier UX** - FIXED via Accumulator Pattern (PR #117)
 
 ### P2 Bugs (All FIXED)
+- **P2 Duplicate Report Content** - FIXED in PR fix/p2-double-bug-squash, stateful deduplication in `run()` loop
+- **P2 First Turn Timeout** - FIXED in PR fix/p2-double-bug-squash, reduced results per tool (10→5), increased timeout (5→10 min)
 - **P2 7B Model Garbage Output** - SUPERSEDED by P1 Free Tier fix (root cause was premature marker, not model capacity)
 - **P2 Advanced Mode Cold Start No Feedback** - FIXED, all phases complete
 - **P2 Architectural BYOK Gaps** - FIXED, end-to-end BYOK support in PR #119

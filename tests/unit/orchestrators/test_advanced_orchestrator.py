@@ -27,12 +27,10 @@ class TestAdvancedOrchestratorConfig:
         orch = AdvancedOrchestrator(max_rounds=7)
         assert orch._max_rounds == 7
 
-    @patch("src.orchestrators.advanced.get_chat_client")
-    def test_timeout_default_is_five_minutes(self, mock_get_client) -> None:
-        """Default timeout should be 300s (5 min) from settings."""
-        mock_get_client.return_value = MagicMock()
+    def test_timeout_default_is_ten_minutes(self):
+        """Test that default timeout is 10 minutes (P2 fix)."""
         orch = AdvancedOrchestrator()
-        assert orch._timeout_seconds == 300.0
+        assert orch._timeout_seconds == 600.0
 
     @patch("src.orchestrators.advanced.get_chat_client")
     def test_explicit_timeout_overrides_settings(self, mock_get_client) -> None:

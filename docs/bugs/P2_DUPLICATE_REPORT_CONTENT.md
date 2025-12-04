@@ -1,7 +1,7 @@
 # P2 Bug: Duplicate Report Content in Output
 
 **Date**: 2025-12-03
-**Status**: OPEN
+**Status**: FIXED (PR fix/p2-double-bug-squash)
 **Severity**: P2 (UX - Duplicate content confuses users)
 **Component**: `src/orchestrators/advanced.py`
 **Affects**: Both Free Tier (HuggingFace) AND Paid Tier (OpenAI)

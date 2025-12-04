@@ -67,7 +67,7 @@ class SearchAgent(BaseAgent):  # type: ignore[misc]
             )
 
         # Execute search
-        result: SearchResult = await self._handler.execute(query, max_results_per_tool=10)
+        result: SearchResult = await self._handler.execute(query, max_results_per_tool=5)
 
         # Track what to show in response (initialized to search results as default)
         evidence_to_show: list[Evidence] = result.evidence
