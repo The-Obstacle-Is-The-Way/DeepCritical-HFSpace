@@ -47,7 +47,7 @@ async def test_run_executes_search(mock_handler: AsyncMock) -> None:
     response = await agent.run("test query")
 
     # Check handler called
-    mock_handler.execute.assert_awaited_once_with("test query", max_results_per_tool=10)
+    mock_handler.execute.assert_awaited_once_with("test query", max_results_per_tool=5)
 
     # Check store updated
     assert len(store["current"]) == 1
@@ -67,7 +67,7 @@ async def test_run_handles_chat_message_input(mock_handler: AsyncMock) -> None:
     message = ChatMessage(role=Role.USER, text="test query")
     await agent.run(message)
 
-    mock_handler.execute.assert_awaited_once_with("test query", max_results_per_tool=10)
+    mock_handler.execute.assert_awaited_once_with("test query", max_results_per_tool=5)
 
 
 @pytest.mark.asyncio
@@ -81,7 +81,7 @@ async def test_run_handles_list_input(mock_handler: AsyncMock) -> None:
         ChatMessage(role=Role.USER, text="test query"),
     ]
     await agent.run(messages)
-    mock_handler.execute.assert_awaited_once_with("test query", max_results_per_tool=10)
+    mock_handler.execute.assert_awaited_once_with("test query", max_results_per_tool=5)
 
 
 @pytest.mark.asyncio

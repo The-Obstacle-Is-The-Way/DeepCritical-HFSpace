@@ -1,6 +1,6 @@
 # Active Bugs
 
-> Last updated: 2025-12-03
+> Last updated: 2025-12-04
 >
 > **Note:** Completed bug docs archived to `docs/bugs/archive/`
 > **See also:** [ARCHITECTURE.md](../ARCHITECTURE.md) for unified architecture plan
@@ -33,6 +33,17 @@
 
 ---
 
+### P3 - Remove Modal Integration
+
+**File:** `docs/future-roadmap/P3_MODAL_INTEGRATION_REMOVAL.md`
+**Status:** OPEN - Tech Debt
+
+**Problem:** Modal (cloud functions) is integrated in 9 files but was decided against for this project. Creates dead code paths and confusion.
+
+**Fix:** Remove all Modal references from codebase (config, services, agents, tools).
+
+---
+
 ## Resolved Bugs (December 2025)
 
 All resolved bugs have been moved to `docs/bugs/archive/`. Summary:
@@ -55,6 +66,8 @@ All resolved bugs have been moved to `docs/bugs/archive/`. Summary:
 - **P1 Simple Mode Removed Breaks Free Tier UX** - FIXED via Accumulator Pattern (PR #117)
 
 ### P2 Bugs (All FIXED)
+- **P2 Duplicate Report Content** - FIXED in PR fix/p2-double-bug-squash, stateful deduplication in `run()` loop
+- **P2 First Turn Timeout** - FIXED in PR fix/p2-double-bug-squash, reduced results per tool (10→5), increased timeout (5→10 min)
 - **P2 7B Model Garbage Output** - SUPERSEDED by P1 Free Tier fix (root cause was premature marker, not model capacity)
 - **P2 Advanced Mode Cold Start No Feedback** - FIXED, all phases complete
 - **P2 Architectural BYOK Gaps** - FIXED, end-to-end BYOK support in PR #119
