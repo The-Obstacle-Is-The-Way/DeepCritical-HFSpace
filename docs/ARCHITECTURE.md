@@ -1,6 +1,6 @@
 # DeepBoner Architecture
 
-> **Last Updated**: 2025-12-01
+> **Last Updated**: 2025-12-03
 
 ---
 
@@ -15,7 +15,7 @@
 │   NO (Free Tier)              YES (Paid Tier)               │
 │   ──────────────              ───────────────               │
 │   HuggingFace backend         OpenAI backend                │
-│   Qwen 2.5 72B (free)         GPT-5 (paid)                  │
+│   Qwen 2.5 7B (free)          GPT-5 (paid)                  │
 │                                                              │
 │   SAME orchestration logic for both                          │
 │   ONE codebase, different LLM backends                       │
@@ -28,12 +28,21 @@
 
 ## Current Status
 
-**Free Tier is BLOCKED** by upstream bug #2562.
+**Both tiers are WORKING** as of December 2025.
 
-Once [PR #2566](https://github.com/microsoft/agent-framework/pull/2566) merges:
-1. Update `agent-framework` dependency
-2. Free tier works
-3. Done
+- **Free Tier**: Uses Accumulator Pattern to bypass upstream repr bug
+- **Paid Tier**: Full OpenAI GPT-5 integration
+
+---
+
+## Key Fixes Applied
+
+| Issue | Fix | PR |
+|-------|-----|-----|
+| Tool execution failure | Removed premature `__function_invoking_chat_client__` marker | fix/P1-free-tier |
+| Repr garbage in output | Accumulator Pattern bypasses upstream bug | PR #117 |
+| 72B model routing failures | Switched to 7B (native HF infra) | PR #118 |
+| Evidence deduplication | Cross-source dedup by PMID/DOI | PR #122 |
 
 ---
 
@@ -65,7 +74,7 @@ def get_chat_client():
 | Condition | Backend | Model |
 |-----------|---------|-------|
 | User provides OpenAI key | OpenAI | GPT-5 |
-| No API key provided | HuggingFace | Qwen 2.5 72B (free) |
+| No API key provided | HuggingFace | Qwen 2.5 7B (free) |
 
 ---
 
@@ -84,16 +93,6 @@ def get_chat_client():
 ## What Was Deleted
 
 `simple.py` (778 lines) was a SEPARATE orchestrator that created a "parallel universe." It's gone. Now there's ONE orchestrator with different backends.
-
----
-
-## Upstream Blocker
-
-**Bug:** Microsoft Agent Framework produces `repr()` garbage for tool-call-only messages.
-
-**Fix:** [PR #2566](https://github.com/microsoft/agent-framework/pull/2566) - waiting to merge.
-
-**Tracking:** [Issue #2562](https://github.com/microsoft/agent-framework/issues/2562)
 
 ---
 
