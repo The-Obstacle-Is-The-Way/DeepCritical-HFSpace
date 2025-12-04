@@ -4,6 +4,18 @@
 **Status**: OPEN
 **Severity**: P2 (UX - Duplicate content confuses users)
 **Component**: `src/orchestrators/advanced.py` + `src/app.py`
+**Affects**: Both Free Tier (HuggingFace) AND Paid Tier (OpenAI)
+
+---
+
+## Executive Summary
+
+This is a **confirmed stack bug**, NOT a model limitation. The duplicate report appears because:
+
+1. Streaming events yield the full report content character-by-character
+2. Final events (`MagenticFinalResultEvent`/`WorkflowOutputEvent`) contain the SAME content
+3. No deduplication exists between streamed content and final event content
+4. Both are appended to the output
 
 ---
 
@@ -215,7 +227,116 @@ if has_substantial_streaming:
 
 ---
 
+## Deep Technical Analysis
+
+### Microsoft Agent Framework Event Types
+
+The framework emits these event types (all inherit from `WorkflowEvent`):
+
+| Event Type | Purpose | Key Attributes |
+|------------|---------|----------------|
+| `MagenticAgentDeltaEvent` | Streaming tokens | `text`, `agent_id` |
+| `MagenticAgentMessageEvent` | Agent turn complete | `message` (ChatMessage), `agent_id` |
+| `MagenticFinalResultEvent` | Workflow final result | `message` (ChatMessage) |
+| `MagenticOrchestratorMessageEvent` | Manager bookkeeping | `message`, `kind`, `orchestrator_id` |
+| `WorkflowOutputEvent` | Workflow output | `data`, `source_executor_id` |
+
+### Event Flow Trace
+
+```
+PHASE 1: Agent Streaming (Reporter)
+─────────────────────────────────────
+MagenticAgentDeltaEvent(text="##", agent_id="reporter")     → yields streaming event
+MagenticAgentDeltaEvent(text=" Summary", agent_id="reporter") → yields streaming event
+MagenticAgentDeltaEvent(text="\n", agent_id="reporter")     → yields streaming event
+... (hundreds more delta events)
+MagenticAgentDeltaEvent(text=".", agent_id="reporter")      → yields streaming event
+
+→ Result: Full report content in streaming_buffer (app.py) and current_message_buffer (orchestrator)
+
+PHASE 2: Agent Completion
+─────────────────────────────────────
+MagenticAgentMessageEvent(message=ChatMessage(...), agent_id="reporter")
+→ _handle_completion_event() yields: "reporter: [first 200 chars]..."
+→ Clears current_message_buffer
+→ app.py flushes streaming_buffer to response_parts with "📡 **STREAMING**:" prefix
+
+PHASE 3: Workflow Termination (THE BUG)
+─────────────────────────────────────
+MagenticFinalResultEvent(message=ChatMessage(...))  ← Contains SAME full report!
+OR
+WorkflowOutputEvent(data=ChatMessage(...))          ← Contains SAME full report!
+
+→ _process_event() extracts text with _extract_text()
+→ Returns AgentEvent(type="complete", message=FULL_REPORT)
+→ app.py appends FULL_REPORT to response_parts (NO prefix)
+
+RESULT: Report appears twice:
+1. "📡 **STREAMING**: [full report]"
+2. "[full report again]"
+```
+
+### Key Code Paths
+
+**`advanced.py` lines 299-345 (main loop):**
+```python
+# Buffer is cleared HERE (line 337) after MagenticAgentMessageEvent
+current_message_buffer = ""
+
+# But MagenticFinalResultEvent comes AFTER and _process_event has no buffer context!
+agent_event = self._process_event(event, iteration)  # line 341
+if agent_event:
+    yield agent_event  # line 345 - yields duplicate!
+```
+
+**`advanced.py` lines 532-539 (_process_event):**
+```python
+elif isinstance(event, MagenticFinalResultEvent):
+    text = self._extract_text(event.message)  # Extracts FULL content
+    return AgentEvent(type="complete", message=text)  # Returns FULL content
+```
+
+**`app.py` lines 229-232 (UI handling):**
+```python
+if event.type == "complete":
+    response_parts.append(event.message)  # Appends to existing streamed content!
+    yield "\n\n".join(response_parts)
+```
+
+### Why Buffer Clearing Doesn't Help
+
+The `current_message_buffer` is cleared (line 337) BEFORE the final events arrive. So even if we wanted to compare, we've already lost the reference:
+
+```python
+# Line 327-338: Handle MagenticAgentMessageEvent
+iteration += 1
+comp_event, prog_event = self._handle_completion_event(...)
+yield comp_event
+yield prog_event
+current_message_buffer = ""  # CLEARED!
+continue
+
+# Line 341-345: Handle final events (buffer is empty now!)
+agent_event = self._process_event(event, iteration)  # No buffer context
+```
+
+### Potential Edge Cases
+
+1. **Tool-only turns**: If agent makes tool calls without text, buffer is empty → fallback text used
+2. **Multiple agents streaming**: Buffer clears on agent switch (line 311-313) → OK
+3. **Timeout**: Uses `_handle_timeout()` which invokes ReportAgent directly → Different path
+4. **No final event**: Falls back to "Research completed..." message (line 354-363) → OK
+
+### Verification Needed
+
+- [ ] Confirm `MagenticFinalResultEvent` vs `WorkflowOutputEvent` - which is emitted?
+- [ ] Confirm bug occurs on both Free and Paid tiers
+- [ ] Measure content length match between streaming and final event
+
+---
+
 ## Related
 
 - **Not related to model quality** - This is a stack bug, not model limitation
 - P1 Free Tier fix (PR fix/P1-free-tier) enabled streaming, exposing this bug
+- SPEC-17 Accumulator Pattern addressed repr bug but created this side effect
