@@ -247,7 +247,58 @@ The final output should be a structured research report."""
                 iteration=iteration,
             )
 
-    async def run(self, query: str) -> AsyncGenerator[AgentEvent, None]:
+    async def _force_synthesis(self, iteration: int) -> AsyncGenerator[AgentEvent, None]:
+        """Force synthesis when workflow ends without ReportAgent running (P1 Fix).
+
+        This is a safety net for when the Manager agent (especially 7B models)
+        fails to properly delegate to ReportAgent before workflow termination.
+        """
+        try:
+            from src.agents.magentic_agents import create_report_agent
+            from src.agents.state import get_magentic_state
+
+            state = get_magentic_state()
+            memory = state.memory
+
+            # Get evidence summary from memory
+            evidence_summary = await memory.get_context_summary()
+
+            # Create and invoke ReportAgent for synthesis
+            report_agent = create_report_agent(self._chat_client, domain=self.domain)
+
+            yield AgentEvent(
+                type="synthesizing",
+                message="Synthesizing research findings...",
+                iteration=iteration,
+            )
+
+            # Invoke ReportAgent directly
+            synthesis_result = await report_agent.run(
+                "Synthesize research report from this evidence. "
+                f"If evidence is sparse, say so.\n\n{evidence_summary}"
+            )
+
+            yield AgentEvent(
+                type="complete",
+                message=synthesis_result.text,
+                data={"reason": "forced_synthesis", "iterations": iteration},
+                iteration=iteration,
+            )
+        except Exception as synth_error:
+            logger.error("Forced synthesis failed", error=str(synth_error))
+            yield AgentEvent(
+                type="complete",
+                message=(
+                    f"Research completed after {iteration} rounds. "
+                    f"Evidence gathered but synthesis failed: {synth_error}"
+                ),
+                data={"reason": "forced_synthesis_failed", "iterations": iteration},
+                iteration=iteration,
+            )
+
+    async def run(  # noqa: PLR0915 - Complex but necessary for event stream handling
+        self, query: str
+    ) -> AsyncGenerator[AgentEvent, None]:
         """
         Run the workflow.
 
@@ -295,6 +346,7 @@ The final output should be a structured research report."""
 
         iteration = 0
         final_event_received = False
+        reporter_ran = False  # P1 FIX: Track if ReportAgent produced output
 
         # ACCUMULATOR PATTERN: Track streaming content to bypass upstream Repr Bug
         # Upstream bug in _magentic.py flattens message.contents and sets message.text
@@ -328,6 +380,11 @@ The final output should be a structured research report."""
                     if isinstance(event, MagenticAgentMessageEvent):
                         iteration += 1
 
+                        # P1 FIX: Track if ReportAgent produced output
+                        agent_name = (event.agent_id or "").lower()
+                        if "report" in agent_name:
+                            reporter_ran = True
+
                         comp_event, prog_event = self._handle_completion_event(
                             event, current_message_buffer, iteration
                         )
@@ -340,10 +397,22 @@ The final output should be a structured research report."""
                         current_message_buffer = ""
                         continue
 
-                    # 3. Handle Final Events Inline (P2 Duplicate Report Fix)
+                    # 3. Handle Final Events Inline (P2 Duplicate Report Fix + P1 Forced Synthesis)
                     if isinstance(event, (MagenticFinalResultEvent, WorkflowOutputEvent)):
+                        if final_event_received:
+                            continue  # Skip duplicate final events
                         final_event_received = True
-                        yield self._handle_final_event(event, iteration, last_streamed_length)
+
+                        # P1 FIX: Force synthesis if ReportAgent never ran
+                        if not reporter_ran:
+                            logger.warning(
+                                "ReportAgent never ran - forcing synthesis",
+                                iterations=iteration,
+                            )
+                            async for synth_event in self._force_synthesis(iteration):
+                                yield synth_event
+                        else:
+                            yield self._handle_final_event(event, iteration, last_streamed_length)
                         continue
 
                     # 4. Handle other events normally
@@ -358,16 +427,21 @@ The final output should be a structured research report."""
                     "Workflow ended without final event",
                     iterations=iteration,
                 )
-                yield AgentEvent(
-                    type="complete",
-                    message=(
-                        f"Research completed after {iteration} agent rounds. "
-                        "Max iterations reached - results may be partial. "
-                        "Try a more specific query for better results."
-                    ),
-                    data={"iterations": iteration, "reason": "max_rounds_reached"},
-                    iteration=iteration,
-                )
+                # P1 FIX: Force synthesis if ReportAgent never ran
+                if not reporter_ran:
+                    async for synth_event in self._force_synthesis(iteration):
+                        yield synth_event
+                else:
+                    yield AgentEvent(
+                        type="complete",
+                        message=(
+                            f"Research completed after {iteration} agent rounds. "
+                            "Max iterations reached - results may be partial. "
+                            "Try a more specific query for better results."
+                        ),
+                        data={"iterations": iteration, "reason": "max_rounds_reached"},
+                        iteration=iteration,
+                    )
 
         except TimeoutError:
             async for event in self._handle_timeout(iteration):
