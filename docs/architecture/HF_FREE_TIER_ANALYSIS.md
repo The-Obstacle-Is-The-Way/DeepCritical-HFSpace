@@ -65,4 +65,49 @@ For the Unified Chat Client architecture:
 2.  **Tier 1 (BYO Key):** Allow user to select any model (70B+), assuming they provide a key that grants access to premium providers or PRO tier.
 
 ---
+
+## 5. Known Content Quality Limitations (7B Models)
+
+**Status**: As of December 2025, the Free Tier (Qwen 2.5 7B) produces **working multi-agent orchestration** but with notable content quality limitations.
+
+### What Works Well
+- Multi-agent coordination (Manager → Search → Hypothesis → Report)
+- Clean streaming output (no garbage tokens, no raw JSON)
+- Proper agent handoffs and progress tracking
+- Coherent narrative structure
+
+### Known Limitations
+
+| Issue | Description | Severity |
+|-------|-------------|----------|
+| **Hallucinated Citations** | Model generates plausible-sounding but fake paper titles/authors instead of using actual search results | Medium |
+| **Anatomical Confusion** | May apply male anatomy (e.g., "penile rigidity") to female health queries | High |
+| **Nonsensical Medical Claims** | May generate claims like "prostate cancer risk" in context of female patients | High |
+| **Duplicate Content** | Final reports sometimes contain repeated sections | Low |
+
+### Why This Happens
+
+7B parameter models have limited:
+- **World knowledge**: Can't reliably recall specific paper titles/authors
+- **Context grounding**: May ignore search results and hallucinate instead
+- **Domain reasoning**: Complex medical topics exceed reasoning capacity
+
+### User Guidance
+
+**Free Tier is best for:**
+- Understanding the research workflow
+- Getting general topic overviews
+- Testing the system before committing to paid tier
+
+**For accurate medical research:**
+- Use Paid Tier (GPT-5) for citation accuracy
+- Always verify citations against actual databases
+- Treat Free Tier output as "draft quality"
+
+### Not a Stack Bug
+
+These are **model capability limitations**, not bugs in the DeepBoner architecture. The orchestration, streaming, and agent coordination are working correctly.
+
+---
 *Analysis performed by Gemini CLI Agent, Dec 2, 2025*
+*Content quality section added Dec 3, 2025*
