@@ -226,6 +226,102 @@ class WorkflowState:
 
 ---
 
+## Regression Prevention Strategy
+
+**CRITICAL**: Each phase MUST pass smoke tests before merge. Unit tests alone are insufficient.
+
+### Smoke Test Infrastructure
+
+Add to `Makefile`:
+```makefile
+# Smoke tests - run against real APIs (slow, not for CI)
+smoke-free:
+	@echo "Running Free Tier smoke test..."
+	uv run python -m pytest tests/e2e/test_smoke.py::test_free_tier_synthesis -v -s --timeout=600
+
+smoke-paid:
+	@echo "Running Paid Tier smoke test (requires OPENAI_API_KEY)..."
+	uv run python -m pytest tests/e2e/test_smoke.py::test_paid_tier_synthesis -v -s --timeout=300
+
+smoke: smoke-free  # Default to free tier
+```
+
+### Smoke Test Implementation
+
+Create `tests/e2e/test_smoke.py`:
+```python
+"""
+Smoke tests for regression prevention.
+
+These tests run against REAL APIs and verify end-to-end functionality.
+They are slow (2-5 minutes) and should NOT run in CI.
+
+Usage:
+    make smoke-free   # Test Free Tier (HuggingFace)
+    make smoke-paid   # Test Paid Tier (OpenAI BYOK)
+"""
+import pytest
+from src.orchestrators.advanced import AdvancedOrchestrator
+
+@pytest.mark.e2e
+@pytest.mark.timeout(600)  # 10 minute timeout for Free Tier
+async def test_free_tier_synthesis():
+    """Verify Free Tier produces actual synthesis (not just 'Research complete.')"""
+    orch = AdvancedOrchestrator(max_rounds=2)
+
+    events = []
+    async for event in orch.run("What is libido?"):
+        events.append(event)
+
+    # MUST have a complete event
+    complete_events = [e for e in events if e.type == "complete"]
+    assert len(complete_events) >= 1, "No complete event received"
+
+    # Complete event MUST have substantive content (not just signal)
+    final = complete_events[-1]
+    assert len(final.message) > 100, f"Synthesis too short: {len(final.message)} chars"
+    assert "Research complete." not in final.message or len(final.message) > 50, \
+        "Got empty synthesis signal instead of actual report"
+
+    # Should NOT have duplicate content
+    messages = [e.message for e in events if e.message]
+    # Check for exact duplicates of long content
+    long_messages = [m for m in messages if len(m) > 200]
+    assert len(long_messages) == len(set(long_messages)), "Duplicate content detected"
+
+@pytest.mark.e2e
+@pytest.mark.timeout(300)  # 5 minute timeout for Paid Tier
+async def test_paid_tier_synthesis():
+    """Verify Paid Tier (BYOK) produces synthesis."""
+    import os
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        pytest.skip("OPENAI_API_KEY not set")
+
+    orch = AdvancedOrchestrator(max_rounds=2, api_key=api_key)
+
+    events = []
+    async for event in orch.run("What is libido?"):
+        events.append(event)
+
+    complete_events = [e for e in events if e.type == "complete"]
+    assert len(complete_events) >= 1
+    assert len(complete_events[-1].message) > 100
+```
+
+### Phase Gate Checklist
+
+Before merging ANY refactoring PR:
+
+```
+[ ] make check          # All 318+ unit tests pass
+[ ] make smoke-free     # Free Tier produces real synthesis
+[ ] make smoke-paid     # Paid Tier works (if you have key)
+[ ] CodeRabbit approved # No blocking issues
+```
+
+---
+
 ## Execution Strategy
 
 ### Phase 1: Current PR (REQUIRED)
