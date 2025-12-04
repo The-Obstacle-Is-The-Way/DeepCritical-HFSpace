@@ -7,73 +7,52 @@ from src.utils.text_utils import select_diverse_evidence, truncate_at_sentence
 
 if TYPE_CHECKING:
     from src.services.embedding_protocol import EmbeddingServiceProtocol
-    from src.utils.models import Evidence, MechanismHypothesis
+    from src.utils.models import Evidence, HypothesisAssessment
 
 
 def get_system_prompt(domain: ResearchDomain | str | None = None) -> str:
     """Get the system prompt for the report agent."""
     config = get_domain_config(domain)
-    return f"""{config.report_system_prompt}
 
-Your role is to synthesize evidence and hypotheses into a clear, structured report.
+    return f"""You are a scientific writer specializing in {config.name}.
+Your role is to synthesize evidence into clear recommendations for interventions
+with proper safety considerations.
 
-A good report:
-1. Has a clear EXECUTIVE SUMMARY (one paragraph, key takeaways)
-2. States the RESEARCH QUESTION clearly
-3. Describes METHODOLOGY (what was searched, how)
-4. Evaluates HYPOTHESES with evidence counts
-5. Separates MECHANISTIC and CLINICAL findings
-6. Lists specific DRUG CANDIDATES
-7. Acknowledges LIMITATIONS honestly
-8. Provides a balanced CONCLUSION
-9. Includes properly formatted REFERENCES
+When asked to synthesize:
 
-Write in scientific but accessible language. Be specific about evidence strength.
+Generate a structured report with these sections:
 
-─────────────────────────────────────────────────────────────────────────────
-🚨 CRITICAL: REQUIRED JSON STRUCTURE 🚨
-─────────────────────────────────────────────────────────────────────────────
+## Executive Summary
+Brief overview of findings and recommendation
 
-The `hypotheses_tested` field MUST be a LIST of objects, each with these fields:
-- "hypothesis": the hypothesis text
-- "supported": count of supporting evidence (integer)
-- "contradicted": count of contradicting evidence (integer)
+## Methodology
+Databases searched, queries used, evidence reviewed
 
-Example:
-  hypotheses_tested: [
-    {{"hypothesis": "Testosterone -> AR -> enhanced libido",
-      "supported": 3, "contradicted": 1}},
-    {{"hypothesis": "Sildenafil inhibits PDE5 pathway",
-      "supported": 5, "contradicted": 0}}
-  ]
+## Key Findings
+### Mechanism of Action
+- Molecular targets
+- Biological pathways
+- Proposed mechanism
 
-The `references` field MUST be a LIST of objects, each with these fields:
-- "title": paper title (string)
-- "authors": author names (string)
-- "source": "pubmed" or "web" (string)
-- "url": the EXACT URL from evidence (string)
+### Clinical Evidence
+- Preclinical studies
+- Clinical trials
+- Safety profile
 
-Example:
-  references: [
-    {{"title": "Testosterone and Libido", "authors": "Smith",
-      "source": "pubmed", "url": "https://pubmed.ncbi.nlm.nih.gov/123/"}}
-  ]
+## Candidates
+List specific candidates with potential
 
-─────────────────────────────────────────────────────────────────────────────
-🚨 CRITICAL CITATION REQUIREMENTS 🚨
-─────────────────────────────────────────────────────────────────────────────
+## Limitations
+Gaps in evidence, conflicting data, caveats
 
-You MUST follow these rules for the References section:
+## Conclusion
+Final recommendation with confidence level
 
-1. You may ONLY cite papers that appear in the Evidence section above
-2. Every reference URL must EXACTLY match a provided evidence URL
-3. Do NOT invent, fabricate, or hallucinate any references
-4. Do NOT modify paper titles, authors, dates, or URLs
-5. If unsure about a citation, OMIT it rather than guess
-6. Copy URLs exactly as provided - do not create similar-looking URLs
+## References
+Use the 'get_bibliography' tool to fetch the complete list of citations.
+Format them as a numbered list.
 
-VIOLATION OF THESE RULES PRODUCES DANGEROUS MISINFORMATION.
-─────────────────────────────────────────────────────────────────────────────"""
+Be comprehensive but concise. Cite evidence for all claims."""
 
 
 # Keep SYSTEM_PROMPT for backwards compatibility
@@ -83,67 +62,61 @@ SYSTEM_PROMPT = get_system_prompt()
 async def format_report_prompt(
     query: str,
     evidence: list["Evidence"],
-    hypotheses: list["MechanismHypothesis"],
-    assessment: dict[str, Any],
+    hypotheses: list["HypothesisAssessment"] | list[Any],
+    assessment: Any,
     metadata: dict[str, Any],
     embeddings: "EmbeddingServiceProtocol | None" = None,
 ) -> str:
     """Format prompt for report generation.
 
-    Includes full evidence details for accurate citation.
+    Args:
+        query: Research query
+        evidence: Collected evidence
+        hypotheses: Generated hypotheses
+        assessment: Judge assessment details
+        metadata: Search metadata
+        embeddings: Optional embedding service for diverse selection
     """
-    # Select diverse evidence (not arbitrary truncation)
-    selected = await select_diverse_evidence(evidence, n=20, query=query, embeddings=embeddings)
+    # Select diverse evidence (max 15 for report)
+    selected = await select_diverse_evidence(evidence, n=15, query=query, embeddings=embeddings)
 
-    # Include FULL citation details for each evidence item
-    # This helps the LLM create accurate references
-    evidence_lines = []
-    for e in selected:
-        authors = ", ".join(e.citation.authors or ["Unknown"])
-        evidence_lines.append(
-            f"- **Title**: {e.citation.title}\n"
-            f"  **URL**: {e.citation.url}\n"
-            f"  **Authors**: {authors}\n"
-            f"  **Date**: {e.citation.date or 'n.d.'}\n"
-            f"  **Source**: {e.citation.source}\n"
-            f"  **Content**: {truncate_at_sentence(e.content, 200)}\n"
-        )
-    evidence_summary = "\n".join(evidence_lines)
+    evidence_text = "\n".join(
+        [
+            f"- **{e.citation.title}** ({e.citation.source}): "
+            f"{truncate_at_sentence(e.content, 400)}"
+            for e in selected
+        ]
+    )
 
+    # Format hypotheses if available
+    hypotheses_text = "No specific hypotheses generated."
     if hypotheses:
-        hypotheses_lines = []
+        # Handle both Pydantic models and dicts/objects
+        h_list = []
         for h in hypotheses:
-            hypotheses_lines.append(
-                f"- {h.drug} -> {h.target} -> {h.pathway} -> {h.effect} "
-                f"(Confidence: {h.confidence:.0%})"
-            )
-        hypotheses_summary = "\n".join(hypotheses_lines)
-    else:
-        hypotheses_summary = "No hypotheses generated yet."
+            if hasattr(h, "hypotheses"):
+                for item in h.hypotheses:
+                    h_list.append(f"- {item.drug} -> {item.target} -> {item.effect}")
+            elif isinstance(h, dict):
+                h_list.append(str(h))
+            else:
+                h_list.append(str(h))
+        if h_list:
+            hypotheses_text = "\n".join(h_list)
 
-    sources = ", ".join(metadata.get("sources", []))
+    return f"""Generate a comprehensive research report for: "{query}""
 
-    return f"""Generate a structured research report for the following query.
+## Context
+- **Sources Searched**: {", ".join(metadata.get("sources", []))}
+- **Iterations**: {metadata.get("iterations", 0)}
 
-## Original Query
-{query}
+## Evidence ({len(selected)} key papers)
+{evidence_text}
 
-## Evidence Collected ({len(selected)} papers, selected for diversity)
+## Generated Hypotheses
+{hypotheses_text}
 
-{evidence_summary}
-
-## Hypotheses Generated
-{hypotheses_summary}
-
-## Assessment Scores
-- Mechanism Score: {assessment.get("mechanism_score", "N/A")}/10
-- Clinical Evidence Score: {assessment.get("clinical_score", "N/A")}/10
-- Overall Confidence: {assessment.get("confidence", 0):.0%}
-
-## Metadata
-- Sources Searched: {sources}
-- Search Iterations: {metadata.get("iterations", 0)}
-
-Generate a complete ResearchReport with all sections filled in.
-
-REMINDER: Only cite papers from the Evidence section above. Copy URLs exactly."""
+## Task
+Synthesize this information into a structured report following the Executive Summary format.
+Focus on clinical applicability and safety.
+Use specific citations from the evidence list."""

@@ -22,7 +22,6 @@ class TestGetDomainConfig:
     def test_explicit_sexual_health(self):
         config = get_domain_config(ResearchDomain.SEXUAL_HEALTH)
         assert "Sexual Health" in config.report_title
-        assert "sexual health" in config.judge_system_prompt.lower()
 
     def test_accepts_string(self):
         config = get_domain_config("sexual_health")
@@ -41,9 +40,7 @@ class TestGetDomainConfig:
         required_fields = [
             "name",
             "report_title",
-            "judge_system_prompt",
-            "hypothesis_system_prompt",
-            "report_system_prompt",
+            "search_description",
         ]
         config = get_domain_config(ResearchDomain.SEXUAL_HEALTH)
         for field in required_fields:

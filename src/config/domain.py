@@ -46,16 +46,6 @@ class DomainConfig(BaseModel):
     report_title: str
     report_focus: str
 
-    # Judge prompts
-    judge_system_prompt: str
-    judge_scoring_prompt: str
-
-    # Hypothesis prompts
-    hypothesis_system_prompt: str
-
-    # Report writer prompts
-    report_system_prompt: str
-
     # Search context
     search_description: str
     search_example_query: str
@@ -74,21 +64,6 @@ SEXUAL_HEALTH_CONFIG = DomainConfig(
     description="Sexual health and wellness research specialist",
     report_title="## Sexual Health Analysis",
     report_focus="sexual health and wellness interventions",
-    judge_system_prompt="""You are an expert sexual health research judge.
-Your role is to evaluate evidence for sexual health interventions, assess
-efficacy and safety data, and determine clinical applicability.""",
-    judge_scoring_prompt="""Score this evidence for sexual health relevance.
-Provide ONLY scores and extracted data.""",
-    hypothesis_system_prompt=(
-        """You are a biomedical research scientist specializing in sexual health.
-Your role is to generate evidence-based hypotheses for sexual health interventions,
-identifying mechanisms of action and potential therapeutic applications."""
-    ),
-    report_system_prompt=(
-        """You are a scientific writer specializing in sexual health research reports.
-Your role is to synthesize evidence into clear recommendations for sexual health
-interventions with proper safety considerations."""
-    ),
     search_description="Searches biomedical literature for sexual health evidence",
     search_example_query="testosterone therapy female libido",
     search_agent_description="Searches PubMed for sexual health evidence",
