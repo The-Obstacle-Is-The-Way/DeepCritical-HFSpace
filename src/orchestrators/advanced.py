@@ -17,6 +17,7 @@ Design Patterns:
 
 import asyncio
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 import structlog
@@ -54,6 +55,18 @@ REPORTER_AGENT_ID = "reporter"
 SEARCHER_AGENT_ID = "searcher"
 JUDGE_AGENT_ID = "judge"
 HYPOTHESIZER_AGENT_ID = "hypothesizer"
+
+
+@dataclass
+class WorkflowState:
+    """Tracks mutable state during workflow execution."""
+
+    iteration: int = 0
+    reporter_ran: bool = False
+    current_message_buffer: str = ""
+    current_agent_id: str | None = None
+    last_streamed_length: int = 0
+    final_event_received: bool = False
 
 
 class AdvancedOrchestrator(OrchestratorProtocol):
@@ -305,16 +318,7 @@ The final output should be a structured research report."""
             iteration=0,
         )
 
-        iteration = 0
-        final_event_received = False
-        reporter_ran = False  # P1 FIX: Track if ReportAgent produced output
-
-        # ACCUMULATOR PATTERN: Track streaming content to bypass upstream Repr Bug
-        # Upstream bug in _magentic.py flattens message.contents and sets message.text
-        # to repr(message) if text is empty. We must reconstruct text from Deltas.
-        current_message_buffer: str = ""
-        current_agent_id: str | None = None
-        last_streamed_length: int = 0  # Track for P2 Duplicate Report Bug Fix
+        state = WorkflowState()
 
         try:
             async with asyncio.timeout(self._timeout_seconds):
@@ -322,92 +326,99 @@ The final output should be a structured research report."""
                     # 1. Handle Streaming (Source of Truth for Content)
                     if isinstance(event, MagenticAgentDeltaEvent):
                         # Detect agent switch to clear buffer
-                        if event.agent_id != current_agent_id:
-                            current_message_buffer = ""
-                            current_agent_id = event.agent_id
+                        if event.agent_id != state.current_agent_id:
+                            state.current_message_buffer = ""
+                            state.current_agent_id = event.agent_id
 
                         if event.text:
-                            current_message_buffer += event.text
+                            state.current_message_buffer += event.text
                             yield AgentEvent(
                                 type="streaming",
                                 message=event.text,
                                 data={"agent_id": event.agent_id},
-                                iteration=iteration,
+                                iteration=state.iteration,
                             )
                         continue
 
                     # 2. Handle Completion Signal
                     # We use our accumulated buffer instead of the corrupted event.message
                     if isinstance(event, MagenticAgentMessageEvent):
-                        iteration += 1
+                        state.iteration += 1
 
                         # P1 FIX: Track if ReportAgent produced output
                         agent_name = (event.agent_id or "").lower()
                         if REPORTER_AGENT_ID in agent_name:
-                            reporter_ran = True
+                            state.reporter_ran = True
 
                         comp_event, prog_event = self._handle_completion_event(
-                            event, current_message_buffer, iteration
+                            event, state.current_message_buffer, state.iteration
                         )
                         yield comp_event
                         yield prog_event
 
                         # P2 BUG FIX: Save length before clearing
-                        last_streamed_length = len(current_message_buffer)
+                        state.last_streamed_length = len(state.current_message_buffer)
                         # Clear buffer after consuming
-                        current_message_buffer = ""
+                        state.current_message_buffer = ""
                         continue
 
                     # 3. Handle Final Events Inline (P2 Duplicate Report Fix + P1 Forced Synthesis)
                     if isinstance(event, (MagenticFinalResultEvent, WorkflowOutputEvent)):
-                        if final_event_received:
+                        if state.final_event_received:
                             continue  # Skip duplicate final events
-                        final_event_received = True
+                        state.final_event_received = True
 
                         # P1 FIX: Force synthesis if ReportAgent never ran
-                        if not reporter_ran:
+                        if not state.reporter_ran:
                             logger.warning(
                                 "ReportAgent never ran - forcing synthesis",
-                                iterations=iteration,
+                                iterations=state.iteration,
                             )
                             async for synth_event in self._synthesize_fallback(
-                                iteration, "no_reporter"
+                                state.iteration, "no_reporter"
                             ):
                                 yield synth_event
                         else:
-                            yield self._handle_final_event(event, iteration, last_streamed_length)
+                            yield self._handle_final_event(
+                                event, state.iteration, state.last_streamed_length
+                            )
                         continue
 
                     # 4. Handle other events normally
-                    agent_event = self._process_event(event, iteration)
+                    agent_event = self._process_event(event, state.iteration)
                     if agent_event:
                         yield agent_event
 
             # GUARANTEE: Always emit termination event if stream ends without one
             # (e.g., max rounds reached)
-            if not final_event_received:
+            if not state.final_event_received:
                 logger.warning(
                     "Workflow ended without final event",
-                    iterations=iteration,
+                    iterations=state.iteration,
                 )
                 # P1 FIX: Force synthesis if ReportAgent never ran
-                if not reporter_ran:
-                    async for synth_event in self._synthesize_fallback(iteration, "max_rounds"):
+                if not state.reporter_ran:
+                    async for synth_event in self._synthesize_fallback(
+                        state.iteration, "max_rounds"
+                    ):
                         yield synth_event
                 else:
                     yield AgentEvent(
                         type="complete",
                         message=(
-                            f"Research completed after {iteration} agent rounds. "
+                            f"Research completed after {state.iteration} agent rounds. "
                             "Max iterations reached - results may be partial. "
                             "Try a more specific query for better results."
                         ),
-                        data={"iterations": iteration, "reason": "max_rounds_reached"},
-                        iteration=iteration,
+                        data={
+                            "iterations": state.iteration,
+                            "reason": "max_rounds_reached",
+                        },
+                        iteration=state.iteration,
                     )
 
         except TimeoutError:
-            async for event in self._synthesize_fallback(iteration, "timeout"):
+            async for event in self._synthesize_fallback(state.iteration, "timeout"):
                 yield event
 
         except Exception as e:
@@ -415,7 +426,7 @@ The final output should be a structured research report."""
             yield AgentEvent(
                 type="error",
                 message=f"Workflow error: {e!s}",
-                iteration=iteration,
+                iteration=state.iteration,
             )
 
     def _handle_completion_event(
