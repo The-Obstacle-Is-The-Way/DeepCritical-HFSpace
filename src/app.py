@@ -78,21 +78,14 @@ def configure_orchestrator(
 
     # 2. Paid API Key (User provided or Env)
     elif user_api_key and user_api_key.strip():
-        if user_api_key.startswith("sk-ant-"):
-            backend_info = "Paid API (Anthropic)"
-        elif user_api_key.startswith("sk-"):
+        if user_api_key.startswith("sk-"):
             backend_info = "Paid API (OpenAI)"
         else:
-            raise ConfigurationError(
-                "Invalid API key format. Expected sk-... (OpenAI) or sk-ant-... (Anthropic)"
-            )
+            raise ConfigurationError("Invalid API key format. Expected sk-... (OpenAI)")
 
     # 3. Environment API Keys (fallback)
     elif settings.has_openai_key:
         backend_info = "Paid API (OpenAI from env)"
-
-    elif settings.has_anthropic_key:
-        backend_info = "Paid API (Anthropic from env)"
 
     # 4. Free Tier (HuggingFace Inference)
     else:
@@ -125,8 +118,7 @@ def _validate_inputs(
 
     # Check available keys
     has_openai = settings.has_openai_key
-    has_anthropic = settings.has_anthropic_key
-    has_paid_key = has_openai or has_anthropic or bool(user_api_key)
+    has_paid_key = has_openai or bool(user_api_key)
 
     return user_api_key, has_paid_key
 
@@ -320,7 +312,7 @@ def create_demo() -> tuple[gr.ChatInterface, gr.Accordion]:
             ),
             gr.Textbox(
                 label="🔑 API Key (Optional)",
-                placeholder="sk-... (OpenAI) or sk-ant-... (Anthropic)",
+                placeholder="sk-... (OpenAI)",
                 type="password",
                 info="Leave empty for free tier. Auto-detects provider from key prefix.",
                 elem_classes=["api-key-input"],

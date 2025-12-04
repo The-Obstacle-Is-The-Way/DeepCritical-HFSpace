@@ -52,20 +52,3 @@ class TestSettings:
             settings = Settings(_env_file=None)
             with pytest.raises(ConfigurationError, match="OPENAI_API_KEY not set"):
                 settings.get_api_key()
-
-    def test_get_api_key_anthropic(self) -> None:
-        """get_api_key should return Anthropic key when provider is anthropic."""
-        with patch.dict(
-            os.environ,
-            {"LLM_PROVIDER": "anthropic", "ANTHROPIC_API_KEY": "sk-ant-test-key"},
-            clear=True,
-        ):
-            settings = Settings(_env_file=None)
-            assert settings.get_api_key() == "sk-ant-test-key"
-
-    def test_get_api_key_anthropic_missing_raises(self) -> None:
-        """get_api_key should raise ConfigurationError when Anthropic key is not set."""
-        with patch.dict(os.environ, {"LLM_PROVIDER": "anthropic"}, clear=True):
-            settings = Settings(_env_file=None)
-            with pytest.raises(ConfigurationError, match="ANTHROPIC_API_KEY not set"):
-                settings.get_api_key()

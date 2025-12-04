@@ -26,15 +26,10 @@ class Settings(BaseSettings):
 
     # LLM Configuration
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
-    anthropic_api_key: str | None = Field(default=None, description="Anthropic API key")
-    gemini_api_key: str | None = Field(default=None, description="Google Gemini API key")
-    llm_provider: Literal["openai", "anthropic", "huggingface", "gemini"] = Field(
+    llm_provider: Literal["openai", "huggingface"] = Field(
         default="openai", description="Which LLM provider to use"
     )
     openai_model: str = Field(default="gpt-5", description="OpenAI model name")
-    anthropic_model: str = Field(
-        default="claude-sonnet-4-5-20250929", description="Anthropic model"
-    )
     # HuggingFace (free tier)
     # NOTE: Large models (70B+) are routed to third-party providers (Novita, Hyperbolic) which are
     # unreliable (500/401 errors). We use Qwen2.5-7B-Instruct as it is small enough to run on
@@ -77,10 +72,6 @@ class Settings(BaseSettings):
         description="Timeout for Advanced mode in seconds (default 10 min)",
     )
     search_timeout: int = Field(default=30, description="Seconds to wait for search")
-    magentic_timeout: int = Field(
-        default=600,
-        description="Timeout for Magentic mode in seconds (deprecated, use advanced_timeout)",
-    )
 
     # Logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
@@ -105,11 +96,6 @@ class Settings(BaseSettings):
                 raise ConfigurationError("OPENAI_API_KEY not set")
             return self.openai_api_key
 
-        if provider_lower == "anthropic":
-            if not self.anthropic_api_key:
-                raise ConfigurationError("ANTHROPIC_API_KEY not set")
-            return self.anthropic_api_key
-
         raise ConfigurationError(f"Unknown LLM provider: {self.llm_provider}")
 
     def get_openai_api_key(self) -> str:
@@ -127,16 +113,6 @@ class Settings(BaseSettings):
         return bool(self.openai_api_key)
 
     @property
-    def has_anthropic_key(self) -> bool:
-        """Check if Anthropic API key is available."""
-        return bool(self.anthropic_api_key)
-
-    @property
-    def has_gemini_key(self) -> bool:
-        """Check if Gemini API key is available."""
-        return bool(self.gemini_api_key)
-
-    @property
     def has_huggingface_key(self) -> bool:
         """Check if HuggingFace token is available."""
         return bool(self.hf_token)
@@ -144,12 +120,7 @@ class Settings(BaseSettings):
     @property
     def has_any_llm_key(self) -> bool:
         """Check if any LLM API key is available."""
-        return (
-            self.has_openai_key
-            or self.has_anthropic_key
-            or self.has_huggingface_key
-            or self.has_gemini_key
-        )
+        return self.has_openai_key or self.has_huggingface_key
 
 
 def get_settings() -> Settings:
