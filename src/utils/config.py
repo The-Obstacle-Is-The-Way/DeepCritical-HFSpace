@@ -71,10 +71,10 @@ class Settings(BaseSettings):
         description="Max coordination rounds for Advanced mode (default 5 for faster demos)",
     )
     advanced_timeout: float = Field(
-        default=300.0,
+        default=600.0,
         ge=60.0,
         le=900.0,
-        description="Timeout for Advanced mode in seconds (default 5 min)",
+        description="Timeout for Advanced mode in seconds (default 10 min)",
     )
     search_timeout: int = Field(default=30, description="Seconds to wait for search")
     magentic_timeout: int = Field(

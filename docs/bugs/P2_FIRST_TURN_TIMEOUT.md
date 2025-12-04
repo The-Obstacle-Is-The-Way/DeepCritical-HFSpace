@@ -1,7 +1,7 @@
 # P2 Bug: First Agent Turn Exceeds Workflow Timeout
 
 **Date**: 2025-12-03
-**Status**: OPEN
+**Status**: FIXED (PR fix/p2-double-bug-squash)
 **Severity**: P2 (UX - Workflow always times out on complex queries)
 **Component**: `src/orchestrators/advanced.py` + `src/agents/search_agent.py`
 **Affects**: Both Free Tier (HuggingFace) AND Paid Tier (OpenAI)
