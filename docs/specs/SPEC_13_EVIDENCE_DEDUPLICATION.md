@@ -1,10 +1,10 @@
 # SPEC_13: Evidence Deduplication in SearchHandler
 
-**Status**: Draft (Validated via API Documentation Review)
+**Status**: Implemented
 **Priority**: P1
 **GitHub Issue**: #94
 **Estimated Effort**: Medium (~100 lines of code, includes OpenAlex metadata extraction)
-**Last Updated**: 2025-11-30
+**Last Updated**: 2025-12-03
 
 ---
 
