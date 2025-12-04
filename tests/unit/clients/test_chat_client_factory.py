@@ -79,7 +79,7 @@ class TestChatClientFactory:
 
             from src.clients.factory import get_chat_client
 
-            with pytest.raises(ValueError, match="Unsupported provider"):
+            with pytest.raises(ValueError, match="No suitable provider found"):
                 get_chat_client(provider="invalid_provider")
 
     def test_byok_auto_detects_openai_from_key_prefix(self) -> None:

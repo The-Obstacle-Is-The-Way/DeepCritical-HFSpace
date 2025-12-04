@@ -4,12 +4,18 @@ from typing import Any
 
 import structlog
 from agent_framework import BaseChatClient
-from agent_framework.openai import OpenAIChatClient
 
-from src.clients.huggingface import HuggingFaceChatClient
+from src.clients.providers import HuggingFaceProvider, OpenAIProvider
+from src.clients.registry import ProviderRegistry
 from src.utils.config import settings
 
 logger = structlog.get_logger()
+
+# Register strategies in order of priority
+# 1. OpenAI (Specific key or Env)
+ProviderRegistry.register(OpenAIProvider())
+# 2. HuggingFace (Free Fallback)
+ProviderRegistry.register(HuggingFaceProvider())
 
 
 def get_chat_client(
@@ -21,56 +27,30 @@ def get_chat_client(
     """
     Factory for creating chat clients.
 
-    Auto-detection priority:
+    Delegates to ProviderRegistry for strategy selection.
+
+    Auto-detection priority (via Registry):
     1. Explicit provider parameter
-    2. API key prefix detection (sk- → OpenAI, sk-ant- → Anthropic)
-    3. OpenAI key from env (Best Function Calling)
-    4. Gemini key from env (Best Context/Cost)
-    5. HuggingFace (Free Fallback)
+    2. API key prefix detection (sk- → OpenAI)
+    3. OpenAI key from env
+    4. HuggingFace (Free Fallback)
 
     Args:
-        provider: Force specific provider ("openai", "gemini", "huggingface")
-        api_key: Override API key for the provider (auto-detects provider from prefix)
+        provider: Force specific provider ("openai", "huggingface")
+        api_key: Override API key
         model_id: Override default model ID
         **kwargs: Additional arguments for the client
 
     Returns:
-        Configured BaseChatClient instance (Namespace Neutral)
+        Configured BaseChatClient instance
 
     Raises:
-        ValueError: If an unsupported provider is explicitly requested
-        NotImplementedError: If Gemini or Anthropic is requested (not yet implemented)
+        ValueError: If an unsupported provider is requested
     """
-    # Normalize provider to lowercase for case-insensitive matching
-    normalized = provider.lower() if provider is not None else None
-
-    # FIX: Auto-detect provider from API key prefix when not explicitly set
-    # This enables BYOK (Bring Your Own Key) from Gradio without explicit provider
-    # Order matters: "sk-ant-" must be checked before "sk-" (both start with "sk-")
-    if normalized is None and api_key:
-        if api_key.startswith("sk-"):
-            normalized = "openai"
-        # HF tokens start with "hf_" - no auto-detection needed (falls through to default)
-
-    # Validate explicit provider requests early
-    valid_providers = (None, "openai", "huggingface")
-    if normalized not in valid_providers:
-        raise ValueError(f"Unsupported provider: {provider!r}")
-
-    # 1. OpenAI (Standard / Paid Tier)
-    if normalized == "openai" or (normalized is None and settings.has_openai_key):
-        logger.info("Using OpenAI Chat Client")
-        return OpenAIChatClient(
-            model_id=model_id or settings.openai_model,
-            api_key=api_key or settings.openai_api_key,
-            **kwargs,
-        )
-
-    # 4. HuggingFace (Free Fallback)
-    # This is the default if no other keys are present
-    logger.info("Using HuggingFace Chat Client (Free Tier)")
-    return HuggingFaceChatClient(
-        model_id=model_id or settings.huggingface_model,
-        api_key=api_key or settings.hf_token,
+    return ProviderRegistry.get_client(
+        settings=settings,
+        provider=provider,
+        api_key=api_key,
+        model_id=model_id,
         **kwargs,
     )
