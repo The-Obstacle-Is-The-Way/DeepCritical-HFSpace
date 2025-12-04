@@ -567,30 +567,12 @@ The final output should be a structured research report."""
                 iteration=iteration,
             )
 
-        # NOTE: MagenticAgentMessageEvent is handled in run() loop with Accumulator Pattern
-        # (see lines 322-335) and never reaches this method due to `continue` statement.
-
-        elif isinstance(event, MagenticFinalResultEvent):
-            text = self._extract_text(event.message) if event.message else "No result"
-            return AgentEvent(
-                type="complete",
-                message=text,
-                data={"iterations": iteration},
-                iteration=iteration,
-            )
-
-        # NOTE: MagenticAgentDeltaEvent is handled in run() loop with Accumulator Pattern
-        # (see lines 306-320) and never reaches this method due to `continue` statement.
-
-        elif isinstance(event, WorkflowOutputEvent):
-            if event.data:
-                # Use _extract_text to properly handle ChatMessage objects
-                text = self._extract_text(event.data)
-                return AgentEvent(
-                    type="complete",
-                    message=text if text else "Research complete (no synthesis)",
-                    iteration=iteration,
-                )
+        # NOTE: The following event types are handled inline in run() loop and never reach
+        # this method due to `continue` statements:
+        # - MagenticAgentMessageEvent: Accumulator Pattern (lines 322-335)
+        # - MagenticAgentDeltaEvent: Accumulator Pattern (lines 306-320)
+        # - MagenticFinalResultEvent: P2 Duplicate Fix via _handle_final_event() (lines 343-347)
+        # - WorkflowOutputEvent: P2 Duplicate Fix via _handle_final_event() (lines 343-347)
 
         return None
 

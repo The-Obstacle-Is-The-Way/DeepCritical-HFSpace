@@ -1,6 +1,6 @@
 # Active Bugs
 
-> Last updated: 2025-12-03
+> Last updated: 2025-12-04
 >
 > **Note:** Completed bug docs archived to `docs/bugs/archive/`
 > **See also:** [ARCHITECTURE.md](../ARCHITECTURE.md) for unified architecture plan
@@ -30,6 +30,17 @@
 **Problem:** Anthropic is partially wired but NOT fully supported (no embeddings API). Creates confusion.
 
 **Fix:** Remove all Anthropic references from codebase. See doc for file list.
+
+---
+
+### P3 - Remove Modal Integration
+
+**File:** `docs/future-roadmap/P3_MODAL_INTEGRATION_REMOVAL.md`
+**Status:** OPEN - Tech Debt
+
+**Problem:** Modal (cloud functions) is integrated in 9 files but was decided against for this project. Creates dead code paths and confusion.
+
+**Fix:** Remove all Modal references from codebase (config, services, agents, tools).
 
 ---
 
