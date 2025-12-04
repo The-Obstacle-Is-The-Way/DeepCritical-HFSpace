@@ -230,6 +230,10 @@ class WorkflowState:
 
 **CRITICAL**: Each phase MUST pass smoke tests before merge. Unit tests alone are insufficient.
 
+> **Implementation Status**: IMPLEMENTED (PR #125)
+> Smoke tests are now live in `tests/e2e/test_smoke.py` with Makefile targets.
+> Run `make smoke-free` or `make smoke-paid` before any refactoring PR.
+
 ### Smoke Test Infrastructure
 
 Add to `Makefile`:
@@ -339,17 +343,37 @@ Implement **Priority 1, 2, and 3** before merging PR #124.
 ### Phase 2: Future PRs (Separate Tickets)
 Create GitHub issues for Priority 4-8. Do NOT bloat the current bug fix PR.
 
+**IMPORTANT**: Before starting ANY Priority 4-7 refactors, FIRST implement Priority 8 (Smoke Tests).
+This ensures we can detect regressions from refactoring. Sequence:
+
+1. **PR: Smoke Test Infrastructure** (Priority 8) - MUST BE FIRST
+   - Create `tests/e2e/test_smoke.py`
+   - Add `make smoke-free` and `make smoke-paid` to Makefile
+   - Verify both Free Tier and Paid Tier produce synthesis
+
+2. **PR: Dead Config Cleanup** (Priority 4)
+3. **PR: Prompt Unification** (Priority 5)
+4. **PR: Factory Registry Pattern** (Priority 6)
+5. **PR: WorkflowState Dataclass** (Priority 7)
+
 ---
 
-## Appendix: Line Number Reference
+## Appendix: Line Number Reference (Historical)
 
-| Item | Current Location |
-|------|------------------|
-| `_handle_timeout()` | Lines 201-248 |
-| `_force_synthesis()` | Lines 250-297 |
-| Redundant imports (timeout) | Lines 207-208 |
-| Redundant imports (force) | Lines 257-258 |
-| Magic string detection | Line 385 |
-| `_get_event_type_for_agent()` | Lines 582-602 |
-| Module imports | Lines 18-48 |
-| `run()` method | Lines 299-456 |
+> **Note**: These line numbers were from BEFORE Phase 1 refactoring.
+> After PR #124 merge, the following methods were consolidated:
+> - `_handle_timeout()` → DELETED (merged into `_synthesize_fallback`)
+> - `_force_synthesis()` → DELETED (merged into `_synthesize_fallback`)
+> - Redundant imports → REMOVED (centralized at module level)
+> - Magic strings → REPLACED with constants
+
+| Item (Pre-Refactor) | Original Location | Status |
+|---------------------|-------------------|--------|
+| `_handle_timeout()` | Lines 201-248 | DELETED |
+| `_force_synthesis()` | Lines 250-297 | DELETED |
+| Redundant imports (timeout) | Lines 207-208 | REMOVED |
+| Redundant imports (force) | Lines 257-258 | REMOVED |
+| Magic string detection | Line 385 | REFACTORED |
+| `_get_event_type_for_agent()` | Lines 582-602 | REFACTORED |
+| Module imports | Lines 18-48 | UPDATED |
+| `run()` method | Lines 299-456 | UPDATED |
