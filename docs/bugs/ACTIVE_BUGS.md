@@ -18,7 +18,20 @@
 
 **Root Cause:** Both `MagenticFinalResultEvent` and `WorkflowOutputEvent` emit the full report content that was already streamed. No deduplication exists.
 
-**Recommended Fix:** Track streamed content length in orchestrator; emit minimal "Research complete." message instead of repeating content.
+**Recommended Fix:** Handle final events inline in `run()` loop where buffer context exists. Track `last_streamed_length`; if > 100 chars, emit "Research complete." instead of full content.
+
+---
+
+### P2 - First Agent Turn Exceeds Workflow Timeout
+
+**File:** `docs/bugs/P2_FIRST_TURN_TIMEOUT.md`
+**Status:** OPEN - Performance Bug
+
+**Problem:** The search agent's first turn can exceed the 5-minute workflow timeout, causing `iterations=0` at timeout. Users get partial research results.
+
+**Root Cause:** Search agent does too much work in a single turn: 3 API searches → 30 results → 30 embedding calls → 30 ChromaDB stores. The timeout is on the WORKFLOW, not individual agent turns.
+
+**Recommended Fix:** Reduce `max_results_per_tool` from 10 to 5; increase `advanced_timeout` to 600s (10 min).
 
 ---
 
