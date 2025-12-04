@@ -71,17 +71,6 @@ class TestChatClientFactory:
 
             assert "HuggingFace" in type(client).__name__
 
-    def test_gemini_provider_raises_not_implemented(self) -> None:
-        """Explicit provider='gemini' should raise NotImplementedError (Phase 4)."""
-        with patch("src.clients.factory.settings") as mock_settings:
-            mock_settings.has_openai_key = False
-            mock_settings.has_gemini_key = False
-
-            from src.clients.factory import get_chat_client
-
-            with pytest.raises(NotImplementedError, match="Gemini client not yet implemented"):
-                get_chat_client(provider="gemini")
-
     def test_unsupported_provider_raises_value_error(self) -> None:
         """Unsupported provider should raise ValueError, not silently fallback."""
         with patch("src.clients.factory.settings") as mock_settings:
@@ -92,17 +81,6 @@ class TestChatClientFactory:
 
             with pytest.raises(ValueError, match="Unsupported provider"):
                 get_chat_client(provider="invalid_provider")
-
-    def test_anthropic_provider_raises_not_implemented(self) -> None:
-        """Anthropic provider should raise NotImplementedError (not yet implemented)."""
-        with patch("src.clients.factory.settings") as mock_settings:
-            mock_settings.has_openai_key = False
-            mock_settings.has_gemini_key = False
-
-            from src.clients.factory import get_chat_client
-
-            with pytest.raises(NotImplementedError, match="Anthropic client not yet implemented"):
-                get_chat_client(provider="anthropic")
 
     def test_byok_auto_detects_openai_from_key_prefix(self) -> None:
         """BYOK: api_key starting with 'sk-' should auto-select OpenAI without explicit provider.
@@ -126,22 +104,6 @@ class TestChatClientFactory:
 
             # Should auto-detect OpenAI from 'sk-' prefix
             assert "OpenAI" in type(client).__name__
-
-    def test_byok_auto_detects_anthropic_from_key_prefix(self) -> None:
-        """BYOK: api_key starting with 'sk-ant-' should auto-detect Anthropic.
-
-        Anthropic keys start with 'sk-ant-' which is a superset of 'sk-'.
-        Detection must check 'sk-ant-' first to avoid misdetecting as OpenAI.
-        """
-        with patch("src.clients.factory.settings") as mock_settings:
-            mock_settings.has_openai_key = False
-            mock_settings.has_gemini_key = False
-
-            from src.clients.factory import get_chat_client
-
-            # BYOK: Anthropic key should raise NotImplementedError (not fall to HuggingFace!)
-            with pytest.raises(NotImplementedError, match="Anthropic client not yet implemented"):
-                get_chat_client(api_key="sk-ant-user-anthropic-key")
 
     def test_byok_hf_token_falls_through_to_huggingface(self) -> None:
         """BYOK: HuggingFace tokens (hf_...) should use HuggingFace client."""

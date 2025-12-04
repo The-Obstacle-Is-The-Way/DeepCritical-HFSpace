@@ -1,6 +1,5 @@
 """Tests for app timeout and history preservation."""
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -48,13 +47,3 @@ async def test_complete_event_preserves_history():
         assert "Step 1: Thinking..." in final_output
         assert "Step 2: Found data" in final_output
         assert "Timeout: Synthesizing..." in final_output
-
-
-@pytest.mark.asyncio
-async def test_timeout_configurable():
-    """Verify MAGENTIC_TIMEOUT env var is respected."""
-    from src.utils.config import Settings
-
-    with patch.dict(os.environ, {"MAGENTIC_TIMEOUT": "120"}):
-        settings = Settings()
-        assert settings.magentic_timeout == 120

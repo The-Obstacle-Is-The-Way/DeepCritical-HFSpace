@@ -48,14 +48,12 @@ def get_chat_client(
     # This enables BYOK (Bring Your Own Key) from Gradio without explicit provider
     # Order matters: "sk-ant-" must be checked before "sk-" (both start with "sk-")
     if normalized is None and api_key:
-        if api_key.startswith("sk-ant-"):
-            normalized = "anthropic"
-        elif api_key.startswith("sk-"):
+        if api_key.startswith("sk-"):
             normalized = "openai"
         # HF tokens start with "hf_" - no auto-detection needed (falls through to default)
 
     # Validate explicit provider requests early
-    valid_providers = (None, "openai", "anthropic", "gemini", "huggingface")
+    valid_providers = (None, "openai", "huggingface")
     if normalized not in valid_providers:
         raise ValueError(f"Unsupported provider: {provider!r}")
 
@@ -67,23 +65,6 @@ def get_chat_client(
             api_key=api_key or settings.openai_api_key,
             **kwargs,
         )
-
-    # 2. Anthropic (Detected from sk-ant- prefix or explicit)
-    if normalized == "anthropic":
-        # Anthropic key was detected or explicitly requested - fail loudly
-        raise NotImplementedError(
-            "Anthropic client not yet implemented. "
-            "Use OpenAI key (sk-...) or leave empty for free HuggingFace tier."
-        )
-
-    # 3. Gemini (High Performance / Alternative)
-    if normalized == "gemini":
-        # Explicit request for Gemini - fail loudly
-        raise NotImplementedError("Gemini client not yet implemented (Planned Phase 4)")
-
-    if normalized is None and settings.has_gemini_key:
-        # Implicit (has key but not explicit) - log warning and fall through
-        logger.warning("Gemini key detected but client not yet implemented; falling back")
 
     # 4. HuggingFace (Free Fallback)
     # This is the default if no other keys are present
