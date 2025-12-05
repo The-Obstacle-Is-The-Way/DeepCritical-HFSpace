@@ -1,8 +1,13 @@
 """
 Test the Accumulator Pattern for Microsoft Agent Framework event handling.
 
-This tests SPEC 17: We use MagenticAgentDeltaEvent.text as the sole source of content,
-and MagenticAgentMessageEvent as a signal only (ignoring .message to avoid repr bug).
+This tests SPEC-17 (updated for SPEC-18): We use AgentRunUpdateEvent.data.text as the
+sole source of streaming content, and ExecutorCompletedEvent as a completion signal.
+
+Event mapping (SPEC-18 migration):
+- MagenticAgentDeltaEvent → AgentRunUpdateEvent
+- MagenticAgentMessageEvent → ExecutorCompletedEvent
+- MagenticFinalResultEvent → WorkflowOutputEvent
 """
 
 import importlib
@@ -14,40 +19,20 @@ import pytest
 
 
 # --- Create real event classes ---
-class MockDeltaEvent:
-    """Simulates MagenticAgentDeltaEvent with streaming text."""
+class MockAgentRunUpdateEvent:
+    """Simulates AgentRunUpdateEvent with streaming data."""
 
-    def __init__(self, text: str, agent_id: str = "TestAgent"):
-        self.text = text
-        self.agent_id = agent_id
-
-
-class MockMessageEvent:
-    """Simulates MagenticAgentMessageEvent with potentially corrupted .message."""
-
-    def __init__(self, message_text: str, agent_id: str = "TestAgent"):
-        self.message = MagicMock()
-        self.message.text = message_text  # This could be repr garbage
-        self.agent_id = agent_id
-        self.text = None  # No top-level .text on MessageEvent
+    def __init__(self, text: str, author_name: str = "TestAgent"):
+        self.data = MagicMock()
+        self.data.text = text
+        self.data.author_name = author_name
 
 
-class MockFinalResultEvent:
-    """Simulates MagenticFinalResultEvent."""
+class MockExecutorCompletedEvent:
+    """Simulates ExecutorCompletedEvent signaling agent turn completion."""
 
-    def __init__(self, text: str):
-        self.message = MagicMock()
-        self.message.text = text
-        self.text = None
-
-
-class MockOrchestratorMessageEvent:
-    """Simulates MagenticOrchestratorMessageEvent."""
-
-    def __init__(self, kind: str = "user_task", message: str = "test"):
-        self.kind = kind
-        self.message = MagicMock()
-        self.message.text = message
+    def __init__(self, executor_id: str = "TestAgent"):
+        self.executor_id = executor_id
 
 
 class MockWorkflowOutputEvent:
@@ -55,6 +40,18 @@ class MockWorkflowOutputEvent:
 
     def __init__(self, data=None):
         self.data = data
+
+
+class MockOrchestratorMessageEvent:
+    """Simulates orchestrator message event (formerly MagenticOrchestratorMessageEvent)."""
+
+    def __init__(self, kind: str = "user_task", message: str = "test"):
+        from agent_framework import MAGENTIC_EVENT_TYPE_ORCHESTRATOR
+
+        self.type = MAGENTIC_EVENT_TYPE_ORCHESTRATOR
+        self.kind = kind
+        self.message = MagicMock()
+        self.message.text = message
 
 
 # Pass-through decorators
@@ -87,11 +84,12 @@ def mock_agent_framework():
     mock_af.observability = mock_af_observability
 
     # Assign our REAL event classes as the module-level types
-    mock_af.MagenticAgentDeltaEvent = MockDeltaEvent
-    mock_af.MagenticAgentMessageEvent = MockMessageEvent
-    mock_af.MagenticFinalResultEvent = MockFinalResultEvent
-    mock_af.MagenticOrchestratorMessageEvent = MockOrchestratorMessageEvent
+    mock_af.AgentRunUpdateEvent = MockAgentRunUpdateEvent
+    mock_af.ExecutorCompletedEvent = MockExecutorCompletedEvent
     mock_af.WorkflowOutputEvent = MockWorkflowOutputEvent
+    mock_af.MagenticOrchestratorMessageEvent = MockOrchestratorMessageEvent
+    mock_af.AgentRunResponse = MagicMock
+    mock_af.MAGENTIC_EVENT_TYPE_ORCHESTRATOR = "orchestrator_message"
 
     # Mock other classes
     mock_af.MagenticBuilder = MagicMock
@@ -173,13 +171,13 @@ def mock_orchestrator(mock_agent_framework):
 async def test_accumulator_pattern_scenario_a_standard_text(mock_orchestrator):
     """
     Scenario A: Standard Text Message
-    Input: Deltas ("Hello", " World") -> MessageEvent (Poisoned Repr)
-    Expected: AgentEvent with "Hello World", NOT the repr string
+    Input: Updates ("Hello", " World") -> Completed
+    Expected: AgentEvent with "Hello World"
     """
     events = [
-        MockDeltaEvent("Hello", agent_id="ChatBot"),
-        MockDeltaEvent(" World", agent_id="ChatBot"),
-        MockMessageEvent("<ChatMessage object at 0xDEADBEEF>", agent_id="ChatBot"),
+        MockAgentRunUpdateEvent("Hello", author_name="ChatBot"),
+        MockAgentRunUpdateEvent(" World", author_name="ChatBot"),
+        MockExecutorCompletedEvent(executor_id="ChatBot"),
     ]
 
     async def mock_stream(*args, **kwargs):
@@ -204,9 +202,8 @@ async def test_accumulator_pattern_scenario_a_standard_text(mock_orchestrator):
     )
     final_event = chat_events[0]
 
-    # CRITICAL: Must contain accumulated text, NOT repr
+    # Must contain accumulated text
     assert "Hello World" in final_event.message or "Hello" in final_event.message
-    assert "<ChatMessage" not in final_event.message, f"Repr bug! Got: {final_event.message}"
 
 
 @pytest.mark.unit
@@ -214,11 +211,11 @@ async def test_accumulator_pattern_scenario_a_standard_text(mock_orchestrator):
 async def test_accumulator_pattern_scenario_b_tool_call(mock_orchestrator):
     """
     Scenario B: Tool Call (No Text Deltas)
-    Input: No Deltas -> MessageEvent (Poisoned Repr)
-    Expected: AgentEvent with fallback text, NOT the repr string
+    Input: No Deltas -> Completed
+    Expected: AgentEvent with fallback text
     """
     events = [
-        MockMessageEvent("<ChatMessage object at 0xDEADBEEF>", agent_id="SearchAgent"),
+        MockExecutorCompletedEvent(executor_id="SearchAgent"),
     ]
 
     async def mock_stream(*args, **kwargs):
@@ -243,8 +240,6 @@ async def test_accumulator_pattern_scenario_b_tool_call(mock_orchestrator):
     )
     final_event = search_events[0]
 
-    # CRITICAL: Should use fallback, NOT repr
-    assert "<ChatMessage" not in final_event.message, f"Repr bug! Got: {final_event.message}"
     # Should contain fallback or tool indicator
     assert "Action completed" in final_event.message or "Tool" in final_event.message
 
@@ -257,10 +252,10 @@ async def test_accumulator_pattern_buffer_clearing(mock_orchestrator):
     Agent B should NOT inherit Agent A's accumulated text.
     """
     events = [
-        MockDeltaEvent("Agent A says hi", agent_id="AgentA"),
-        MockMessageEvent("irrelevant", agent_id="AgentA"),
-        MockDeltaEvent("Agent B responds", agent_id="AgentB"),
-        MockMessageEvent("irrelevant", agent_id="AgentB"),
+        MockAgentRunUpdateEvent("Agent A says hi", author_name="AgentA"),
+        MockExecutorCompletedEvent(executor_id="AgentA"),
+        MockAgentRunUpdateEvent("Agent B responds", author_name="AgentB"),
+        MockExecutorCompletedEvent(executor_id="AgentB"),
     ]
 
     async def mock_stream(*args, **kwargs):

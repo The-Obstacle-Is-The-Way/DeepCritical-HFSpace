@@ -499,9 +499,9 @@ graph TD
 
     Submit -.->|Triggers| Workflow[Magentic Workflow]
     Workflow -.->|MagenticOrchestratorMessageEvent| Log
-    Workflow -.->|MagenticAgentDeltaEvent| Log
-    Workflow -.->|MagenticAgentMessageEvent| Log
-    Workflow -.->|MagenticFinalResultEvent| Tab4
+    Workflow -.->|AgentRunUpdateEvent| Log
+    Workflow -.->|ExecutorCompletedEvent| Log
+    Workflow -.->|WorkflowOutputEvent| Tab4
 
     style App fill:#e1f5e1
     style Input fill:#fff4e6
@@ -656,7 +656,7 @@ No separate Judge Agent needed - manager does it all!
 ---
 
 **Document Version**: 2.0 (Magentic Simplified)
-**Last Updated**: 2025-11-24
+**Last Updated**: 2025-12-05
 **Architecture**: Microsoft Magentic Orchestration Pattern
 **Agents**: 4 (Hypothesis, Search, Analysis, Report) + 1 Manager
 **License**: MIT

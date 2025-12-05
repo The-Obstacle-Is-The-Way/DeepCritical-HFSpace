@@ -61,7 +61,7 @@ dev = [
     "pip-audit>=2.7.0",
 ]
 magentic = [
-    "agent-framework-core>=1.0.0b251120,<2.0.0",  # Microsoft Agent Framework (PyPI)
+    "agent-framework-core==1.0.0b251204",  # Microsoft Agent Framework (PyPI)
 ]
 rag = [
     # LlamaIndex RAG support (chromadb already in core deps)

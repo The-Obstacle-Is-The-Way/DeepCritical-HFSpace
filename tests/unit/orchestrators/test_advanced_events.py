@@ -1,9 +1,21 @@
 """Test for AdvancedOrchestrator event processing (P1 Bug)."""
 
+from unittest.mock import MagicMock
+
 import pytest
-from agent_framework import MagenticOrchestratorMessageEvent
+from agent_framework import MAGENTIC_EVENT_TYPE_ORCHESTRATOR
 
 from src.orchestrators.advanced import AdvancedOrchestrator
+
+
+class MockOrchestratorEvent:
+    """Mock event that mimics the new orchestrator event structure."""
+
+    def __init__(self, kind: str, message: str):
+        self.type = MAGENTIC_EVENT_TYPE_ORCHESTRATOR
+        self.kind = kind
+        self.message = MagicMock()
+        self.message.text = message
 
 
 @pytest.mark.unit
@@ -28,7 +40,7 @@ class TestAdvancedEventProcessing:
         Desired behavior: Returns None (filtered)
         """
         # Create a raw internal framework event
-        raw_event = MagenticOrchestratorMessageEvent(
+        raw_event = MockOrchestratorEvent(
             kind="task_ledger",
             message="We are working to address the following user request: Research sildenafil...",
         )
@@ -46,7 +58,7 @@ class TestAdvancedEventProcessing:
         Current behavior: Returns AgentEvent(type='judging', message='Manager (instruction): ...')
         Desired behavior: Returns None (filtered)
         """
-        raw_event = MagenticOrchestratorMessageEvent(
+        raw_event = MockOrchestratorEvent(
             kind="instruction", message="Conduct targeted searches on PubMed..."
         )
 
@@ -61,7 +73,7 @@ class TestAdvancedEventProcessing:
         Current behavior: 'Manager (user_task): Research...' (truncated, type='judging')
         Desired behavior: 'Manager assigning research task...' (type='progress')
         """
-        raw_event = MagenticOrchestratorMessageEvent(
+        raw_event = MockOrchestratorEvent(
             kind="user_task",
             message="Research sexual health and wellness interventions for: sildenafil mechanism",
         )

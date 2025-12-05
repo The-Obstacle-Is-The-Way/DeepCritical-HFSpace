@@ -22,11 +22,11 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import structlog
 from agent_framework import (
-    MagenticAgentDeltaEvent,
-    MagenticAgentMessageEvent,
+    MAGENTIC_EVENT_TYPE_ORCHESTRATOR,
+    AgentRunUpdateEvent,
+    ChatAgent,
+    ExecutorCompletedEvent,
     MagenticBuilder,
-    MagenticFinalResultEvent,
-    MagenticOrchestratorMessageEvent,
     WorkflowOutputEvent,
 )
 
@@ -150,6 +150,7 @@ class AdvancedOrchestrator(OrchestratorProtocol):
 
         # Manager chat client (orchestrates the agents)
         manager_client = self._chat_client
+        manager_agent = ChatAgent(chat_client=manager_client)
 
         return (
             MagenticBuilder()
@@ -160,7 +161,7 @@ class AdvancedOrchestrator(OrchestratorProtocol):
                 reporter=report_agent,
             )
             .with_standard_manager(
-                chat_client=manager_client,
+                agent=manager_agent,
                 max_round_count=self._max_rounds,
                 max_stall_count=3,
                 max_reset_count=2,
@@ -324,30 +325,33 @@ The final output should be a structured research report."""
             async with asyncio.timeout(self._timeout_seconds):
                 async for event in workflow.run_stream(task):
                     # 1. Handle Streaming (Source of Truth for Content)
-                    if isinstance(event, MagenticAgentDeltaEvent):
+                    if isinstance(event, AgentRunUpdateEvent) and event.data:
+                        author = getattr(event.data, "author_name", None)
                         # Detect agent switch to clear buffer
-                        if event.agent_id != state.current_agent_id:
+                        if author != state.current_agent_id:
                             state.current_message_buffer = ""
-                            state.current_agent_id = event.agent_id
+                            state.current_agent_id = author
 
-                        if event.text:
-                            state.current_message_buffer += event.text
+                        text = getattr(event.data, "text", None)
+                        if text:
+                            state.current_message_buffer += text
                             yield AgentEvent(
                                 type="streaming",
-                                message=event.text,
-                                data={"agent_id": event.agent_id},
+                                message=text,
+                                data={"agent_id": author},
                                 iteration=state.iteration,
                             )
                         continue
 
                     # 2. Handle Completion Signal
-                    # We use our accumulated buffer instead of the corrupted event.message
-                    if isinstance(event, MagenticAgentMessageEvent):
+                    if isinstance(event, ExecutorCompletedEvent):
                         state.iteration += 1
 
                         # P1 FIX: Track if ReportAgent produced output
-                        agent_name = (event.agent_id or "").lower()
-                        if REPORTER_AGENT_ID in agent_name:
+                        # Note: ExecutorCompletedEvent might not have agent_id directly accessible
+                        # The executor_id usually maps to the agent name
+                        agent_name = getattr(event, "executor_id", "") or "unknown"
+                        if REPORTER_AGENT_ID in agent_name.lower():
                             state.reporter_ran = True
 
                         comp_event, prog_event = self._handle_completion_event(
@@ -363,7 +367,7 @@ The final output should be a structured research report."""
                         continue
 
                     # 3. Handle Final Events Inline (P2 Duplicate Report Fix + P1 Forced Synthesis)
-                    if isinstance(event, (MagenticFinalResultEvent, WorkflowOutputEvent)):
+                    if isinstance(event, WorkflowOutputEvent):
                         if state.final_event_received:
                             continue  # Skip duplicate final events
                         state.final_event_received = True
@@ -430,21 +434,19 @@ The final output should be a structured research report."""
             )
 
     def _handle_completion_event(
-        self, event: MagenticAgentMessageEvent, buffer: str, iteration: int
+        self, event: ExecutorCompletedEvent, buffer: str, iteration: int
     ) -> tuple[AgentEvent, AgentEvent]:
         """Handle an agent completion event using the accumulated buffer."""
         # Use buffer if available, otherwise fall back cautiously
         # (Only fall back if buffer empty, which implies tool-only turn)
         text_content = buffer
         if not text_content:
+            # ExecutorCompletedEvent doesn't carry the message directly in the same way
             # Try extraction but ignore repr strings AND empty strings
-            raw_text = self._extract_text(event.message)
-            if raw_text and not (raw_text.startswith("<") and "object at" in raw_text):
-                text_content = raw_text
-            else:
-                text_content = "Action completed (Tool Call)"
+            # The result is often in event.result or similar, but buffering is safer
+            text_content = "Action completed (Tool Call)"
 
-        agent_name = event.agent_id or "unknown"
+        agent_name = getattr(event, "executor_id", "unknown") or "unknown"
         event_type = self._get_event_type_for_agent(agent_name)
 
         completion_event = AgentEvent(
@@ -470,7 +472,7 @@ The final output should be a structured research report."""
 
     def _handle_final_event(
         self,
-        event: MagenticFinalResultEvent | WorkflowOutputEvent,
+        event: WorkflowOutputEvent,
         iteration: int,
         last_streamed_length: int,
     ) -> AgentEvent:
@@ -489,11 +491,7 @@ The final output should be a structured research report."""
             )
 
         # NO: Final event must carry the payload (tool-only turn, cache hit)
-        text = ""
-        if isinstance(event, MagenticFinalResultEvent):
-            text = self._extract_text(event.message) if event.message else "No result"
-        elif isinstance(event, WorkflowOutputEvent):
-            text = self._extract_text(event.data) if event.data else "Research complete"
+        text = self._extract_text(event.data) if event.data else "Research complete"
 
         return AgentEvent(
             type="complete",
@@ -589,14 +587,19 @@ The final output should be a structured research report."""
 
     def _process_event(self, event: Any, iteration: int) -> AgentEvent | None:
         """Process workflow event into AgentEvent."""
-        if isinstance(event, MagenticOrchestratorMessageEvent):
+        # Handle orchestrator messages (formerly MagenticOrchestratorMessageEvent)
+        # We check the event type string directly
+        if getattr(event, "type", "") == MAGENTIC_EVENT_TYPE_ORCHESTRATOR:
+            kind = getattr(event, "kind", "")
+            message = getattr(event, "message", "")
+
             # FILTERING: Skip internal framework bookkeeping
-            if event.kind in ("task_ledger", "instruction"):
+            if kind in ("task_ledger", "instruction"):
                 return None
 
             # TRANSFORMATION: Handle user_task BEFORE text extraction
             # (user_task uses static message, doesn't need text content)
-            if event.kind == "user_task":
+            if kind == "user_task":
                 return AgentEvent(
                     type="progress",
                     message="Manager assigning research task to agents...",
@@ -604,23 +607,22 @@ The final output should be a structured research report."""
                 )
 
             # For other manager events, extract and validate text
-            text = self._extract_text(event.message)
+            text = self._extract_text(message)
             if not text:
                 return None
 
             # Default fallback for other manager events
             return AgentEvent(
                 type="judging",
-                message=f"Manager ({event.kind}): {self._smart_truncate(text)}",
+                message=f"Manager ({kind}): {self._smart_truncate(text)}",
                 iteration=iteration,
             )
 
         # NOTE: The following event types are handled inline in run() loop and never reach
         # this method due to `continue` statements:
-        # - MagenticAgentMessageEvent: Accumulator Pattern (lines 322-335)
-        # - MagenticAgentDeltaEvent: Accumulator Pattern (lines 306-320)
-        # - MagenticFinalResultEvent: P2 Duplicate Fix via _handle_final_event() (lines 343-347)
-        # - WorkflowOutputEvent: P2 Duplicate Fix via _handle_final_event() (lines 343-347)
+        # - ExecutorCompletedEvent: Accumulator Pattern
+        # - AgentRunUpdateEvent: Accumulator Pattern
+        # - WorkflowOutputEvent: P2 Duplicate Fix via _handle_final_event()
 
         return None
 
