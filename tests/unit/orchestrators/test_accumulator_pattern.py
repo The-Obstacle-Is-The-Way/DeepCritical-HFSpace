@@ -174,10 +174,11 @@ async def test_accumulator_pattern_scenario_a_standard_text(mock_orchestrator):
     Input: Updates ("Hello", " World") -> Completed
     Expected: AgentEvent with "Hello World"
     """
+    # Use "searcher" to map to "SearchAgent"
     events = [
-        MockAgentRunUpdateEvent("Hello", author_name="ChatBot"),
-        MockAgentRunUpdateEvent(" World", author_name="ChatBot"),
-        MockExecutorCompletedEvent(executor_id="ChatBot"),
+        MockAgentRunUpdateEvent("Hello", author_name="searcher"),
+        MockAgentRunUpdateEvent(" World", author_name="searcher"),
+        MockExecutorCompletedEvent(executor_id="searcher"),
     ]
 
     async def mock_stream(*args, **kwargs):
@@ -192,13 +193,13 @@ async def test_accumulator_pattern_scenario_a_standard_text(mock_orchestrator):
         async for event in mock_orchestrator.run("test query"):
             generated_events.append(event)
 
-    # Find the completion event for ChatBot (non-streaming)
+    # Find the completion event for SearchAgent (non-streaming)
     chat_events = [
-        e for e in generated_events if "ChatBot" in str(e.message) and e.type != "streaming"
+        e for e in generated_events if "SearchAgent" in str(e.message) and e.type != "streaming"
     ]
 
     assert len(chat_events) >= 1, (
-        f"Expected ChatBot events, got: {[e.message for e in generated_events]}"
+        f"Expected SearchAgent events, got: {[e.message for e in generated_events]}"
     )
     final_event = chat_events[0]
 
@@ -214,8 +215,9 @@ async def test_accumulator_pattern_scenario_b_tool_call(mock_orchestrator):
     Input: No Deltas -> Completed
     Expected: AgentEvent with fallback text
     """
+    # Use "searcher" to map to "SearchAgent"
     events = [
-        MockExecutorCompletedEvent(executor_id="SearchAgent"),
+        MockExecutorCompletedEvent(executor_id="searcher"),
     ]
 
     async def mock_stream(*args, **kwargs):
@@ -251,11 +253,12 @@ async def test_accumulator_pattern_buffer_clearing(mock_orchestrator):
     Verify buffer clears between agents.
     Agent B should NOT inherit Agent A's accumulated text.
     """
+    # Use "searcher" (SearchAgent) and "judge" (JudgeAgent)
     events = [
-        MockAgentRunUpdateEvent("Agent A says hi", author_name="AgentA"),
-        MockExecutorCompletedEvent(executor_id="AgentA"),
-        MockAgentRunUpdateEvent("Agent B responds", author_name="AgentB"),
-        MockExecutorCompletedEvent(executor_id="AgentB"),
+        MockAgentRunUpdateEvent("Searcher says hi", author_name="searcher"),
+        MockExecutorCompletedEvent(executor_id="searcher"),
+        MockAgentRunUpdateEvent("Judge responds", author_name="judge"),
+        MockExecutorCompletedEvent(executor_id="judge"),
     ]
 
     async def mock_stream(*args, **kwargs):
@@ -272,18 +275,22 @@ async def test_accumulator_pattern_buffer_clearing(mock_orchestrator):
 
     # Find non-streaming events for each agent
     agent_a_events = [
-        e for e in generated_events if "AgentA" in str(e.message) and e.type != "streaming"
+        e for e in generated_events if "SearchAgent" in str(e.message) and e.type != "streaming"
     ]
     agent_b_events = [
-        e for e in generated_events if "AgentB" in str(e.message) and e.type != "streaming"
+        e for e in generated_events if "JudgeAgent" in str(e.message) and e.type != "streaming"
     ]
 
     # Both should have completion events
-    assert len(agent_a_events) >= 1, f"No AgentA events: {[e.message for e in generated_events]}"
-    assert len(agent_b_events) >= 1, f"No AgentB events: {[e.message for e in generated_events]}"
+    assert len(agent_a_events) >= 1, (
+        f"No SearchAgent events: {[e.message for e in generated_events]}"
+    )
+    assert len(agent_b_events) >= 1, (
+        f"No JudgeAgent events: {[e.message for e in generated_events]}"
+    )
 
     # Agent A should have its own text
-    assert "Agent A" in agent_a_events[0].message
+    assert "Searcher" in agent_a_events[0].message
     # Agent B should have its own text, NOT Agent A's
-    assert "Agent B" in agent_b_events[0].message
-    assert "Agent A" not in agent_b_events[0].message, "Buffer not cleared between agents!"
+    assert "Judge" in agent_b_events[0].message
+    assert "Searcher" not in agent_b_events[0].message, "Buffer not cleared between agents!"

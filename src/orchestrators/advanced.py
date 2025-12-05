@@ -83,9 +83,6 @@ class AdvancedOrchestrator(OrchestratorProtocol):
     - Configurable timeouts and round limits
     """
 
-    # Estimated seconds per coordination round (for progress UI)
-    _EST_SECONDS_PER_ROUND: int = 45
-
     def __init__(
         self,
         max_rounds: int = 5,
@@ -193,16 +190,18 @@ Focus on:
 
 The final output should be a structured research report."""
 
-    def _get_progress_message(self, iteration: int) -> str:
-        """Generate progress message with time estimation."""
-        rounds_remaining = max(self._max_rounds - iteration, 0)
-        est_seconds = rounds_remaining * self._EST_SECONDS_PER_ROUND
-        if est_seconds >= 60:
-            est_display = f"{est_seconds // 60}m {est_seconds % 60}s"
-        else:
-            est_display = f"{est_seconds}s"
-
-        return f"Round {iteration}/{self._max_rounds} (~{est_display} remaining)"
+    def _get_agent_semantic_name(self, agent_id: str) -> str:
+        """Map internal agent ID to user-facing semantic name."""
+        name = agent_id.lower()
+        if SEARCHER_AGENT_ID in name:
+            return "SearchAgent"
+        if JUDGE_AGENT_ID in name:
+            return "JudgeAgent"
+        if HYPOTHESIZER_AGENT_ID in name:
+            return "HypothesisAgent"
+        if REPORTER_AGENT_ID in name:
+            return "ReportAgent"
+        return "ManagerAgent"
 
     async def _init_workflow_events(self, query: str) -> AsyncGenerator[AgentEvent, None]:
         """Yield initialization events."""
@@ -219,7 +218,9 @@ The final output should be a structured research report."""
         )
 
     async def _synthesize_fallback(
-        self, iteration: int, reason: str
+        self,
+        iteration: int,
+        reason: str,
     ) -> AsyncGenerator[AgentEvent, None]:
         """
         Unified fallback synthesis for all termination scenarios.
@@ -272,7 +273,8 @@ The final output should be a structured research report."""
             )
 
     async def run(  # noqa: PLR0915 - Complex but necessary for event stream handling
-        self, query: str
+        self,
+        query: str,
     ) -> AsyncGenerator[AgentEvent, None]:
         """
         Run the workflow.
@@ -312,9 +314,8 @@ The final output should be a structured research report."""
         yield AgentEvent(
             type="thinking",
             message=(
-                f"Multi-agent reasoning in progress ({self._max_rounds} rounds max)... "
-                f"Estimated time: {self._max_rounds * 45 // 60}-"
-                f"{self._max_rounds * 60 // 60} minutes."
+                f"Multi-agent reasoning in progress (Limit: {self._max_rounds} Manager rounds)... "
+                "Allocating time for deep research..."
             ),
             iteration=0,
         )
@@ -434,7 +435,10 @@ The final output should be a structured research report."""
             )
 
     def _handle_completion_event(
-        self, event: ExecutorCompletedEvent, buffer: str, iteration: int
+        self,
+        event: ExecutorCompletedEvent,
+        buffer: str,
+        iteration: int,
     ) -> tuple[AgentEvent, AgentEvent]:
         """Handle an agent completion event using the accumulated buffer."""
         # Use buffer if available, otherwise fall back cautiously
@@ -446,25 +450,19 @@ The final output should be a structured research report."""
             # The result is often in event.result or similar, but buffering is safer
             text_content = "Action completed (Tool Call)"
 
-        agent_name = getattr(event, "executor_id", "unknown") or "unknown"
-        event_type = self._get_event_type_for_agent(agent_name)
+        agent_id = getattr(event, "executor_id", "unknown") or "unknown"
+        event_type = self._get_event_type_for_agent(agent_id)
+        semantic_name = self._get_agent_semantic_name(agent_id)
 
         completion_event = AgentEvent(
             type=event_type,
-            message=f"{agent_name}: {text_content[:200]}...",
+            message=f"{semantic_name}: {text_content[:200]}...",
             iteration=iteration,
-        )
-
-        # Progress update
-        rounds_remaining = max(self._max_rounds - iteration, 0)
-        est_seconds = rounds_remaining * 45
-        est_display = (
-            f"{est_seconds // 60}m {est_seconds % 60}s" if est_seconds >= 60 else f"{est_seconds}s"
         )
 
         progress_event = AgentEvent(
             type="progress",
-            message=f"Round {iteration}/{self._max_rounds} (~{est_display} remaining)",
+            message=f"Step {iteration}: {semantic_name} task completed",
             iteration=iteration,
         )
 
@@ -552,7 +550,8 @@ The final output should be a structured research report."""
         return ""
 
     def _get_event_type_for_agent(
-        self, agent_name: str
+        self,
+        agent_name: str,
     ) -> Literal["search_complete", "judge_complete", "hypothesizing", "synthesizing", "judging"]:
         """Map agent name to appropriate event type.
 
