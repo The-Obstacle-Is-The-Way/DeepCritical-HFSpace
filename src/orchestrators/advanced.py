@@ -332,7 +332,7 @@ The final output should be a structured research report."""
                             state.current_message_buffer = ""
                             state.current_agent_id = author
 
-                        text = event.data.text
+                        text = getattr(event.data, "text", None)
                         if text:
                             state.current_message_buffer += text
                             yield AgentEvent(
@@ -491,9 +491,7 @@ The final output should be a structured research report."""
             )
 
         # NO: Final event must carry the payload (tool-only turn, cache hit)
-        text = ""
-        if isinstance(event, WorkflowOutputEvent):
-            text = self._extract_text(event.data) if event.data else "Research complete"
+        text = self._extract_text(event.data) if event.data else "Research complete"
 
         return AgentEvent(
             type="complete",

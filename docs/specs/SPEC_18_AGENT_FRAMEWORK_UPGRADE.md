@@ -11,7 +11,7 @@
 
 The `agent-framework-core` package released version `1.0.0b251204` on 2025-12-04 with breaking API changes. HuggingFace Spaces pulls this new version, breaking our app with:
 
-```
+```text
 cannot import name 'MagenticAgentDeltaEvent' from 'agent_framework'
 ```
 

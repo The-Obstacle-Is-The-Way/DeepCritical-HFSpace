@@ -2,7 +2,7 @@
 # requirements.txt - HuggingFace Spaces Dependencies
 # ============================================================
 # This file MUST stay in sync with pyproject.toml dependencies.
-# Last synced: 2025-12-04
+# Last synced: 2025-12-05
 # ============================================================
 
 # Core
