@@ -20,7 +20,6 @@ tags:
   - wellness-research
   - pydantic-ai
   - llamaindex
-  - modal
   - pubmed
   - clinical-trials
   - evidence-based
@@ -51,12 +50,12 @@ Sexual health is health. Period. Yet it remains one of the most under-researched
 
 ## Features
 
-- 🔍 **Multi-Source Deep Search**: PubMed, ClinicalTrials.gov, Europe PMC - simultaneously
+- 🔍 **Multi-Source Deep Search**: PubMed, ClinicalTrials.gov, Europe PMC, OpenAlex - simultaneously
 - 🤖 **MCP Integration**: Use our tools from Claude Desktop or any MCP client
-- 🔒 **Modal Sandbox**: Secure execution of AI-generated statistical analysis
 - 🧠 **Smart Evidence Synthesis**: LLM-powered judge evaluates and synthesizes findings
+- 🔬 **Evidence Deduplication**: Cross-source dedup by PMID/DOI prevents duplicate papers
 - ⚡ **Unified Architecture**: Same powerful multi-agent orchestration for everyone
-- 🆓 **Free Tier**: Works without API keys (HuggingFace Inference)
+- 🆓 **Free Tier**: Works without API keys (HuggingFace Qwen 2.5 7B)
 - 🚀 **Paid Tier**: Unlocks GPT-5 automatically when OpenAI key is provided
 
 ## Example Queries
@@ -111,11 +110,10 @@ Add this to your `claude_desktop_config.json`:
 ```
 
 **Available Tools**:
-- `search_pubmed`: Search peer-reviewed biomedical literature.
-- `search_clinical_trials`: Search ClinicalTrials.gov.
-- `search_europepmc`: Search Europe PMC preprints and papers.
-- `search_all`: Search all sources simultaneously.
-- `analyze_hypothesis`: Secure statistical analysis using Modal sandboxes.
+- `search_pubmed`: Search peer-reviewed biomedical literature
+- `search_clinical_trials`: Search ClinicalTrials.gov for active/completed trials
+- `search_europepmc`: Search Europe PMC preprints and papers
+- `search_all_sources`: Search all sources simultaneously with deduplication
 
 ## Development
 
@@ -140,11 +138,11 @@ DeepBoner uses a Vertical Slice Architecture:
 3.  **Orchestrator Slice**: Managing the research loop and UI.
 
 Built with:
-- **PydanticAI**: For robust agent interactions.
-- **Gradio**: For the streaming user interface.
-- **PubMed, ClinicalTrials.gov, Europe PMC**: For biomedical data.
-- **MCP**: For universal tool access.
-- **Modal**: For secure code execution.
+- **Agent Framework**: Microsoft's agent-framework-core for multi-agent orchestration
+- **Gradio**: For the streaming user interface with MCP server
+- **PubMed, ClinicalTrials.gov, Europe PMC, OpenAlex**: For biomedical data
+- **ChromaDB + Sentence-Transformers**: For evidence deduplication and RAG
+- **LangGraph**: For workflow state management
 
 ## Team
 

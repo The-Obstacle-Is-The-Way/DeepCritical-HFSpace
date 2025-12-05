@@ -20,30 +20,6 @@
 
 ---
 
-## Tech Debt (Future Roadmap)
-
-### P3 - Remove Anthropic Partial Wiring
-
-**File:** `docs/future-roadmap/P3_REMOVE_ANTHROPIC_PARTIAL_WIRING.md`
-**Status:** OPEN - Tech Debt
-
-**Problem:** Anthropic is partially wired but NOT fully supported (no embeddings API). Creates confusion.
-
-**Fix:** Remove all Anthropic references from codebase. See doc for file list.
-
----
-
-### P3 - Remove Modal Integration
-
-**File:** `docs/future-roadmap/P3_MODAL_INTEGRATION_REMOVAL.md`
-**Status:** OPEN - Tech Debt
-
-**Problem:** Modal (cloud functions) is integrated in 9 files but was decided against for this project. Creates dead code paths and confusion.
-
-**Fix:** Remove all Modal references from codebase (config, services, agents, tools).
-
----
-
 ## Resolved Bugs (December 2025)
 
 All resolved bugs have been moved to `docs/bugs/archive/`. Summary:
@@ -72,6 +48,10 @@ All resolved bugs have been moved to `docs/bugs/archive/`. Summary:
 - **P2 7B Model Garbage Output** - SUPERSEDED by P1 Free Tier fix (root cause was premature marker, not model capacity)
 - **P2 Advanced Mode Cold Start No Feedback** - FIXED, all phases complete
 - **P2 Architectural BYOK Gaps** - FIXED, end-to-end BYOK support in PR #119
+
+### P3 Tech Debt (All RESOLVED)
+- **P3 Remove Anthropic Partial Wiring** - DONE in PR #130, all Anthropic code removed
+- **P3 Remove Modal Integration** - DONE in PR #130, all Modal code removed (~1400 lines deleted)
 
 ---
 

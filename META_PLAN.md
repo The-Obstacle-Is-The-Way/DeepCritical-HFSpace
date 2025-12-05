@@ -1,7 +1,8 @@
 # META_PLAN: DeepBoner Stabilization Roadmap
 
 **Created**: 2025-12-03
-**Status**: Active
+**Updated**: 2025-12-04
+**Status**: ✅ COMPLETE
 **Purpose**: Single source of truth for what to do next before adding features
 
 ---
@@ -9,14 +10,14 @@
 ## Executive Summary
 
 **Codebase Health**: PRODUCTION-READY
-- 317 tests passing
+- 302 tests passing
 - No type errors (mypy clean)
 - No linting issues (ruff clean)
-- 1 open bug (P3 - low-priority UX)
+- All P3 tech debt resolved
 
-**Key Finding**: Architecture is sound. Both high-impact specs (SPEC-13, SPEC-14) are now implemented. Documentation is sprawling but mostly accurate.
+**Key Finding**: Architecture is sound. All specs implemented. Tech debt cleaned.
 
-**Recommendation**: Clean up tech debt (Anthropic wiring), then organize docs.
+**Status**: Steps 1-3 COMPLETE. Ready for feature development or documentation polish.
 
 ---
 
@@ -38,7 +39,7 @@
 | Component | Status | Notes |
 |-----------|--------|-------|
 | `src/orchestrators/` | COMPLETE | Factory pattern, protocols |
-| `src/clients/` | COMPLETE | OpenAI/HuggingFace working, Anthropic partial (tech debt) |
+| `src/clients/` | COMPLETE | OpenAI/HuggingFace working, Provider Registry pattern |
 | `src/tools/` | COMPLETE | Deduplication + outcomes extraction done |
 | `src/agents/` | FUNCTIONAL | All agents wired, some experimental |
 | `src/services/` | COMPLETE | Embeddings, RAG, memory all working |
@@ -49,8 +50,9 @@
 |-------|----------|--------|
 | ~~Evidence deduplication (SPEC_13)~~ | ~~HIGH~~ | ✅ DONE |
 | ~~ClinicalTrials outcomes (SPEC_14)~~ | ~~HIGH~~ | ✅ DONE |
-| Remove Anthropic wiring (P3) | P3 | 1 hour |
-| Expand ARCHITECTURE.md | MEDIUM | 2 hours |
+| ~~Remove Anthropic wiring (P3)~~ | ~~P3~~ | ✅ DONE (PR #130) |
+| ~~Remove Modal wiring (P3)~~ | ~~P3~~ | ✅ DONE (PR #130) |
+| Expand ARCHITECTURE.md | LOW | 2 hours |
 | P3 Progress Bar positioning | P3 | 30 min |
 
 ---
@@ -85,18 +87,19 @@
 
 ---
 
-### Step 3: Remove Anthropic Tech Debt
-**Priority**: P3 | **Effort**: 1 hour | **Impact**: Code clarity
+### ~~Step 3: Remove Anthropic + Modal Tech Debt~~ ✅ COMPLETE
+**Priority**: ~~P3~~ DONE | **Effort**: ~~1 hour~~ | **Impact**: Code clarity
 
-Anthropic is partially wired but NOT supported (no embeddings API). Creates confusion.
+✅ **COMPLETED** - Both Anthropic and Modal partial integrations removed in PR #130.
 
-**Files to modify**:
-- `src/utils/config.py` - Remove ANTHROPIC_API_KEY handling
-- `src/clients/factory.py` - Remove Anthropic case
-- `src/agent_factory/judges.py` - Remove Anthropic references
-- `CLAUDE.md` - Update documentation
+**Files removed/modified**:
+- `src/utils/llm_factory.py` - DELETED
+- `src/tools/code_execution.py` - DELETED
+- `src/services/statistical_analyzer.py` - DELETED
+- `src/agents/analysis_agent.py`, `code_executor_agent.py` - DELETED
+- All config, factory, and agent files cleaned
 
-**Doc**: `docs/future-roadmap/P3_REMOVE_ANTHROPIC_PARTIAL_WIRING.md`
+**Docs archived**: `docs/bugs/archive/P3_REMOVE_ANTHROPIC_PARTIAL_WIRING.md`, `P3_MODAL_INTEGRATION_REMOVAL.md`
 
 ---
 
@@ -163,9 +166,10 @@ After completing Steps 1-5:
 
 - [x] Evidence deduplication reduces duplicate papers by 80%+ ✅
 - [x] ClinicalTrials shows outcome measures and results status ✅
-- [ ] No Anthropic references in codebase
-- [ ] ARCHITECTURE.md has flow diagrams
-- [ ] All 14 implementation phases marked DONE/TODO
+- [x] No Anthropic references in codebase ✅ (PR #130)
+- [x] No Modal references in codebase ✅ (PR #130)
+- [ ] ARCHITECTURE.md has flow diagrams (optional)
+- [ ] All 14 implementation phases marked DONE/TODO (optional)
 
 ---
 
