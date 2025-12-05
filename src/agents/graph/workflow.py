@@ -25,7 +25,7 @@ def create_research_graph(
     llm: BaseChatModel | None = None,
     checkpointer: BaseCheckpointSaver[Any] | None = None,
     embedding_service: EmbeddingServiceProtocol | None = None,
-) -> CompiledStateGraph:
+) -> CompiledStateGraph[Any]:  # type: ignore[type-arg]
     """Build the research state graph.
 
     Args:
