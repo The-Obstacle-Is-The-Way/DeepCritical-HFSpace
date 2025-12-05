@@ -223,6 +223,44 @@ The time estimate becomes useless after the first few agent completions.
 
 ---
 
+## Senior Review Findings (2025-12-05)
+
+**Reviewer**: External Gemini CLI Agent
+**Status**: CONFIRMED - Analysis accurate and sufficient
+
+### Additional Nuances Identified
+
+1. **Manager Agent Also Fires Events**: The Manager itself is an agent. If `ExecutorCompletedEvent` fires for Manager's turn completion PLUS sub-agents' completions, the count accelerates 2-3x faster per logical round. This explains why we saw 11 events for ~2-3 workflow rounds.
+
+2. **Time Estimation Doubly Flawed**:
+   - Not just bottoming out at 0
+   - `_EST_SECONDS_PER_ROUND` (45s) is calibrated for a FULL workflow round, not a single agent step
+   - If we counted agent steps correctly: 10 steps × 45s = 450s (way overestimated)
+   - A full round of 4 agents might only take 60s total
+
+3. **API Discovery - Can Track Actual Rounds**:
+   ```python
+   # These constants exist in agent_framework:
+   ORCH_MSG_KIND_INSTRUCTION = 'instruction'
+   ORCH_MSG_KIND_USER_TASK = 'user_task'
+   ORCH_MSG_KIND_TASK_LEDGER = 'task_ledger'
+   ORCH_MSG_KIND_NOTICE = 'notice'
+   ```
+
+   Counting `user_task` events from `MagenticOrchestratorMessageEvent` would align iteration with `max_rounds` 1:1, since this signals "Manager is beginning a new evaluation cycle."
+
+### Reviewer Recommendations
+
+1. **Option A (Rename)**: APPROVED - Safest, most honest fix
+2. **Option B (Track Workflow Rounds)**: DEFER - Requires verifying framework behavior across versions, risks brittleness
+3. **Remove Denominator**: Display `Agent Step {iteration}` without `/5` to avoid confusion
+4. **Delete Dead Code**: Confirmed `_get_progress_message` is never called
+5. **Fix Constants**: Use `self._EST_SECONDS_PER_ROUND` consistently
+
+### Review Status: ✅ PASSED - Ready for Implementation
+
+---
+
 ## References
 
 - SPEC-18: Agent Framework Core Upgrade (where ExecutorCompletedEvent was introduced)
