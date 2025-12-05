@@ -1,6 +1,6 @@
 version = 1
 revision = 1
-requires-python = ">=3.11"
+requires-python = ">=3.11, <4.0"
 resolution-markers = [
     "python_full_version >= '3.13'",
     "python_full_version == '3.12.*'",
@@ -1118,15 +1118,10 @@ dev = [
     { name = "ruff" },
     { name = "typer" },
 ]
-embeddings = [
-    { name = "chromadb" },
-    { name = "sentence-transformers" },
-]
 magentic = [
     { name = "agent-framework-core" },
 ]
 rag = [
-    { name = "chromadb" },
     { name = "llama-index" },
     { name = "llama-index-embeddings-openai" },
     { name = "llama-index-llms-openai" },
@@ -1139,8 +1134,6 @@ requires-dist = [
     { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.7.0" },
     { name = "beautifulsoup4", specifier = ">=4.12" },
     { name = "chromadb", specifier = ">=0.4.22" },
-    { name = "chromadb", marker = "extra == 'embeddings'", specifier = ">=0.4.0" },
-    { name = "chromadb", marker = "extra == 'rag'", specifier = ">=0.4.0" },
     { name = "duckduckgo-search", specifier = ">=5.0" },
     { name = "gradio", extras = ["mcp"], specifier = ">=6.0.0" },
     { name = "httpx", specifier = ">=0.27" },
@@ -1173,14 +1166,13 @@ requires-dist = [
     { name = "respx", marker = "extra == 'dev'", specifier = ">=0.21" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
     { name = "sentence-transformers", specifier = ">=2.2.2" },
-    { name = "sentence-transformers", marker = "extra == 'embeddings'", specifier = ">=2.2.0" },
     { name = "structlog", specifier = ">=24.1" },
     { name = "tenacity", specifier = ">=8.2" },
     { name = "typer", marker = "extra == 'dev'", specifier = ">=0.9.0" },
     { name = "urllib3", specifier = ">=2.5.0" },
     { name = "xmltodict", specifier = ">=0.13" },
 ]
-provides-extras = ["dev", "magentic", "embeddings", "rag"]
+provides-extras = ["dev", "magentic", "rag"]
 
 [[package]]
 name = "defusedxml"

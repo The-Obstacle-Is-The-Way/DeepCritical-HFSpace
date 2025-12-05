@@ -38,9 +38,8 @@ requests>=2.32.5
 limits>=3.0
 urllib3>=2.5.0  # Security fix for GHSA-48p4-8xcf-vxj5
 
-# Optional: Modal for code execution
-modal>=0.63.0
-
-# Optional: Embeddings & Vector Store
-chromadb>=0.4.0
-sentence-transformers>=2.2.0
+# Optional: LlamaIndex RAG (chromadb/sentence-transformers already in core above)
+llama-index>=0.11.0
+llama-index-llms-openai
+llama-index-embeddings-openai
+llama-index-vector-stores-chroma
