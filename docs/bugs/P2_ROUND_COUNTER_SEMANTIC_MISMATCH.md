@@ -13,7 +13,7 @@
 
 Progress display shows impossible values like "Round 11/5":
 
-```
+```text
 ⏱️ **PROGRESS**: Round 11/5 (~0s remaining)
 ```
 
@@ -57,7 +57,7 @@ In a multi-agent workflow with 4 agents (searcher, hypothesizer, judge, reporter
 ## Evidence From Logs
 
 The session showed this progression:
-```
+```text
 Round 1/5   - First agent completed
 Round 2/5   - Second agent completed
 Round 3/5   - Third agent completed
@@ -167,8 +167,6 @@ def test_progress_display_never_exceeds_max_rounds():
     # Assert displayed round never exceeds max_rounds
     pass
 ```
-
----
 
 ---
 

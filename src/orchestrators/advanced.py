@@ -264,7 +264,7 @@ The final output should be a structured research report."""
                 iteration=iteration,
             )
         except Exception as synth_error:
-            logger.error(f"{reason} synthesis failed", error=str(synth_error))
+            logger.error("Fallback synthesis failed", reason=reason, error=str(synth_error))
             yield AgentEvent(
                 type="complete",
                 message=f"Research completed. Synthesis failed: {synth_error}",
@@ -456,7 +456,7 @@ The final output should be a structured research report."""
 
         completion_event = AgentEvent(
             type=event_type,
-            message=f"{semantic_name}: {text_content[:200]}...",
+            message=f"{semantic_name}: {self._smart_truncate(text_content)}",
             iteration=iteration,
         )
 
