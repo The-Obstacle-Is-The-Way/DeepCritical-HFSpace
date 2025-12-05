@@ -67,9 +67,8 @@ embeddings = [
     "chromadb>=0.4.0",
     "sentence-transformers>=2.2.0",
 ]
-modal = [
-    # Mario's Modal code execution + LlamaIndex RAG
-    "modal>=0.63.0",
+rag = [
+    # LlamaIndex RAG support
     "llama-index>=0.11.0",
     "llama-index-llms-openai",
     "llama-index-embeddings-openai",

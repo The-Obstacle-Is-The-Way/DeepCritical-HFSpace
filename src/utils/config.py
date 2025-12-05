@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     )
 
     # Embedding Configuration
-    # Note: OpenAI embeddings require OPENAI_API_KEY (Anthropic has no embeddings API)
+    # Note: OpenAI embeddings require OPENAI_API_KEY
     openai_embedding_model: str = Field(
         default="text-embedding-3-small",
         description="OpenAI embedding model (used by LlamaIndex RAG)",
@@ -77,14 +77,7 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
     # External Services
-    modal_token_id: str | None = Field(default=None, description="Modal token ID")
-    modal_token_secret: str | None = Field(default=None, description="Modal token secret")
     chroma_db_path: str = Field(default="./chroma_db", description="ChromaDB storage path")
-
-    @property
-    def modal_available(self) -> bool:
-        """Check if Modal credentials are configured."""
-        return bool(self.modal_token_id and self.modal_token_secret)
 
     def get_api_key(self) -> str:
         """Get the API key for the configured provider."""

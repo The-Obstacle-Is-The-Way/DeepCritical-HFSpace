@@ -49,12 +49,6 @@ class QuotaExceededError(LLMError):
     pass
 
 
-class ModalError(DeepBonerError):
-    """Raised when Modal sandbox operations fail."""
-
-    pass
-
-
 class SynthesisError(DeepBonerError):
     """Raised when report synthesis fails after trying all available models.
 

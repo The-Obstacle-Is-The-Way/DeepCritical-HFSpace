@@ -1,6 +1,6 @@
 """LlamaIndex RAG service for evidence retrieval and indexing.
 
-Requires optional dependencies: uv sync --extra modal
+Requires optional dependencies: uv sync --extra rag
 
 Migration Note (v1.0 rebrand):
     Default collection_name changed from "deepcritical_evidence" to "deepboner_evidence".
@@ -64,7 +64,7 @@ class LlamaIndexRAGService:
             from llama_index.vector_stores.chroma import ChromaVectorStore
         except ImportError as e:
             raise ImportError(
-                "LlamaIndex dependencies not installed. Run: uv sync --extra modal"
+                "LlamaIndex dependencies not installed. Run: uv sync --extra rag"
             ) from e
 
         # Store references for use in other methods

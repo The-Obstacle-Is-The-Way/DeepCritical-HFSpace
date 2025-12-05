@@ -16,7 +16,6 @@ The project follows a **Vertical Slice Architecture** (Search -> Judge -> Orches
 - **Package Manager:** `uv` (Rust-based, extremely fast)
 - **Frameworks:** `pydantic`, `pydantic-ai`, `httpx`, `gradio[mcp]`
 - **Vector DB:** `chromadb` with `sentence-transformers` for semantic search
-- **Code Execution:** `modal` for secure sandboxed Python execution
 - **Testing:** `pytest`, `pytest-asyncio`, `respx` (for mocking)
 - **Quality:** `ruff` (linting/formatting), `mypy` (strict type checking), `pre-commit`
 
@@ -60,13 +59,11 @@ The project follows a **Vertical Slice Architecture** (Search -> Judge -> Orches
 - `src/tools/pubmed.py` - PubMed E-utilities search
 - `src/tools/clinicaltrials.py` - ClinicalTrials.gov API
 - `src/tools/europepmc.py` - Europe PMC search
-- `src/tools/code_execution.py` - Modal sandbox execution
 - `src/tools/search_handler.py` - Scatter-gather orchestration
 - `src/services/embeddings.py` - Local embeddings (sentence-transformers, in-memory)
 - `src/services/llamaindex_rag.py` - Premium embeddings (OpenAI, persistent ChromaDB)
 - `src/services/embedding_protocol.py` - Protocol interface for embedding services
 - `src/services/research_memory.py` - Shared memory layer for research state
-- `src/services/statistical_analyzer.py` - Statistical analysis via Modal
 - `src/utils/service_loader.py` - Tiered service selection (free vs premium)
 - `src/mcp_tools.py` - MCP tool wrappers
 - `src/app.py` - Gradio UI (HuggingFace Spaces) with MCP server
@@ -78,7 +75,6 @@ Settings via pydantic-settings from `.env`:
 - `LLM_PROVIDER`: "openai" or "huggingface"
 - `OPENAI_API_KEY`: LLM keys
 - `NCBI_API_KEY`: Optional, for higher PubMed rate limits
-- `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`: For Modal sandbox (optional)
 - `MAX_ITERATIONS`: 1-50, default 10
 - `LOG_LEVEL`: DEBUG, INFO, WARNING, ERROR
 

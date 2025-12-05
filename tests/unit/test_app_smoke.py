@@ -35,7 +35,6 @@ class TestAppSmoke:
         Ensures the MCP server can expose these tools.
         """
         from src.mcp_tools import (
-            analyze_hypothesis,
             search_all_sources,
             search_clinical_trials,
             search_europepmc,
@@ -47,4 +46,3 @@ class TestAppSmoke:
         assert callable(search_clinical_trials)
         assert callable(search_europepmc)
         assert callable(search_all_sources)
-        assert callable(analyze_hypothesis)

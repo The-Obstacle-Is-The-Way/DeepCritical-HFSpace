@@ -60,13 +60,11 @@ Research Report with Citations
 - `src/tools/pubmed.py` - PubMed E-utilities search
 - `src/tools/clinicaltrials.py` - ClinicalTrials.gov API
 - `src/tools/europepmc.py` - Europe PMC search
-- `src/tools/code_execution.py` - Modal sandbox execution
 - `src/tools/search_handler.py` - Scatter-gather orchestration
 - `src/services/embeddings.py` - Local embeddings (sentence-transformers, in-memory)
 - `src/services/llamaindex_rag.py` - Premium embeddings (OpenAI, persistent ChromaDB)
 - `src/services/embedding_protocol.py` - Protocol interface for embedding services
 - `src/services/research_memory.py` - Shared memory layer for research state
-- `src/services/statistical_analyzer.py` - Statistical analysis via Modal
 - `src/utils/service_loader.py` - Tiered service selection (free vs premium)
 - `src/agent_factory/judges.py` - LLM-based evidence assessment
 - `src/agents/` - Magentic multi-agent mode (SearchAgent, JudgeAgent, etc.)
@@ -85,7 +83,6 @@ Settings via pydantic-settings from `.env`:
 - `LLM_PROVIDER`: "openai" or "huggingface"
 - `OPENAI_API_KEY`: LLM keys
 - `NCBI_API_KEY`: Optional, for higher PubMed rate limits
-- `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`: For Modal sandbox (optional)
 - `MAX_ITERATIONS`: 1-50, default 10
 - `LOG_LEVEL`: DEBUG, INFO, WARNING, ERROR
 
