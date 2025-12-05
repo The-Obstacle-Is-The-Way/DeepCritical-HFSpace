@@ -7,11 +7,7 @@ from src.utils.config import settings
 
 
 class TestGetModelAutoDetect:
-    """Test that get_model() auto-detects available providers.
-
-    NOTE: Anthropic is NOT supported (no embeddings API).
-    See P3_REMOVE_ANTHROPIC_PARTIAL_WIRING.md.
-    """
+    """Test that get_model() auto-detects available providers."""
 
     def test_returns_openai_when_key_present(self, monkeypatch):
         """OpenAI key present → OpenAI model."""
@@ -30,16 +26,6 @@ class TestGetModelAutoDetect:
         model = get_model(api_key="sk-byok-test-key")
         assert isinstance(model, OpenAIChatModel)
 
-    def test_byok_anthropic_key_raises_not_implemented(self, monkeypatch):
-        """BYOK: api_key='sk-ant-...' → NotImplementedError (Anthropic not supported)."""
-        monkeypatch.setattr(settings, "openai_api_key", None)
-        monkeypatch.setattr(settings, "hf_token", None)
-
-        with pytest.raises(NotImplementedError) as exc_info:
-            get_model(api_key="sk-ant-test-key")
-
-        assert "Anthropic is not supported" in str(exc_info.value)
-
     def test_returns_huggingface_when_hf_token_present(self, monkeypatch):
         """HF_TOKEN present (no paid keys) → HuggingFace model."""
         monkeypatch.setattr(settings, "openai_api_key", None)
@@ -57,7 +43,6 @@ class TestGetModelAutoDetect:
         monkeypatch.delenv("HF_TOKEN", raising=False)
 
         # Should raise clear error when no tokens available
-        import pytest
 
         with pytest.raises(RuntimeError) as exc_info:
             get_model()

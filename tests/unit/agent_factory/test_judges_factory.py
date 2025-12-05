@@ -1,8 +1,4 @@
-"""Unit tests for Judge Factory and Model Selection.
-
-NOTE: Anthropic is NOT supported (no embeddings API).
-See P3_REMOVE_ANTHROPIC_PARTIAL_WIRING.md.
-"""
+"""Unit tests for Judge Factory and Model Selection."""
 
 from unittest.mock import patch
 
@@ -40,16 +36,6 @@ def test_get_model_byok_openai(mock_settings):
     # BYOK takes priority over env vars
     model = get_model(api_key="sk-byok-test")
     assert isinstance(model, OpenAIChatModel)
-
-
-def test_get_model_byok_anthropic_raises(mock_settings):
-    """Test that BYOK Anthropic key raises NotImplementedError."""
-    mock_settings.has_openai_key = False
-
-    with pytest.raises(NotImplementedError) as exc_info:
-        get_model(api_key="sk-ant-test")
-
-    assert "Anthropic is not supported" in str(exc_info.value)
 
 
 def test_get_model_huggingface(mock_settings):

@@ -75,8 +75,8 @@ The project follows a **Vertical Slice Architecture** (Search -> Judge -> Orches
 
 Settings via pydantic-settings from `.env`:
 
-- `LLM_PROVIDER`: "openai" or "anthropic"
-- `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`: LLM keys
+- `LLM_PROVIDER`: "openai" or "huggingface"
+- `OPENAI_API_KEY`: LLM keys
 - `NCBI_API_KEY`: Optional, for higher PubMed rate limits
 - `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`: For Modal sandbox (optional)
 - `MAX_ITERATIONS`: 1-50, default 10
@@ -88,8 +88,6 @@ Default models in `src/utils/config.py`:
 
 - **OpenAI:** `gpt-5` - Flagship model
 - **HuggingFace (Free Tier):** `Qwen/Qwen2.5-7B-Instruct` - See critical note below
-
-**NOTE:** Anthropic is NOT supported (no embeddings API). See `P3_REMOVE_ANTHROPIC_PARTIAL_WIRING.md`.
 
 ---
 

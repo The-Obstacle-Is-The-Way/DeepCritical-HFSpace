@@ -14,7 +14,6 @@ async def test_advanced_initialization_events():
         patch("src.orchestrators.advanced.AdvancedOrchestrator._init_embedding_service"),
         patch("src.orchestrators.advanced.init_magentic_state"),
         patch("src.orchestrators.advanced.AdvancedOrchestrator._build_workflow") as mock_build,
-        patch("src.utils.llm_factory.check_magentic_requirements"),
     ):  # Bypass check
         # Setup mocks
         mock_workflow = MagicMock()

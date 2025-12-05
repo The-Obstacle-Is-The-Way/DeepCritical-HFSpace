@@ -1118,8 +1118,8 @@ name = "deepboner"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "anthropic" },
     { name = "beautifulsoup4" },
+    { name = "chromadb" },
     { name = "duckduckgo-search" },
     { name = "gradio", extra = ["mcp"] },
     { name = "httpx" },
@@ -1137,6 +1137,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "requests" },
+    { name = "sentence-transformers" },
     { name = "structlog" },
     { name = "tenacity" },
     { name = "urllib3" },
@@ -1177,9 +1178,9 @@ modal = [
 [package.metadata]
 requires-dist = [
     { name = "agent-framework-core", marker = "extra == 'magentic'", specifier = ">=1.0.0b251120,<2.0.0" },
-    { name = "anthropic", specifier = ">=0.18.0" },
     { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.7.0" },
     { name = "beautifulsoup4", specifier = ">=4.12" },
+    { name = "chromadb", specifier = ">=0.4.22" },
     { name = "chromadb", marker = "extra == 'embeddings'", specifier = ">=0.4.0" },
     { name = "chromadb", marker = "extra == 'modal'", specifier = ">=0.4.0" },
     { name = "duckduckgo-search", specifier = ">=5.0" },
@@ -1214,6 +1215,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.5" },
     { name = "respx", marker = "extra == 'dev'", specifier = ">=0.21" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
+    { name = "sentence-transformers", specifier = ">=2.2.2" },
     { name = "sentence-transformers", marker = "extra == 'embeddings'", specifier = ">=2.2.0" },
     { name = "structlog", specifier = ">=24.1" },
     { name = "tenacity", specifier = ">=8.2" },

@@ -91,12 +91,6 @@ class LlamaIndexRAGService:
             raise ConfigurationError("OPENAI_API_KEY required for LlamaIndex RAG service")
 
         # Defense-in-depth: Validate key prefix to prevent cryptic auth errors
-        # Note: Anthropic keys start with sk-ant-, which would pass startswith("sk-")
-        if self.api_key.startswith("sk-ant-"):
-            raise ConfigurationError(
-                "Anthropic keys (sk-ant-...) are not supported for embeddings. "
-                "LlamaIndex RAG requires an OpenAI API key (sk-...)."
-            )
         if not self.api_key.startswith("sk-"):
             raise ConfigurationError(
                 f"Invalid API key format. Expected OpenAI key starting with 'sk-', "

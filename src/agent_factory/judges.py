@@ -63,24 +63,11 @@ def get_model(api_key: str | None = None) -> Any:
 
     Args:
         api_key: Optional BYOK key. Auto-detects provider from prefix:
-                 - "sk-ant-..." → Anthropic (NOT SUPPORTED - raises error)
                  - "sk-..." → OpenAI
                  - Other → Falls through to env vars
-
-    Raises:
-        NotImplementedError: If Anthropic key detected (no embeddings support).
-
-    Note: Anthropic is NOT supported because it lacks embeddings API.
-    See P3_REMOVE_ANTHROPIC_PARTIAL_WIRING.md.
     """
     # Priority 1: BYOK - Auto-detect provider from key prefix
     if api_key:
-        if api_key.startswith("sk-ant-"):
-            # Anthropic not supported - no embeddings API
-            raise NotImplementedError(
-                "Anthropic is not supported (no embeddings API). "
-                "Use OpenAI key (sk-...) or leave empty for free HuggingFace tier."
-            )
         if api_key.startswith("sk-"):
             # OpenAI BYOK
             openai_provider = OpenAIProvider(api_key=api_key)

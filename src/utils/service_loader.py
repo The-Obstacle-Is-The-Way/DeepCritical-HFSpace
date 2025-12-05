@@ -66,13 +66,9 @@ def get_embedding_service(api_key: str | None = None) -> "EmbeddingServiceProtoc
         ImportError: If no embedding service dependencies are available
     """
     # Determine if we have a valid OpenAI key (BYOK or Env)
-    # Note: Must check sk-ant- BEFORE sk- since Anthropic keys start with sk-ant-
     has_openai = False
     if api_key:
-        if api_key.startswith("sk-ant-"):
-            # Anthropic key - not supported for embeddings
-            logger.warning("Anthropic keys don't support embeddings, falling back to free tier")
-        elif api_key.startswith("sk-"):
+        if api_key.startswith("sk-"):
             # OpenAI BYOK
             has_openai = True
     elif settings.has_openai_key:

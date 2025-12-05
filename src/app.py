@@ -161,7 +161,7 @@ async def research_agent(
     if not has_paid_key:
         yield (
             "🤗 **Free Tier**: Using HuggingFace Inference (Llama 3.1 / Mistral) for AI analysis.\n"
-            "For premium models, enter an OpenAI or Anthropic API key below.\n\n"
+            "For premium models, enter an OpenAI API key below.\n\n"
         )
 
     # Run the agent and stream events
