@@ -42,8 +42,8 @@ langchain-core>=0.3.21,<1.0
 langchain-huggingface>=0.1.2,<1.0
 langgraph-checkpoint-sqlite>=3.0.0,<4.0
 
-# Security: Pin urllib3 to fix GHSA-48p4-8xcf-vxj5 and GHSA-pq67-6m6q-mj2v
-urllib3>=2.5.0
+# Security: Pin urllib3 to fix GHSA-gm62-xv2j-4w53 and GHSA-2xpw-w6gg-jr37
+urllib3>=2.6.0
 
 # Multi-agent orchestration (Advanced mode) - from [magentic] optional
 agent-framework-core==1.0.0b251204
