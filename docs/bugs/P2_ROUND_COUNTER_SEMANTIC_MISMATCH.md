@@ -1,9 +1,11 @@
 # P2 Bug: Round Counter Semantic Mismatch
 
-**Status**: ACTIVE
+**Status**: ✅ FIXED
 **Discovered**: 2025-12-05
+**Fixed**: 2025-12-05
 **Severity**: P2 (Display bug, confusing UX but not blocking)
 **Component**: `src/orchestrators/advanced.py`
+**Commit**: `40ca236c refactor(orchestrator): implement semantic progress tracking`
 
 ---
 
@@ -258,6 +260,55 @@ The time estimate becomes useless after the first few agent completions.
 5. **Fix Constants**: Use `self._EST_SECONDS_PER_ROUND` consistently
 
 ### Review Status: ✅ PASSED - Ready for Implementation
+
+---
+
+## Resolution (2025-12-05)
+
+**Implemented**: Domain-driven semantic progress tracking
+
+### What Was Done
+
+1. **Deleted Dead Code**:
+   - Removed unused `_get_progress_message` method
+   - Removed unused `_EST_SECONDS_PER_ROUND` constant
+
+2. **Added Semantic Agent Mapping** (`_get_agent_semantic_name`):
+   ```python
+   def _get_agent_semantic_name(self, agent_id: str) -> str:
+       """Map internal agent ID to user-facing semantic name."""
+       name = agent_id.lower()
+       if SEARCHER_AGENT_ID in name:
+           return "SearchAgent"
+       if JUDGE_AGENT_ID in name:
+           return "JudgeAgent"
+       if HYPOTHESIZER_AGENT_ID in name:
+           return "HypothesisAgent"
+       if REPORTER_AGENT_ID in name:
+           return "ReportAgent"
+       return "ManagerAgent"
+   ```
+
+3. **Changed Progress Display**:
+   - Before: `"Round {iteration}/{self._max_rounds} (~{est_display} remaining)"`
+   - After: `"Step {iteration}: {semantic_name} task completed"`
+
+4. **Changed Initial Thinking Message**:
+   - Before: `"Multi-agent reasoning in progress (5 rounds max)... Estimated time: 3-5 minutes."`
+   - After: `"Multi-agent reasoning in progress (Limit: 5 Manager rounds)... Allocating time for deep research..."`
+
+5. **Updated Tests**: Changed test mocks to use domain-specific agent IDs (`searcher`, `judge`) instead of arbitrary strings.
+
+### Result
+
+- Before: `⏱️ **PROGRESS**: Round 11/5 (~0s remaining)` (confusing, broken math)
+- After: `⏱️ **PROGRESS**: Step 11: ReportAgent task completed` (accurate, professional)
+
+### Design Decision
+
+Rather than patching the counter display or trying to track "actual workflow rounds" (which requires deep framework integration), we chose **honest reporting**: Show exactly what happened (which agent completed) without making false promises about progress percentages or time estimates.
+
+This follows the Clean Code principle: "Don't lie to the user."
 
 ---
 
